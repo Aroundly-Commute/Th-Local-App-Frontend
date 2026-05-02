@@ -31,7 +31,7 @@ db = client[os.environ['DB_NAME']]
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 
-app = FastAPI(title="EcoRide API")
+app = FastAPI(title="GoPool API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
@@ -487,7 +487,7 @@ async def chat_ws(websocket: WebSocket, chat_id: str):
 # ========== Health ==========
 @api_router.get("/")
 async def root():
-    return {"service": "EcoRide API", "status": "ok"}
+    return {"service": "GoPool API", "status": "ok"}
 
 
 # ========== Seeding ==========
