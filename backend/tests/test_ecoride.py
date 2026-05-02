@@ -119,7 +119,9 @@ class TestRides:
 
     def test_book_ride_persists_and_decrements_seats(self, passenger_token):
         rides = requests.get(f"{API}/rides").json()
-        ride = rides[0]
+        # Pick a ride with seats available
+        ride = next((r for r in rides if r["seats_available"] > 0), None)
+        assert ride is not None, "No rides with seats available for booking test"
         before_seats = ride["seats_available"]
         rid = ride["id"]
 
@@ -132,6 +134,47 @@ class TestRides:
         # GET again to confirm seats decremented
         after = requests.get(f"{API}/rides/{rid}").json()
         assert after["seats_available"] == before_seats - 1
+
+
+# ---------- My Rides ----------
+class TestMyRides:
+    def test_my_rides_unauth(self):
+        r = requests.get(f"{API}/rides/my")
+        assert r.status_code == 401
+
+    def test_my_rides_driver_shape(self, driver_token):
+        r = requests.get(f"{API}/rides/my", headers=_h(driver_token))
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert isinstance(body, dict)
+        assert "upcoming" in body and "past" in body
+        assert isinstance(body["upcoming"], list)
+        assert isinstance(body["past"], list)
+        # driver should have at least one upcoming seeded ride
+        assert len(body["upcoming"]) >= 1
+        item = body["upcoming"][0]
+        for k in ["id", "origin", "destination", "departure_time", "role", "status"]:
+            assert k in item, f"missing {k}"
+        assert item["role"] == "driver"
+
+    def test_my_rides_passenger_after_booking(self, passenger_token):
+        # ensure a booking exists (idempotent upsert)
+        rides = requests.get(f"{API}/rides").json()
+        rid = rides[0]["id"]
+        requests.post(f"{API}/rides/{rid}/book", json={"seats": 1}, headers=_h(passenger_token))
+        r = requests.get(f"{API}/rides/my", headers=_h(passenger_token))
+        assert r.status_code == 200
+        body = r.json()
+        all_items = body["upcoming"] + body["past"]
+        assert any(i.get("role") == "passenger" for i in all_items)
+
+    def test_my_rides_route_does_not_404_collide(self, driver_token):
+        # Ensures /rides/my is matched before /rides/{ride_id}
+        r = requests.get(f"{API}/rides/my", headers=_h(driver_token))
+        assert r.status_code == 200
+        # vs unknown id which should be 404
+        r2 = requests.get(f"{API}/rides/definitely-not-an-id")
+        assert r2.status_code == 404
 
 
 # ---------- Sustainability ----------

@@ -302,6 +302,40 @@ async def list_rides(q: Optional[str] = None):
     return [await _ride_to_out(r) for r in rides]
 
 
+@api_router.get("/rides/my")
+async def my_rides(user=Depends(get_current_user)):
+    """Returns upcoming + past rides for the current user (as driver or passenger)."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    driver_rides = await db.rides.find({"driver_id": user["id"]}, {"_id": 0}).to_list(200)
+    bookings = await db.bookings.find({"passenger_id": user["id"]}, {"_id": 0}).to_list(200)
+    passenger_rides = []
+    for b in bookings:
+        r = await db.rides.find_one({"id": b["ride_id"]}, {"_id": 0})
+        if r:
+            r["_booking"] = b
+            passenger_rides.append(r)
+
+    upcoming, past = [], []
+    for r in driver_rides + passenger_rides:
+        out = await _ride_to_out(r)
+        role = "driver" if r.get("driver_id") == user["id"] else "passenger"
+        status = r.get("status", "open")
+        chat_id = None
+        if role == "driver":
+            b = await db.bookings.find_one({"ride_id": r["id"]}, {"_id": 0})
+            chat_id = b.get("chat_id") if b else None
+        else:
+            chat_id = r.get("_booking", {}).get("chat_id")
+        item = {**out.dict(), "role": role, "status": status, "chat_id": chat_id}
+        if r["departure_time"] >= now_iso and status != "cancelled":
+            upcoming.append(item)
+        else:
+            past.append(item)
+    upcoming.sort(key=lambda x: x["departure_time"])
+    past.sort(key=lambda x: x["departure_time"], reverse=True)
+    return {"upcoming": upcoming, "past": past}
+
+
 @api_router.get("/rides/{ride_id}", response_model=RideOut)
 async def get_ride(ride_id: str):
     ride = await db.rides.find_one({"id": ride_id}, {"_id": 0})
