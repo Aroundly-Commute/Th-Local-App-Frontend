@@ -45,6 +45,7 @@ ios/
 *.p12
 *.key
 *.mobileprovision
+.metro-cache/
 
 # Testing
 /coverage
