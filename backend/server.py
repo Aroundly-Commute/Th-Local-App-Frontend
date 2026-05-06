@@ -32,6 +32,28 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 
 app = FastAPI(title="GoPool API")
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url}")
+    try:
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Request failed: {e}")
+        raise
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    logger.error(f"Global exception: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": traceback.format_exc()},
+    )
+
+from fastapi.responses import JSONResponse
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
@@ -653,8 +675,8 @@ async def seed():
 app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=["*"],
+    allow_credentials=False,  # Set to False to allow allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -663,6 +685,10 @@ app.add_middleware(
 @app.on_event("startup")
 async def on_start():
     await seed()
+    print("\n" + "="*50)
+    print("GoPool Backend is READY!")
+    print(f"API URL: http://0.0.0.0:8000/api")
+    print("="*50 + "\n")
 
 
 @app.on_event("shutdown")
