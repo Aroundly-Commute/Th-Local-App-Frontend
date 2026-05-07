@@ -11,6 +11,8 @@ import jwt
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict
+import requests
+import urllib.parse
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -313,7 +315,14 @@ async def _ride_to_out(ride: dict) -> RideOut:
 
 
 @api_router.get("/rides", response_model=List[RideOut])
-async def list_rides(q: Optional[str] = None):
+async def list_rides(
+    q: Optional[str] = None,
+    origin_lat: Optional[float] = None,
+    origin_lng: Optional[float] = None,
+    dest_lat: Optional[float] = None,
+    dest_lng: Optional[float] = None,
+    radius_km: float = 10.0
+):
     query = {"status": "open"}
     if q:
         query["$or"] = [
@@ -321,7 +330,38 @@ async def list_rides(q: Optional[str] = None):
             {"destination": {"$regex": q, "$options": "i"}},
         ]
     rides = await db.rides.find(query, {"_id": 0}).sort("departure_time", 1).to_list(100)
-    return [await _ride_to_out(r) for r in rides]
+    
+    # Matchmaking: Filter by distance if coordinates are provided
+    matched = []
+    for r in rides:
+        if origin_lat is not None and origin_lng is not None:
+            dist_origin = haversine_km(origin_lat, origin_lng, r["origin_lat"], r["origin_lng"])
+            if dist_origin > radius_km:
+                continue
+        if dest_lat is not None and dest_lng is not None:
+            dist_dest = haversine_km(dest_lat, dest_lng, r["dest_lat"], r["dest_lng"])
+            if dist_dest > radius_km:
+                continue
+        matched.append(r)
+        
+    return [await _ride_to_out(r) for r in matched]
+
+# ========== Locations ==========
+@api_router.get("/locations/suggest")
+async def suggest_locations(q: str):
+    token = os.environ.get("MAPBOX_TOKEN", "")
+    if not token or len(q) < 3:
+        return []
+    url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{urllib.parse.quote(q)}.json?access_token={token}&limit=5&types=place,address,poi"
+    try:
+        # For simplicity in this demo, using synchronous requests. In prod, use httpx or aiohttp.
+        resp = requests.get(url, timeout=5)
+        data = resp.json()
+        features = data.get("features", [])
+        return [{"id": f["id"], "place_name": f["place_name"], "center": f["center"]} for f in features]
+    except Exception as e:
+        logger.error(f"Mapbox error: {e}")
+        return []
 
 
 @api_router.get("/rides/my")
@@ -408,11 +448,52 @@ async def book_ride(ride_id: str, body: BookRequest, user=Depends(get_current_us
 async def my_sustainability(user=Depends(get_current_user)):
     fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0})
     rides_count = fresh.get("rides_count", 0)
+    
+    # Calculate monthly impact
+    now = datetime.now(timezone.utc)
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    
+    # Bookings as passenger this month
+    bookings = await db.bookings.find({
+        "passenger_id": user["id"],
+        "created_at": {"$gte": start_of_month}
+    }).to_list(None)
+    
+    # Rides as driver this month (with confirmed bookings)
+    driver_rides = await db.rides.find({
+        "driver_id": user["id"],
+        "created_at": {"$gte": start_of_month}
+    }).to_list(None)
+    
+    monthly_co2 = 0.0
+    monthly_money = 0.0
+    monthly_rides = 0
+    
+    for b in bookings:
+        ride = await db.rides.find_one({"id": b["ride_id"]})
+        if ride:
+            monthly_co2 += ride.get("co2_saved_kg", 0) * b.get("seats", 1)
+            monthly_money += ride.get("price_per_seat", 0) * b.get("seats", 1) * 0.5
+            monthly_rides += 1
+            
+    for r in driver_rides:
+        # For each driver ride, find bookings
+        r_bookings = await db.bookings.find({"ride_id": r["id"]}).to_list(None)
+        for b in r_bookings:
+            monthly_co2 += r.get("co2_saved_kg", 0) * b.get("seats", 1)
+            monthly_money += r.get("price_per_seat", 0) * b.get("seats", 1) * 0.5
+            monthly_rides += 1
+            
     return {
         "money_saved": round(fresh.get("money_saved", 0.0), 2),
         "co2_saved_kg": round(fresh.get("co2_saved_kg", 0.0), 2),
         "rides_count": rides_count,
         "trees_equivalent": round(fresh.get("co2_saved_kg", 0.0) / 21.0, 2),  # ~21kg CO2 per tree/year
+        "this_month": {
+            "money_saved": round(monthly_money, 2),
+            "co2_saved_kg": round(monthly_co2, 2),
+            "rides_count": monthly_rides,
+        }
     }
 
 

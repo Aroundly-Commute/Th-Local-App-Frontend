@@ -6,7 +6,7 @@ import {
 import { MapPin, X, Search } from 'lucide-react-native';
 import { Theme, radius, spacing } from './theme';
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+import { api } from './api';
 
 interface Prediction {
   id: string;
@@ -37,25 +37,17 @@ export const LocationSearch: React.FC<Props> = ({
   }, [value]);
 
   const search = async (text: string) => {
-    if (!text || text.length < 3 || !MAPBOX_TOKEN) {
+    if (!text || text.length < 3) {
       setPredictions([]);
       return;
     }
 
     setLoading(true);
     try {
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(text)}.json?access_token=${MAPBOX_TOKEN}&limit=5&types=place,address,poi`;
-      const resp = await fetch(url);
-      const data = await resp.json();
-      if (data.features) {
-        setPredictions(data.features.map((f: any) => ({
-          id: f.id,
-          place_name: f.place_name,
-          center: f.center,
-        })));
-      }
+      const resp = await api.get(`/locations/suggest?q=${encodeURIComponent(text)}`);
+      setPredictions(resp.data);
     } catch (e) {
-      console.error('Mapbox search error:', e);
+      console.error('Location search error:', e);
     } finally {
       setLoading(false);
     }

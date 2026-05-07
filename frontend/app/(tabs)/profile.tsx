@@ -1,8 +1,7 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme,
-  SafeAreaView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,

@@ -1,8 +1,7 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
-  Platform, ScrollView, useColorScheme, ActivityIndicator, SafeAreaView,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import { Mail, Lock, Car } from 'lucide-react-native';
 import { useAuth } from '../../src/auth';

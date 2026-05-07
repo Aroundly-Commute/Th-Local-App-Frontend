@@ -4,14 +4,16 @@ import { Image } from 'expo-image';
 import { BadgeCheck, Star, Users, Leaf, Clock } from 'lucide-react-native';
 import { Theme, radius, spacing } from './theme';
 
-export const VerifiedAvatar: React.FC<{ uri?: string; size?: number; name: string; verified?: boolean; t: Theme }>
-  = ({ uri, size = 48, name, verified, t }) => (
+export const VerifiedAvatar: React.FC<{ uri?: string; size?: number; name?: string; verified?: boolean; t: Theme }>
+  = ({ uri, size = 48, name = '?', verified, t }) => (
   <View style={{ width: size, height: size }}>
     {uri ? (
       <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />
     ) : (
       <View style={[s.placeholder, { width: size, height: size, borderRadius: size / 2, backgroundColor: t.muted }]}>
-        <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: size * 0.38 }}>{name.charAt(0).toUpperCase()}</Text>
+        <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: size * 0.38 }}>
+          {(name || '?').charAt(0).toUpperCase()}
+        </Text>
       </View>
     )}
     {verified ? (
@@ -41,24 +43,43 @@ export const Chip: React.FC<{ label: string; t: Theme; variant?: 'default' | 'su
 
 export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; testID?: string; compact?: boolean }>
   = ({ ride, t, onPress, testID, compact }) => {
-  const time = new Date(ride.departure_time);
-  const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Map fields from both Python and NestJS backends
+  const driverName = ride.driver_name || ride.driverName || 'Unknown';
+  const driverAvatar = ride.driver_avatar || ride.driverAvatar;
+  const driverVerified = ride.driver_verified || ride.driverVerified;
+  const driverRating = ride.driver_rating ?? ride.driverRating ?? 5.0;
+  
+  const origin = ride.origin || ride.startPlaceName || 'Unknown';
+  const destination = ride.destination || ride.endPlaceName || 'Unknown';
+  const departureTime = ride.departure_time || ride.startTime;
+  
+  const seatsAvailable = ride.seats_available ?? ride.seatsAvailable ?? 0;
+  
+  // Price handling: chargeCents (NestJS) vs price_per_seat (Python)
+  const price = ride.price_per_seat ?? (ride.chargeCents ? ride.chargeCents / 100 : 0);
+  const co2 = ride.co2_saved_kg ?? 0;
+
+  const time = new Date(departureTime);
+  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  const vehicle = ride.driver_vehicle || ride.vehicle;
+
   return (
     <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.7}
       style={[s.card, { backgroundColor: t.surface, borderColor: t.border }]}>
       <View style={s.row}>
-        <VerifiedAvatar uri={ride.driver_avatar} name={ride.driver_name} verified={ride.driver_verified} t={t} size={44} />
+        <VerifiedAvatar uri={driverAvatar} name={driverName} verified={driverVerified} t={t} size={44} />
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[s.driver, { color: t.textPrimary }]} numberOfLines={1}>{ride.driver_name}</Text>
+          <Text style={[s.driver, { color: t.textPrimary }]} numberOfLines={1}>{driverName}</Text>
           <View style={[s.row, { gap: 6, marginTop: 2 }]}>
             <Star color={t.warning} size={11} fill={t.warning} />
-            <Text style={[s.meta, { color: t.textSecondary }]}>{ride.driver_rating?.toFixed(1)}</Text>
+            <Text style={[s.meta, { color: t.textSecondary }]}>{driverRating.toFixed(1)}</Text>
             <Text style={[s.meta, { color: t.textTertiary }]}>·</Text>
-            <Text style={[s.meta, { color: t.textSecondary }]}>{ride.seats_available} seats</Text>
+            <Text style={[s.meta, { color: t.textSecondary }]}>{seatsAvailable} seats</Text>
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[s.price, { color: t.textPrimary }]}>${ride.price_per_seat?.toFixed(2)}</Text>
+          <Text style={[s.price, { color: t.textPrimary }]}>${price.toFixed(2)}</Text>
           <Text style={[s.meta, { color: t.textSecondary }]}>per seat</Text>
         </View>
       </View>
@@ -66,7 +87,7 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
       <View style={[s.route, { borderTopColor: t.border }]}>
         <View style={s.locRow}>
           <View style={[s.dot, { backgroundColor: t.textPrimary }]} />
-          <Text style={[s.loc, { color: t.textPrimary }]} numberOfLines={1}>{ride.origin}</Text>
+          <Text style={[s.loc, { color: t.textPrimary }]} numberOfLines={1}>{origin}</Text>
           <View style={[s.timePill, { backgroundColor: t.muted }]}>
             <Clock color={t.textSecondary} size={10} />
             <Text style={[s.timeText, { color: t.textSecondary }]}>{timeStr}</Text>
@@ -75,7 +96,7 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
         <View style={[s.vLine, { backgroundColor: t.border }]} />
         <View style={s.locRow}>
           <View style={[s.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />
-          <Text style={[s.loc, { color: t.textPrimary }]} numberOfLines={1}>{ride.destination}</Text>
+          <Text style={[s.loc, { color: t.textPrimary }]} numberOfLines={1}>{destination}</Text>
         </View>
       </View>
 
@@ -83,10 +104,10 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
         <View style={[s.row, { justifyContent: 'space-between' }]}>
           <View style={[s.row, { gap: 6 }]}>
             <Leaf color={t.success} size={12} />
-            <Text style={[s.ecoText, { color: t.success }]}>{ride.co2_saved_kg?.toFixed(1)} kg CO₂</Text>
+            <Text style={[s.ecoText, { color: t.success }]}>{co2.toFixed(1)} kg CO₂</Text>
           </View>
-          {ride.driver_vehicle?.model && (
-            <Text style={[s.meta, { color: t.textTertiary }]}>{ride.driver_vehicle.make} {ride.driver_vehicle.model}</Text>
+          {vehicle?.model && (
+            <Text style={[s.meta, { color: t.textTertiary }]}>{vehicle.make} {vehicle.model}</Text>
           )}
         </View>
       )}

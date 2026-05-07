@@ -1,8 +1,7 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useCallback, useState } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme,
-  SafeAreaView, RefreshControl,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl } from 'react-native';
+
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Clock, MessageCircle, Phone, Star, CheckCircle2, XCircle, Car } from 'lucide-react-native';
 import { api } from '../../src/api';

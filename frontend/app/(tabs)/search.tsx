@@ -1,18 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
-  useColorScheme, SafeAreaView, KeyboardAvoidingView, Platform,
-} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import {
-  MapPin, Search as SearchIcon, Calendar, Clock, Users, X,
-  ArrowDownUp, SlidersHorizontal, Star,
+  MapPin, Search as SearchIcon, Calendar, Clock, Users,
+  ArrowDownUp, SlidersHorizontal,
 } from 'lucide-react-native';
 import { api } from '../../src/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { RideCard } from '../../src/components';
 import { Shimmer } from '../../src/Shimmer';
-import { tap } from '../../src/haptics';
+import { tap, success, errorH } from '../../src/haptics';
+import { LocationSearch } from '../../src/LocationSearch';
 
 const RECENT = [
   { from: 'San Francisco, CA', to: 'Palo Alto, CA' },
@@ -29,32 +29,48 @@ export default function Search() {
   const [mode, setMode] = useState<'find' | 'offer'>('find');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [fromCoords, setFromCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [toCoords, setToCoords] = useState<{lat: number, lng: number} | null>(null);
   const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const runSearch = useCallback(async (q?: string) => {
+  const submitAction = useCallback(async (q?: string) => {
     setLoading(true); setSearched(true);
     try {
-      const params: any = {};
-      if (q) params.q = q;
-      else if (to) params.q = to;
-      const { data } = await api.get('/rides', { params });
-      setRides(data);
-    } catch {} finally { setLoading(false); }
-  }, [to]);
+      if (mode === 'offer') {
+        await api.post('/rides/offer', {
+          startName: from, endName: to,
+          startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
+          endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
+          seats: 3, price: 10,
+          date: new Date().toISOString().split('T')[0],
+          time: '12:00'
+        });
+        success();
+        Alert.alert('Success', 'Ride offered!');
+        router.push('/(tabs)/rides');
+      } else {
+        const params: any = {};
+        if (q) params.q = q;
+        else if (to) params.q = to;
+        const { data } = await api.get('/rides', { params });
+        setRides(data);
+      }
+    } catch { errorH(); } finally { setLoading(false); }
+  }, [mode, from, to, fromCoords, toCoords, router]);
 
   const quickSearch = (f: string, dest: string) => {
     tap();
     setFrom(f); setTo(dest);
-    runSearch(dest);
+    submitAction(dest);
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12 }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
           {/* Tabs */}
           <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
             <TabBtn testID="tab-find" label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
@@ -62,22 +78,25 @@ export default function Search() {
           </View>
 
           {/* From / To inputs */}
-          <View style={{ gap: 8, marginTop: spacing.md }}>
-            <InputRow
-              testID="search-from"
-              icon={<View style={[styles.dot, { backgroundColor: t.textPrimary }]} />}
-              t={t} value={from} onChangeText={setFrom} placeholder="From" onClear={() => setFrom('')}
-            />
-            <InputRow
-              testID="search-to"
-              icon={<View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />}
-              t={t} value={to} onChangeText={setTo} placeholder="To" onClear={() => setTo('')}
-              onSubmit={() => runSearch()}
-            />
+          <View style={{ gap: 8, marginTop: spacing.md, zIndex: 10 }}>
+            <View style={{ zIndex: 2 }}>
+              <LocationSearch
+                icon={<View style={[styles.dot, { backgroundColor: t.textPrimary }]} />}
+                t={t} value={from} onChangeText={setFrom} placeholder="From"
+                onSelect={(name, lat, lng) => { setFrom(name); setFromCoords({lat, lng}); }}
+              />
+            </View>
+            <View style={{ zIndex: 1 }}>
+              <LocationSearch
+                icon={<View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />}
+                t={t} value={to} onChangeText={setTo} placeholder="To"
+                onSelect={(name, lat, lng) => { setTo(name); setToCoords({lat, lng}); submitAction(name); }}
+              />
+            </View>
           </View>
 
           {/* Filters */}
-          <View style={[styles.filters, { marginTop: spacing.sm }]}>
+          <View style={[styles.filters, { marginTop: spacing.sm, zIndex: 0 }]}>
             <FilterChip t={t} icon={<Calendar color={t.textSecondary} size={14} />} label="Today" />
             <FilterChip t={t} icon={<Clock color={t.textSecondary} size={14} />} label="Any time" />
             <FilterChip t={t} icon={<Users color={t.textSecondary} size={14} />} label="1 seat" />
@@ -85,9 +104,9 @@ export default function Search() {
 
           <TouchableOpacity
             testID="search-submit"
-            onPress={() => { tap(); runSearch(); }}
+            onPress={() => { tap(); submitAction(); }}
             activeOpacity={0.8}
-            style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md }]}
+            style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0 }]}
           >
             <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
               {mode === 'find' ? 'Search Rides' : 'Create Offer'}
@@ -184,27 +203,6 @@ const TabBtn: React.FC<{ label: string; active: boolean; t: Theme; onPress: () =
   </TouchableOpacity>
 );
 
-const InputRow: React.FC<any> = ({ icon, t, value, onChangeText, placeholder, onClear, onSubmit, testID }) => (
-  <View style={[styles.input, { backgroundColor: t.muted }]}>
-    <View style={{ width: 14, alignItems: 'center' }}>{icon}</View>
-    <TextInput
-      testID={testID}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={t.textSecondary}
-      style={[styles.inputField, { color: t.textPrimary }]}
-      onSubmitEditing={onSubmit}
-      returnKeyType="search"
-    />
-    {value ? (
-      <TouchableOpacity onPress={onClear}>
-        <X color={t.textSecondary} size={16} />
-      </TouchableOpacity>
-    ) : null}
-  </View>
-);
-
 const FilterChip: React.FC<{ t: Theme; icon: React.ReactNode; label: string }> = ({ t, icon, label }) => (
   <View style={[styles.filterChip, { borderColor: t.border }]}>
     {icon}
@@ -216,8 +214,6 @@ const styles = StyleSheet.create({
   tabBar: { flexDirection: 'row', padding: 4, borderRadius: radius.md, gap: 2 },
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.sm + 2 },
   tabBtnText: { fontSize: 14 },
-  input: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, height: 48, borderRadius: radius.md },
-  inputField: { flex: 1, fontSize: 15 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   filters: { flexDirection: 'row', gap: 8 },
   filterChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: 9999 },

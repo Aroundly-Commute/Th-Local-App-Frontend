@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  SafeAreaView, RefreshControl,
+  RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   MapPin, Users, Calendar, Leaf, Search as SearchIcon,
@@ -63,21 +64,24 @@ export default function Home() {
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
       >
         {/* Greeting */}
         <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
         <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>
 
         {/* Quick search */}
-        <TouchableOpacity
-          testID="home-search-bar"
-          onPress={() => { tap(); router.push('/(tabs)/search'); }}
-          activeOpacity={0.7}
-          style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
-        >
-          <SearchIcon color={t.textSecondary} size={18} />
-          <Text style={[styles.searchText, { color: t.textSecondary }]}>Search destination…</Text>
-        </TouchableOpacity>
+        <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg }}>
+          <TouchableOpacity
+            testID="home-search-bar"
+            onPress={() => { tap(); router.push('/(tabs)/search'); }}
+            activeOpacity={0.7}
+            style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
+          >
+            <SearchIcon color={t.textSecondary} size={18} />
+            <Text style={[styles.searchText, { color: t.textSecondary }]}>Search destination…</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Quick actions */}
         <View style={styles.actions}>

@@ -1,6 +1,8 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Alert, SafeAreaView, Platform } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, UrlTile } from '../../src/MapWrapper';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Alert, Platform } from 'react-native';
+
+import { RouteMap } from '../../src/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Star, ShieldCheck, Leaf, Car, MessageCircle } from 'lucide-react-native';
 import { api } from '../../src/api';
@@ -47,33 +49,52 @@ export default function RideDetail() {
     </View>
   );
 
-  const time = new Date(ride.departure_time);
-  const isOwn = user?.id === ride.driver_id;
+  // Normalize variables for CarPool backend
+  const dName = ride.driver_name || ride.driverName || 'Unknown';
+  const dAvatar = ride.driver_avatar || ride.driverAvatar;
+  const dVerified = ride.driver_verified || ride.driverVerified;
+  const dRating = ride.driver_rating ?? ride.driverRating ?? 5.0;
+  
+  const origin = ride.origin || ride.startPlaceName || 'Unknown';
+  const destination = ride.destination || ride.endPlaceName || 'Unknown';
+  const departureTime = ride.departure_time || ride.startTime;
+  const price = ride.price_per_seat ?? (ride.chargeCents ? ride.chargeCents / 100 : 0);
+  
+  let origin_lat = ride.origin_lat;
+  let origin_lng = ride.origin_lng;
+  let dest_lat = ride.dest_lat;
+  let dest_lng = ride.dest_lng;
+
+  if (ride.startPointGeoJson) {
+    try {
+      const p = JSON.parse(ride.startPointGeoJson);
+      origin_lng = p.coordinates[0];
+      origin_lat = p.coordinates[1];
+    } catch {}
+  }
+  if (ride.endPointGeoJson) {
+    try {
+      const p = JSON.parse(ride.endPointGeoJson);
+      dest_lng = p.coordinates[0];
+      dest_lat = p.coordinates[1];
+    } catch {}
+  }
+  
+  const co2 = ride.co2_saved_kg ?? 0;
+  const dist = ride.distance_km ?? 0;
+  
+  const vehicle = ride.driver_vehicle || ride.vehicle;
+  const time = new Date(departureTime);
+  const isOwn = user?.id === (ride.driver_id || ride.driverId);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <View style={{ height: '40%' }}>
-        <MapView
-          provider={PROVIDER_DEFAULT}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={{
-            latitude: (ride.origin_lat + ride.dest_lat) / 2,
-            longitude: (ride.origin_lng + ride.dest_lng) / 2,
-            latitudeDelta: Math.abs(ride.origin_lat - ride.dest_lat) * 2 + 0.2,
-            longitudeDelta: Math.abs(ride.origin_lng - ride.dest_lng) * 2 + 0.2,
-          }}
-        >
-          {Platform.OS === 'android' && <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} />}
-          <Marker coordinate={{ latitude: ride.origin_lat, longitude: ride.origin_lng }} pinColor={t.primary} />
-          <Marker coordinate={{ latitude: ride.dest_lat, longitude: ride.dest_lng }} pinColor={t.error} />
-          <Polyline
-            coordinates={[
-              { latitude: ride.origin_lat, longitude: ride.origin_lng },
-              { latitude: ride.dest_lat, longitude: ride.dest_lng },
-            ]}
-            strokeColor={t.primary} strokeWidth={4}
-          />
-        </MapView>
+        <RouteMap
+          origin={{ lat: origin_lat, lng: origin_lng, name: origin }}
+          destination={{ lat: dest_lat, lng: dest_lng, name: destination }}
+          t={t}
+        />
         <TouchableOpacity testID="ride-back" onPress={() => { tap(); router.back(); }}
           style={[styles.back, { backgroundColor: t.surface }]}>
           <ChevronLeft color={t.textPrimary} size={22} />
@@ -83,15 +104,15 @@ export default function RideDetail() {
       <ScrollView style={[styles.sheet, { backgroundColor: t.background }]} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}>
         <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <VerifiedAvatar uri={ride.driver_avatar} name={ride.driver_name} verified={ride.driver_verified} t={t} size={56} />
+            <VerifiedAvatar uri={dAvatar} name={dName} verified={dVerified} t={t} size={56} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.driver, { color: t.textPrimary }]}>{ride.driver_name}</Text>
+              <Text style={[styles.driver, { color: t.textPrimary }]}>{dName}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 <Star color={t.primary} size={13} fill={t.primary} />
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>{ride.driver_rating?.toFixed(1)} · Verified driver</Text>
+                <Text style={{ color: t.textSecondary, fontSize: 13 }}>{dRating.toFixed(1)} · Verified driver</Text>
               </View>
             </View>
-            <Text style={[styles.price, { color: t.primary }]}>${ride.price_per_seat.toFixed(0)}</Text>
+            <Text style={[styles.price, { color: t.primary }]}>${(price || 0).toFixed(0)}</Text>
           </View>
         </View>
 
@@ -105,29 +126,29 @@ export default function RideDetail() {
             <View style={{ flex: 1, gap: 18 }}>
               <View>
                 <Text style={[styles.label, { color: t.textSecondary }]}>PICKUP</Text>
-                <Text style={[styles.loc, { color: t.textPrimary }]}>{ride.origin}</Text>
+                <Text style={[styles.loc, { color: t.textPrimary }]}>{origin}</Text>
+                <Text style={[styles.time, { color: t.textSecondary }]}>
+                  {isNaN(time.getTime()) ? '???' : time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
               </View>
               <View>
                 <Text style={[styles.label, { color: t.textSecondary }]}>DROPOFF</Text>
-                <Text style={[styles.loc, { color: t.textPrimary }]}>{ride.destination}</Text>
+                <Text style={[styles.loc, { color: t.textPrimary }]}>{destination}</Text>
               </View>
-              <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                Departs {time.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
-              </Text>
             </View>
           </View>
         </View>
 
-        {ride.driver_vehicle && (
+        {vehicle && (
           <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Car color={t.primary} size={18} />
               <Text style={[styles.section, { color: t.textPrimary }]}>Vehicle</Text>
             </View>
             <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: '700', marginTop: 8 }}>
-              {ride.driver_vehicle.year} {ride.driver_vehicle.make} {ride.driver_vehicle.model}
+              {vehicle.year} {vehicle.make} {vehicle.model}
             </Text>
-            <Text style={{ color: t.textSecondary, fontSize: 13 }}>{ride.driver_vehicle.color} · {ride.driver_vehicle.license_plate}</Text>
+            <Text style={{ color: t.textSecondary, fontSize: 13 }}>{vehicle.color} · {vehicle.license_plate}</Text>
           </View>
         )}
 
@@ -136,7 +157,7 @@ export default function RideDetail() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: t.primary, fontWeight: '800', fontSize: 14 }}>Eco impact</Text>
             <Text style={{ color: t.primary, fontSize: 12, marginTop: 2 }}>
-              {ride.co2_saved_kg.toFixed(1)} kg CO₂ avoided · {ride.distance_km.toFixed(0)} km route
+              {(co2 || 0).toFixed(1)} kg CO₂ avoided · {(dist || 0).toFixed(0)} km route
             </Text>
           </View>
         </View>
@@ -163,7 +184,7 @@ export default function RideDetail() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <MessageCircle color={t.primaryContrast} size={18} />
                 <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>
-                  {isOwn ? 'Your ride' : `Book seat · $${ride.price_per_seat.toFixed(0)}`}
+                  {isOwn ? 'Your ride' : `Book seat · $${(price || 0).toFixed(0)}`}
                 </Text>
               </View>
             )}
