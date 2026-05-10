@@ -61,15 +61,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
+    console.log(`[AUTH] Attempting login for ${email}...`);
     const { data } = await api.post('/auth/login', { email, password });
     await AsyncStorage.setItem('access_token', data.access_token);
     setUser(data.user);
+    console.log(`[AUTH] Login successful for ${email}`);
   };
 
   const signup = async (email: string, password: string, name: string, role: string) => {
+    console.log(`[AUTH] Attempting signup for ${email} as ${role}...`);
     const { data } = await api.post('/auth/register', { email, password, name, role });
     await AsyncStorage.setItem('access_token', data.access_token);
     setUser(data.user);
+    console.log(`[AUTH] Signup successful for ${email}`);
   };
 
   const logout = async () => {

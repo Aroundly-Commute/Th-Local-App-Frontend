@@ -53,7 +53,7 @@ export default function Home() {
 
   const actions = [
     { icon: MapPin, label: 'Find Ride', onPress: () => router.push('/(tabs)/search') },
-    { icon: Users, label: 'Offer Ride', onPress: () => router.push('/(tabs)/search') },
+    { icon: Users, label: 'Offer Ride', onPress: () => router.push({ pathname: '/(tabs)/search', params: { mode: 'offer' } }) },
     { icon: Calendar, label: 'Schedule', onPress: () => router.push('/(tabs)/rides') },
     { icon: Leaf, label: 'My Impact', onPress: () => router.push('/(tabs)/profile') },
   ];

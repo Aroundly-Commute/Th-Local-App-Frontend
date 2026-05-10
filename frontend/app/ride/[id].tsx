@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, A
 
 import { RouteMap } from '../../src/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Star, ShieldCheck, Leaf, Car, MessageCircle } from 'lucide-react-native';
+import { ChevronLeft, Star, Leaf, Car, MessageCircle, Users, Clock } from 'lucide-react-native';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
@@ -20,14 +20,14 @@ export default function RideDetail() {
   const [ride, setRide] = useState<any>(null);
   const [booking, setBooking] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await api.get(`/rides/${id}`);
-        setRide(data);
-      } catch (e) { errorH(); }
-    })();
-  }, [id]);
+  const load = async () => {
+    try {
+      const { data } = await api.get(`/rides/${id}`);
+      setRide(data);
+    } catch (e) { errorH(); }
+  };
+
+  useEffect(() => { load(); }, [id]);
 
   const onBook = async () => {
     tap();
@@ -35,11 +35,11 @@ export default function RideDetail() {
     try {
       const { data } = await api.post(`/rides/${id}/book`, { seats: 1 });
       success();
-      Alert.alert('Booked!', 'Your seat is confirmed. Chat with your driver.');
-      router.replace(`/chat/${encodeURIComponent(data.chat_id)}?name=${encodeURIComponent(ride.driver_name)}` as any);
+      Alert.alert('Request Sent!', 'Your booking request has been sent. You will be notified once the driver accepts.');
+      load(); // refresh to show updated state
     } catch (e: any) {
       errorH();
-      Alert.alert('Booking failed', e?.response?.data?.detail || 'Try again');
+      Alert.alert('Failed', e?.response?.data?.message || e?.response?.data?.detail || 'Try again');
     } finally { setBooking(false); }
   };
 
@@ -50,42 +50,87 @@ export default function RideDetail() {
   );
 
   // Normalize variables for CarPool backend
-  const dName = ride.driver_name || ride.driverName || 'Unknown';
-  const dAvatar = ride.driver_avatar || ride.driverAvatar;
-  const dVerified = ride.driver_verified || ride.driverVerified;
-  const dRating = ride.driver_rating ?? ride.driverRating ?? 5.0;
+  const dName = ride.driverName || ride.driver_name || 'Unknown';
+  const dAvatar = ride.driverAvatar || ride.driver_avatar;
+  const dRating = ride.driverRating ?? ride.driver_rating ?? 5.0;
   
-  const origin = ride.origin || ride.startPlaceName || 'Unknown';
-  const destination = ride.destination || ride.endPlaceName || 'Unknown';
-  const departureTime = ride.departure_time || ride.startTime;
-  const price = ride.price_per_seat ?? (ride.chargeCents ? ride.chargeCents / 100 : 0);
+  const origin = ride.startPlaceName || ride.origin || 'Unknown';
+  const destination = ride.endPlaceName || ride.destination || 'Unknown';
+  const departureTime = ride.startTime || ride.departure_time;
+  const price = ride.chargeCents ? ride.chargeCents / 100 : (ride.price_per_seat ?? 0);
   
-  let origin_lat = ride.origin_lat;
-  let origin_lng = ride.origin_lng;
-  let dest_lat = ride.dest_lat;
-  let dest_lng = ride.dest_lng;
+  let origin_lat: number | undefined, origin_lng: number | undefined;
+  let dest_lat: number | undefined, dest_lng: number | undefined;
 
   if (ride.startPointGeoJson) {
-    try {
-      const p = JSON.parse(ride.startPointGeoJson);
-      origin_lng = p.coordinates[0];
-      origin_lat = p.coordinates[1];
-    } catch {}
+    try { const p = JSON.parse(ride.startPointGeoJson); origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
   }
   if (ride.endPointGeoJson) {
-    try {
-      const p = JSON.parse(ride.endPointGeoJson);
-      dest_lng = p.coordinates[0];
-      dest_lat = p.coordinates[1];
-    } catch {}
+    try { const p = JSON.parse(ride.endPointGeoJson); dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
   }
   
   const co2 = ride.co2_saved_kg ?? 0;
   const dist = ride.distance_km ?? 0;
-  
   const vehicle = ride.driver_vehicle || ride.vehicle;
   const time = new Date(departureTime);
-  const isOwn = user?.id === (ride.driver_id || ride.driverId);
+
+  // Determine user's role on this ride
+  const driverId = ride.driverId || ride.driver_id;
+  const isDriver = user?.id === driverId;
+  const passengers: any[] = ride.passengers || [];
+
+  // Rider's own request state
+  const myRequestStatus = ride.my_request_status; // 'REQUESTED' | 'ACCEPTED' | undefined
+  const myChatId = ride.my_chat_id;
+
+  // What FAB to show
+  // - Driver: no FAB (has passenger list below)
+  // - Rider with ACCEPTED request: "Chat with Driver"
+  // - Rider with REQUESTED (pending): "Awaiting Approval"
+  // - Rider with no request: "Book Seat"
+  const fabContent = () => {
+    if (isDriver) return null;
+    if (myRequestStatus === 'ACCEPTED') {
+      return (
+        <TouchableOpacity
+          testID="chat-driver"
+          onPress={() => router.push(`/chat/${encodeURIComponent(myChatId)}?name=${encodeURIComponent(dName)}` as any)}
+          activeOpacity={0.85}
+          style={[styles.cta, { backgroundColor: t.primary }]}
+        >
+          <MessageCircle color={t.primaryContrast} size={18} />
+          <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat with Driver</Text>
+        </TouchableOpacity>
+      );
+    }
+    if (myRequestStatus === 'REQUESTED') {
+      return (
+        <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]}>
+          <Clock color={t.textSecondary} size={18} />
+          <Text style={{ color: t.textSecondary, fontSize: 15, fontWeight: '600' }}>Awaiting Driver Approval</Text>
+        </View>
+      );
+    }
+    // No request yet
+    return (
+      <TouchableOpacity
+        testID="book-ride"
+        onPress={onBook}
+        disabled={booking}
+        activeOpacity={0.85}
+        style={[styles.cta, { backgroundColor: t.primary }]}
+      >
+        {booking ? <ActivityIndicator color={t.primaryContrast} /> : (
+          <>
+            <MessageCircle color={t.primaryContrast} size={18} />
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>
+              {`Request Seat · $${(price || 0).toFixed(0)}`}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
@@ -102,20 +147,22 @@ export default function RideDetail() {
       </View>
 
       <ScrollView style={[styles.sheet, { backgroundColor: t.background }]} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}>
+        {/* Driver card */}
         <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <VerifiedAvatar uri={dAvatar} name={dName} verified={dVerified} t={t} size={56} />
+            <VerifiedAvatar uri={dAvatar} name={dName} verified={true} t={t} size={56} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.driver, { color: t.textPrimary }]}>{dName}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 <Star color={t.primary} size={13} fill={t.primary} />
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>{dRating.toFixed(1)} · Verified driver</Text>
+                <Text style={{ color: t.textSecondary, fontSize: 13 }}>{dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'}</Text>
               </View>
             </View>
             <Text style={[styles.price, { color: t.primary }]}>${(price || 0).toFixed(0)}</Text>
           </View>
         </View>
 
+        {/* Route card */}
         <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
           <View style={{ flexDirection: 'row', gap: 14 }}>
             <View style={{ alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
@@ -139,6 +186,7 @@ export default function RideDetail() {
           </View>
         </View>
 
+        {/* Vehicle */}
         {vehicle && (
           <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -152,6 +200,7 @@ export default function RideDetail() {
           </View>
         )}
 
+        {/* Eco badge */}
         <View style={[styles.eco, { backgroundColor: t.isDark ? '#0f1f17' : '#EAF5EC' }]}>
           <Leaf color={t.primary} size={18} />
           <View style={{ flex: 1 }}>
@@ -162,6 +211,43 @@ export default function RideDetail() {
           </View>
         </View>
 
+        {/* DRIVER: Passengers / Booking Requests */}
+        {isDriver && (
+          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <Users color={t.primary} size={18} />
+              <Text style={[styles.section, { color: t.textPrimary }]}>
+                {passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`}
+              </Text>
+            </View>
+            {passengers.length === 0 ? (
+              <Text style={{ color: t.textSecondary, fontSize: 13 }}>
+                When riders book this ride, they'll appear here.
+              </Text>
+            ) : (
+              passengers.map((p: any) => (
+                <View key={p.request_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>{p.rider_name}</Text>
+                    <Text style={{ color: p.status === 'ACCEPTED' ? t.success : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                      {p.status === 'ACCEPTED' ? 'Accepted' : 'Pending'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
+                    activeOpacity={0.8}
+                    style={{ backgroundColor: t.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  >
+                    <MessageCircle color="#fff" size={14} />
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Chat</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
         {ride.notes ? (
           <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
             <Text style={[styles.section, { color: t.textPrimary }]}>Notes from driver</Text>
@@ -170,26 +256,14 @@ export default function RideDetail() {
         ) : null}
       </ScrollView>
 
-      <View style={[styles.fab, { backgroundColor: t.background, borderColor: t.border }]}>
-        <TouchableOpacity
-          testID="book-ride"
-          onPress={onBook}
-          disabled={booking || isOwn}
-          activeOpacity={0.85}
-          style={[styles.cta, { backgroundColor: isOwn ? t.textSecondary : t.primary }]}
-        >
-          {booking
-            ? <ActivityIndicator color={t.primaryContrast} />
-            : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MessageCircle color={t.primaryContrast} size={18} />
-                <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>
-                  {isOwn ? 'Your ride' : `Book seat · $${(price || 0).toFixed(0)}`}
-                </Text>
-              </View>
-            )}
-        </TouchableOpacity>
-      </View>
+      {/* FAB */}
+      {!isDriver && (
+        <View style={[styles.fab, { backgroundColor: t.background, borderColor: t.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            {fabContent()}
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -203,8 +277,9 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
   loc: { fontSize: 16, fontWeight: '600', marginTop: 4 },
+  time: { fontSize: 13, marginTop: 2 },
   section: { fontSize: 16, fontWeight: '700' },
   eco: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md, borderRadius: radius.lg, marginTop: spacing.md },
   fab: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 32 : 16, borderTopWidth: 1 },
-  cta: { height: 54, borderRadius: 9999, alignItems: 'center', justifyContent: 'center' },
+  cta: { flex: 1, height: 54, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 });

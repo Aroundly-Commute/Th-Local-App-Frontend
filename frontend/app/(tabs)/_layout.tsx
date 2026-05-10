@@ -1,13 +1,42 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { useColorScheme, Platform } from 'react-native';
+import { useColorScheme, Platform, Alert } from 'react-native';
 import { Home, Search, Car, User, MapPin } from 'lucide-react-native';
 import { lightTheme, darkTheme } from '../../src/theme';
 import { tap } from '../../src/haptics';
+import { wsUrl, api } from '../../src/api';
+import { useAuth } from '../../src/auth';
 
 export default function TabsLayout() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const ws = new WebSocket(wsUrl('').replace('/chat/', '/notifications/') + user.id);
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'new_ride_request') {
+          Alert.alert(
+            "New Ride Request",
+            `${msg.payload.riderName} requested a seat.`,
+            [
+              { text: "Reject", style: "cancel", onPress: () => {
+                  api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'REJECTED' }).catch(()=>{})
+              } },
+              { text: "Accept", onPress: () => {
+                  api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' }).catch(()=>{})
+              } }
+            ]
+          );
+        }
+      } catch (e) {}
+    };
+    return () => { try { ws.close(); } catch {} };
+  }, [user?.id]);
+
   return (
     <Tabs
       screenOptions={{

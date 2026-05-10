@@ -1,11 +1,14 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  useColorScheme, KeyboardAvoidingView, Platform, Alert, TextInput, Modal,
+} from 'react-native';
 
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   MapPin, Search as SearchIcon, Calendar, Clock, Users,
-  ArrowDownUp, SlidersHorizontal,
+  ArrowDownUp, SlidersHorizontal, ChevronLeft, ChevronRight,
 } from 'lucide-react-native';
 import { api } from '../../src/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
@@ -15,17 +18,121 @@ import { tap, success, errorH } from '../../src/haptics';
 import { LocationSearch } from '../../src/LocationSearch';
 
 const RECENT = [
-  { from: 'San Francisco, CA', to: 'Palo Alto, CA' },
-  { from: 'Oakland, CA', to: 'San Jose, CA' },
-  { from: 'Berkeley, CA', to: 'San Francisco, CA' },
+  { from: 'Noida Sector 62', to: 'Connaught Place, Delhi' },
+  { from: 'Gurgaon Cyber City', to: 'IGI Airport, Delhi' },
+  { from: 'Lajpat Nagar', to: 'Saket, Delhi' },
 ];
 
-const POPULAR = ['San Francisco → Palo Alto', 'Oakland → San Jose', 'Berkeley → SF', 'Mountain View → SF'];
+const POPULAR = ['Noida → CP', 'Gurgaon → Delhi', 'Faridabad → Delhi', 'Greater Noida → Noida'];
+
+// Minimal inline date/time picker (no extra package needed)
+function DateTimePicker({
+  visible, onClose, value, onChange, mode,
+}: {
+  visible: boolean; onClose: () => void;
+  value: Date; onChange: (d: Date) => void;
+  mode: 'date' | 'time';
+}) {
+  const cs = useColorScheme();
+  const t = cs === 'dark' ? darkTheme : lightTheme;
+
+  const [tempYear, setTempYear] = useState(value.getFullYear());
+  const [tempMonth, setTempMonth] = useState(value.getMonth());
+  const [tempDay, setTempDay] = useState(value.getDate());
+  const [tempHour, setTempHour] = useState(value.getHours());
+  const [tempMin, setTempMin] = useState(value.getMinutes());
+
+  useEffect(() => {
+    setTempYear(value.getFullYear());
+    setTempMonth(value.getMonth());
+    setTempDay(value.getDate());
+    setTempHour(value.getHours());
+    setTempMin(value.getMinutes());
+  }, [visible]);
+
+  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const clampDay = (d: number, y: number, m: number) => Math.min(d, daysInMonth(y, m));
+
+  const confirm = () => {
+    let d: Date;
+    if (mode === 'date') {
+      d = new Date(value);
+      d.setFullYear(tempYear, tempMonth, clampDay(tempDay, tempYear, tempMonth));
+    } else {
+      d = new Date(value);
+      d.setHours(tempHour, tempMin, 0, 0);
+    }
+    onChange(d);
+    onClose();
+  };
+
+  const Spin = ({ val, onDec, onInc, label }: { val: string; onDec: () => void; onInc: () => void; label: string }) => (
+    <View style={{ alignItems: 'center', flex: 1 }}>
+      <Text style={{ color: t.textSecondary, fontSize: 10, marginBottom: 4 }}>{label}</Text>
+      <TouchableOpacity onPress={onInc} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <ChevronLeft color={t.textPrimary} size={20} style={{ transform: [{ rotate: '90deg' }] }} />
+      </TouchableOpacity>
+      <Text style={{ color: t.textPrimary, fontSize: 22, fontWeight: '700', marginVertical: 8, minWidth: 48, textAlign: 'center' }}>{val}</Text>
+      <TouchableOpacity onPress={onDec} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <ChevronRight color={t.textPrimary} size={20} style={{ transform: [{ rotate: '90deg' }] }} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={onClose} />
+      <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+        <Text style={{ color: t.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: 24, textAlign: 'center' }}>
+          {mode === 'date' ? 'Select Date' : 'Select Time'}
+        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 28 }}>
+          {mode === 'date' ? (
+            <>
+              <Spin label="DAY" val={String(tempDay).padStart(2, '0')}
+                onInc={() => setTempDay(d => { const n = d < daysInMonth(tempYear, tempMonth) ? d + 1 : 1; return n; })}
+                onDec={() => setTempDay(d => { const n = d > 1 ? d - 1 : daysInMonth(tempYear, tempMonth); return n; })}
+              />
+              <Spin label="MONTH" val={MONTHS[tempMonth]}
+                onInc={() => setTempMonth(m => (m + 1) % 12)}
+                onDec={() => setTempMonth(m => (m - 1 + 12) % 12)}
+              />
+              <Spin label="YEAR" val={String(tempYear)}
+                onInc={() => setTempYear(y => y + 1)}
+                onDec={() => setTempYear(y => y - 1)}
+              />
+            </>
+          ) : (
+            <>
+              <Spin label="HOUR" val={String(tempHour).padStart(2, '0')}
+                onInc={() => setTempHour(h => (h + 1) % 24)}
+                onDec={() => setTempHour(h => (h - 1 + 24) % 24)}
+              />
+              <Text style={{ color: t.textSecondary, fontSize: 28, alignSelf: 'center', marginTop: 16 }}>:</Text>
+              <Spin label="MIN" val={String(tempMin).padStart(2, '0')}
+                onInc={() => setTempMin(m => (m + 5) % 60)}
+                onDec={() => setTempMin(m => (m - 5 + 60) % 60)}
+              />
+            </>
+          )}
+        </View>
+        <TouchableOpacity onPress={confirm}
+          style={{ backgroundColor: t.primary, height: 50, borderRadius: 9999, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Confirm</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
 
 export default function Search() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
+
   const [mode, setMode] = useState<'find' | 'offer'>('find');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -35,35 +142,66 @@ export default function Search() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const submitAction = useCallback(async (q?: string) => {
+  // Date/time as a single Date object for easy formatting
+  const [datetime, setDatetime] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0); // default: 1 hour from now
+    return d;
+  });
+  const [seats, setSeats] = useState('1');
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  // Pick up mode param from navigation (e.g. from home "Offer Ride" button)
+  useEffect(() => {
+    if (params.mode === 'offer') {
+      setMode('offer');
+    }
+  }, [params.mode]);
+
+  const dateLabel = datetime.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeLabel = datetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const submitAction = useCallback(async () => {
     setLoading(true); setSearched(true);
+    const dateStr = datetime.toISOString().split('T')[0];
+    const timeStr = `${String(datetime.getHours()).padStart(2,'0')}:${String(datetime.getMinutes()).padStart(2,'0')}`;
     try {
       if (mode === 'offer') {
         await api.post('/rides/offer', {
           startName: from, endName: to,
           startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
           endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
-          seats: 3, price: 10,
-          date: new Date().toISOString().split('T')[0],
-          time: '12:00'
+          seats: parseInt(seats) || 1,
+          price: 10,
+          date: dateStr,
+          time: timeStr,
         });
         success();
-        Alert.alert('Success', 'Ride offered!');
+        Alert.alert('Success', 'Ride offered! It is now visible to other users.');
         router.push('/(tabs)/rides');
       } else {
-        const params: any = {};
-        if (q) params.q = q;
-        else if (to) params.q = to;
-        const { data } = await api.get('/rides', { params });
-        setRides(data);
+        const { data } = await api.post('/matchmaking/search', {
+          start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
+          end: toCoords ? { lng: toCoords.lng, lat: toCoords.lat } : { lng: 77.4, lat: 28.6 },
+          startPlaceName: from || 'Origin',
+          endPlaceName: to || 'Destination',
+          startTime: datetime.toISOString(),
+        });
+        setRides(data.matches || []);
       }
-    } catch { errorH(); } finally { setLoading(false); }
-  }, [mode, from, to, fromCoords, toCoords, router]);
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Action failed. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }, [mode, from, to, fromCoords, toCoords, datetime, seats, router]);
 
   const quickSearch = (f: string, dest: string) => {
     tap();
     setFrom(f); setTo(dest);
-    submitAction(dest);
   };
 
   return (
@@ -90,16 +228,47 @@ export default function Search() {
               <LocationSearch
                 icon={<View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />}
                 t={t} value={to} onChangeText={setTo} placeholder="To"
-                onSelect={(name, lat, lng) => { setTo(name); setToCoords({lat, lng}); submitAction(name); }}
+                onSelect={(name, lat, lng) => { setTo(name); setToCoords({lat, lng}); }}
               />
             </View>
           </View>
 
-          {/* Filters */}
+          {/* Date / Time / Seats row */}
           <View style={[styles.filters, { marginTop: spacing.sm, zIndex: 0 }]}>
-            <FilterChip t={t} icon={<Calendar color={t.textSecondary} size={14} />} label="Today" />
-            <FilterChip t={t} icon={<Clock color={t.textSecondary} size={14} />} label="Any time" />
-            <FilterChip t={t} icon={<Users color={t.textSecondary} size={14} />} label="1 seat" />
+            {/* Date picker trigger */}
+            <TouchableOpacity
+              testID="date-picker-btn"
+              onPress={() => { tap(); setShowDatePicker(true); }}
+              style={[styles.filterChip, { borderColor: t.border, flex: 1 }]}
+            >
+              <Calendar color={t.textSecondary} size={13} />
+              <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{dateLabel}</Text>
+            </TouchableOpacity>
+
+            {/* Time picker trigger */}
+            <TouchableOpacity
+              testID="time-picker-btn"
+              onPress={() => { tap(); setShowTimePicker(true); }}
+              style={[styles.filterChip, { borderColor: t.border, flex: 1 }]}
+            >
+              <Clock color={t.textSecondary} size={13} />
+              <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{timeLabel}</Text>
+            </TouchableOpacity>
+
+            {/* Seats manual input */}
+            <View style={[styles.filterChip, { borderColor: t.border, width: 72 }]}>
+              <Users color={t.textSecondary} size={13} />
+              <TextInput
+                testID="seats-input"
+                value={seats}
+                onChangeText={setSeats}
+                keyboardType="numeric"
+                maxLength={1}
+                style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1, padding: 0 }}
+                placeholderTextColor={t.textSecondary}
+                placeholder="1"
+              />
+            </View>
           </View>
 
           <TouchableOpacity
@@ -183,6 +352,9 @@ export default function Search() {
                     <View style={{ padding: 40, alignItems: 'center' }}>
                       <SearchIcon color={t.textTertiary} size={28} />
                       <Text style={{ color: t.textSecondary, marginTop: 8 }}>No rides match your search.</Text>
+                      <Text style={{ color: t.textTertiary, marginTop: 4, fontSize: 12, textAlign: 'center' }}>
+                        Try adjusting the time window or search radius.
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -191,6 +363,24 @@ export default function Search() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Date Picker Modal */}
+      <DateTimePicker
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        value={datetime}
+        onChange={(d) => setDatetime(d)}
+        mode="date"
+      />
+
+      {/* Time Picker Modal */}
+      <DateTimePicker
+        visible={showTimePicker}
+        onClose={() => setShowTimePicker(false)}
+        value={datetime}
+        onChange={(d) => setDatetime(d)}
+        mode="time"
+      />
     </SafeAreaView>
   );
 }
@@ -203,21 +393,19 @@ const TabBtn: React.FC<{ label: string; active: boolean; t: Theme; onPress: () =
   </TouchableOpacity>
 );
 
-const FilterChip: React.FC<{ t: Theme; icon: React.ReactNode; label: string }> = ({ t, icon, label }) => (
-  <View style={[styles.filterChip, { borderColor: t.border }]}>
-    {icon}
-    <Text style={[styles.filterChipText, { color: t.textPrimary }]}>{label}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   tabBar: { flexDirection: 'row', padding: 4, borderRadius: radius.md, gap: 2 },
   tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.sm + 2 },
   tabBtnText: { fontSize: 14 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  filters: { flexDirection: 'row', gap: 8 },
-  filterChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: 9999 },
-  filterChipText: { fontSize: 12, fontWeight: '600' },
+  dot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  filters: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  filterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 9,
+    borderWidth: 1, borderRadius: 9999,
+    overflow: 'hidden',
+  },
+  filterChipText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
   cta: { height: 50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontSize: 15, fontWeight: '700' },
   section: { fontSize: 17, fontWeight: '700', marginBottom: spacing.md, letterSpacing: -0.3 },
@@ -232,3 +420,5 @@ const styles = StyleSheet.create({
   iconBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999, borderWidth: 1 },
   iconBtnText: { fontSize: 12, fontWeight: '600' },
 });
+
+

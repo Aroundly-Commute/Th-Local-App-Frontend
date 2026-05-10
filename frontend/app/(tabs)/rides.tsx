@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl } from 'react-native';
 
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Clock, MessageCircle, Phone, Star, CheckCircle2, XCircle, Car } from 'lucide-react-native';
+import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users } from 'lucide-react-native';
 import { api } from '../../src/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { VerifiedAvatar } from '../../src/components';
@@ -14,21 +14,25 @@ export default function Rides() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [data, setData] = useState<{ upcoming: any[]; past: any[] }>({ upcoming: [], past: [] });
+  const [tab, setTab] = useState<'upcoming' | 'requested' | 'past'>('upcoming');
+  const [data, setData] = useState<{ upcoming: any[]; past: any[]; requested: any[] }>({ upcoming: [], past: [], requested: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get('/rides/my');
-      setData(data);
+      const { data: res } = await api.get('/rides/my');
+      setData({
+        upcoming: res.upcoming || [],
+        past: res.past || [],
+        requested: res.requested || [],
+      });
     } catch {} finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const list = tab === 'upcoming' ? data.upcoming : data.past;
+  const list = tab === 'upcoming' ? data.upcoming : tab === 'requested' ? data.requested : data.past;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
@@ -37,6 +41,8 @@ export default function Rides() {
         <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
           <TabBtn testID="tab-upcoming" label="Upcoming" count={data.upcoming.length}
             active={tab === 'upcoming'} t={t} onPress={() => { tap(); setTab('upcoming'); }} />
+          <TabBtn testID="tab-requested" label="Requested" count={data.requested.length}
+            active={tab === 'requested'} t={t} onPress={() => { tap(); setTab('requested'); }} />
           <TabBtn testID="tab-past" label="Past" count={data.past.length}
             active={tab === 'past'} t={t} onPress={() => { tap(); setTab('past'); }} />
         </View>
@@ -55,33 +61,48 @@ export default function Rides() {
           <View style={styles.empty}>
             <Car color={t.textTertiary} size={42} />
             <Text style={[styles.emptyTitle, { color: t.textPrimary }]}>
-              {tab === 'upcoming' ? 'No upcoming rides' : 'No past rides'}
+              {tab === 'upcoming' ? 'No upcoming rides' : tab === 'requested' ? 'No pending requests' : 'No past rides'}
             </Text>
             <Text style={[styles.emptyHint, { color: t.textSecondary }]}>
-              {tab === 'upcoming' ? 'Book a ride or offer one to get started' : 'Your ride history will appear here'}
+              {tab === 'upcoming' ? 'Book a ride or offer one to get started'
+                : tab === 'requested' ? 'When you request a ride it will appear here'
+                : 'Your ride history will appear here'}
             </Text>
-            {tab === 'upcoming' && (
+            {tab !== 'past' && (
               <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push('/(tabs)/search'); }}
                 activeOpacity={0.8} style={[styles.emptyCta, { backgroundColor: t.primary }]}>
-                <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>Find a Ride</Text>
+                <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
+                  {tab === 'upcoming' ? 'Find a Ride' : 'Search Rides'}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
         ) : list.map((r) => (
-          <RideCardExt key={r.id + r.role} r={r} t={t} isPast={tab === 'past'} router={router} />
+          <RideCardExt key={`${r.id}-${r.role}-${r.request_id || ''}`} r={r} t={t} isPast={tab === 'past'} isRequested={tab === 'requested'} router={router} />
         ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; router: any }> = ({ r, t, isPast, router }) => {
+const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: boolean; router: any }> = ({ r, t, isPast, isRequested, router }) => {
   const date = new Date(r.departure_time);
-  const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const status = isPast ? 'Completed' : 'Confirmed';
-  const statusColor = isPast ? t.textSecondary : t.success;
-  const statusBg = isPast ? t.muted : t.successBg;
+  const dateStr = isNaN(date.getTime()) ? '—' : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const timeStr = isNaN(date.getTime()) ? '—' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const isDriver = r.role === 'driver';
+
+  const statusLabel = isPast ? 'Completed'
+    : isRequested ? 'Pending'
+    : 'Confirmed';
+  const statusColor = isPast ? t.textSecondary : isRequested ? t.warning : t.success;
+  const statusBg = isPast ? t.muted : isRequested ? (t.isDark ? '#2a2010' : '#fff8e1') : t.successBg;
+
+  // Driver: show passengers count, Rider: show driver name
+  const peerName = r.peer_name || r.driver_name || 'Unknown';
+
+  // Chat: driver -> first passenger chat, rider -> their own chat with driver
+  const chatId = r.chat_id;
 
   return (
     <TouchableOpacity
@@ -93,26 +114,37 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; router: any }> 
       {/* Status row */}
       <View style={styles.statusRow}>
         <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-          {isPast ? <CheckCircle2 color={statusColor} size={12} /> : <CheckCircle2 color={statusColor} size={12} />}
-          <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
+          {isPast ? <CheckCircle2 color={statusColor} size={12} />
+            : isRequested ? <AlertCircle color={statusColor} size={12} />
+            : <CheckCircle2 color={statusColor} size={12} />}
+          <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
         <Text style={[styles.role, { color: t.textTertiary }]}>
-          {r.role === 'driver' ? "You're driving" : "You're riding"}
+          {isDriver ? "You're driving" : "You're riding"}
         </Text>
       </View>
 
       {/* Driver/passenger + price */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <VerifiedAvatar uri={r.driver_avatar} name={r.driver_name} verified={r.driver_verified} t={t} size={44} />
+        <VerifiedAvatar uri={r.driver_avatar} name={r.driver_name} verified={isDriver} t={t} size={44} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: t.textPrimary }]}>{r.driver_name}</Text>
+          <Text style={[styles.name, { color: t.textPrimary }]}>
+            {isDriver ? `${r.driver_name} (You)` : r.driver_name}
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
             <Star color={t.warning} size={11} fill={t.warning} />
-            <Text style={[styles.meta, { color: t.textSecondary }]}>{r.driver_rating.toFixed(1)}</Text>
+            <Text style={[styles.meta, { color: t.textSecondary }]}>{(r.driver_rating ?? 5).toFixed(1)}</Text>
+            {isDriver && r.passengers?.length > 0 && (
+              <>
+                <Text style={[styles.meta, { color: t.textTertiary }]}> · </Text>
+                <Users color={t.textTertiary} size={11} />
+                <Text style={[styles.meta, { color: t.textTertiary }]}>{r.passengers.length} passenger{r.passengers.length > 1 ? 's' : ''}</Text>
+              </>
+            )}
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.price, { color: t.textPrimary }]}>${r.price_per_seat.toFixed(2)}</Text>
+          <Text style={[styles.price, { color: t.textPrimary }]}>${(r.price_per_seat ?? 0).toFixed(0)}</Text>
           <Text style={[styles.meta, { color: t.textSecondary }]}>{dateStr}</Text>
         </View>
       </View>
@@ -134,37 +166,37 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; router: any }> 
         </View>
       </View>
 
-      {/* Vehicle info */}
-      {!isPast && r.driver_vehicle?.model && (
-        <View style={[styles.vehicleBox, { backgroundColor: t.muted }]}>
-          <Car color={t.textSecondary} size={13} />
-          <Text style={[styles.vehicleText, { color: t.textSecondary }]}>
-            {r.driver_vehicle.make} {r.driver_vehicle.model} · {r.driver_vehicle.color}
-          </Text>
-          <Text style={[styles.plate, { color: t.textPrimary }]}>{r.driver_vehicle.license_plate}</Text>
-        </View>
-      )}
-
-      {/* Actions */}
-      {!isPast && r.chat_id && (
+      {/* Action buttons — only for non-past, non-requested rides with a chat */}
+      {!isPast && !isRequested && chatId && (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
             testID={`myride-message-${r.id}`}
             onPress={(e) => {
               e.stopPropagation();
               tap();
-              router.push(`/chat/${encodeURIComponent(r.chat_id)}?name=${encodeURIComponent(r.driver_name)}`);
+              router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(peerName)}`);
             }}
             activeOpacity={0.8}
             style={[styles.actionBtn, { borderColor: t.border }]}
           >
             <MessageCircle color={t.textPrimary} size={14} />
-            <Text style={[styles.actionText, { color: t.textPrimary }]}>Message</Text>
+            <Text style={[styles.actionText, { color: t.textPrimary }]}>
+              {isDriver ? `Message ${peerName.split(' ')[0]}` : 'Message Driver'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.8} style={[styles.actionBtn, { borderColor: t.border }]} onPress={() => tap()}>
             <Phone color={t.textPrimary} size={14} />
             <Text style={[styles.actionText, { color: t.textPrimary }]}>Call</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Pending request hint */}
+      {isRequested && (
+        <View style={{ backgroundColor: statusBg, borderRadius: radius.sm, padding: 10 }}>
+          <Text style={{ color: statusColor, fontSize: 12, fontWeight: '600' }}>
+            ⏳ Waiting for driver to accept your request
+          </Text>
         </View>
       )}
 
@@ -201,7 +233,7 @@ const styles = StyleSheet.create({
   h1: { fontSize: 28, fontWeight: '700', letterSpacing: -0.8, marginBottom: spacing.md },
   tabBar: { flexDirection: 'row', padding: 4, borderRadius: radius.md, gap: 2, marginBottom: 8 },
   tabBtn: { flex: 1, flexDirection: 'row', gap: 6, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm + 2 },
-  tabBtnText: { fontSize: 14 },
+  tabBtnText: { fontSize: 13 },
   tabBadge: { minWidth: 20, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, alignItems: 'center' },
   tabBadgeText: { fontSize: 11, fontWeight: '700' },
   card: { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, gap: 14 },
@@ -218,9 +250,6 @@ const styles = StyleSheet.create({
   loc: { flex: 1, fontSize: 13, fontWeight: '500' },
   timePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 },
   timeText: { fontSize: 11, fontWeight: '600' },
-  vehicleBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.sm },
-  vehicleText: { flex: 1, fontSize: 12 },
-  plate: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1 },
   actionText: { fontSize: 13, fontWeight: '600' },
   rateBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1 },
