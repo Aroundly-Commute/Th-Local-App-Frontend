@@ -165,7 +165,7 @@ export default function Search() {
 
   const submitAction = useCallback(async () => {
     setLoading(true); setSearched(true);
-    const dateStr = datetime.toISOString().split('T')[0];
+    const dateStr = `${datetime.getFullYear()}-${String(datetime.getMonth() + 1).padStart(2, '0')}-${String(datetime.getDate()).padStart(2, '0')}`;
     const timeStr = `${String(datetime.getHours()).padStart(2,'0')}:${String(datetime.getMinutes()).padStart(2,'0')}`;
     try {
       if (mode === 'offer') {
