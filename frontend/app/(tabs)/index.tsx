@@ -15,6 +15,7 @@ import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { Shimmer } from '../../src/Shimmer';
 import { VerifiedAvatar, RideCard } from '../../src/components';
 import { tap } from '../../src/haptics';
+import { ModeSwitcher } from '../../src/ModeSwitcher';
 
 export default function Home() {
   const cs = useColorScheme();
@@ -59,13 +60,14 @@ export default function Home() {
   ];
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: t.background }}>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: t.background }}>
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[2]}
+        stickyHeaderIndices={[3]}
       >
+        <ModeSwitcher />
         {/* Greeting */}
         <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
         <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>

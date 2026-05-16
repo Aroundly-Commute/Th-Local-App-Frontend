@@ -29,7 +29,6 @@ import Animated, {
 import { verdexColors as G } from '../../src/theme';
 import { tap } from '../../src/haptics';
 import { CartProvider, useCart } from './CartContext';
-import { Ticker }            from './components/Ticker';
 import { MarketBottomNav }   from './components/MarketBottomNav';
 import { Toast }             from './components/primitives';
 import { MarketHome }        from './MarketHome';
@@ -78,10 +77,7 @@ function InnerMarket() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: G.surf }}>
-      {/* ── Live ticker ── */}
-      <Ticker />
-
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: G.surf }}>
       {/* ── Screen content with fade+slide transition ── */}
       <Animated.View style={[{ flex: 1 }, screenAnim]}>
         {screen === 'home' ? (
@@ -115,7 +111,7 @@ function InnerMarket() {
           <Toast message={toast} />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

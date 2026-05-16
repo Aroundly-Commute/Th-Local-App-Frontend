@@ -14,6 +14,8 @@ import {
 } from './components/primitives';
 import { CATS, STORES, DEAL_TILES, FLASH_ITEMS, SHOPS, COUPONS, OFFERS } from './data';
 import { useCart } from './CartContext';
+import { ModeSwitcher } from '../../src/ModeSwitcher';
+import { Ticker } from './components/Ticker';
 
 const sb = (c: string, a = '25') => ({ borderWidth: 1, borderColor: `${c}${a}` } as const);
 
@@ -30,8 +32,9 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
   const [search,      setSearch]      = useState('');
 
   return (
-    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-
+    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }} stickyHeaderIndices={[4]}>
+      <ModeSwitcher />
+      <Ticker />
       {/* ── Delivery Header ── */}
       <FadeUp delay={50}>
         <View style={[s.delivRow, { backgroundColor: G.surf }]}>

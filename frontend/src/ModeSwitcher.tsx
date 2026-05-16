@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { verdexColors as G, lightTheme, darkTheme } from './theme';
@@ -61,7 +60,7 @@ export const ModeSwitcher: React.FC = () => {
 const s = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'ios' ? 54 : 12, // Handle status bar padding manually if not using SafeAreaView
+    paddingTop: Platform.OS === 'ios' ? 12 : 12,
     paddingBottom: 8,
     alignItems: 'center',
     zIndex: 1000,
