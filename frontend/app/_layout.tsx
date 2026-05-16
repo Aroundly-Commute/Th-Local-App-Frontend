@@ -3,8 +3,9 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/auth';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ModeSwitcher } from '../src/ModeSwitcher';
 
 export default function RootLayout() {
   const cs = useColorScheme();
@@ -12,6 +13,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
+          <ModeSwitcher />
           <StatusBar style={cs === 'dark' ? 'light' : 'dark'} />
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="index" />

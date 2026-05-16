@@ -1,47 +1,92 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
-import { Car, Store } from 'lucide-react-native';
-import { lightTheme, darkTheme, radius } from './theme';
+import { verdexColors as G, lightTheme, darkTheme } from './theme';
 import { tap } from './haptics';
 
 /**
- * Sticky top toggle that swaps between the carpool tabs and the marketplace tabs.
- * Place at the very top of every tabs screen.
+ * Verdex-style persistent top switcher.
+ * Swaps between "Marketplace" and "Pooling".
  */
 export const ModeSwitcher: React.FC = () => {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const segs = useSegments() as string[];
+  
+  // Logic to determine active tab based on route segments
   const inMarket = segs.includes('(market)');
+  const inTabs = segs.includes('(tabs)');
+  const inAuth = segs.includes('(auth)');
 
-  const go = (target: 'pool' | 'market') => {
+  // Don't show in auth screens or splash
+  if (inAuth || (segs.length === 0)) return null;
+
+  const handlePress = (target: 'marketplace' | 'pooling') => {
     tap();
-    if (target === 'market' && !inMarket) router.replace('/(market)');
-    if (target === 'pool' && inMarket) router.replace('/(tabs)');
+    if (target === 'marketplace' && !inMarket) {
+      router.replace('/(market)');
+    } else if (target === 'pooling' && !inTabs) {
+      router.replace('/(tabs)');
+    }
   };
 
   return (
-    <SafeAreaView edges={['top']} style={{ backgroundColor: t.background }}>
-      <View style={[styles.wrap, { backgroundColor: t.muted }]}>
-        <Btn testID="mode-pool" active={!inMarket} t={t} icon={<Car color={!inMarket ? t.primaryContrast : t.textSecondary} size={14} />} label="Pool" onPress={() => go('pool')} />
-        <Btn testID="mode-market" active={inMarket} t={t} icon={<Store color={inMarket ? t.primaryContrast : t.textSecondary} size={14} />} label="Market" onPress={() => go('market')} />
+    <View style={s.container}>
+      <View style={[s.bar, { backgroundColor: '#fff', borderColor: `${G.g200}50` }]}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handlePress('marketplace')}
+          style={[s.btn, inMarket && { backgroundColor: G.g700 }]}
+        >
+          <Text style={[s.label, { color: inMarket ? G.lime : G.txt2 }]}>
+            🏪 Marketplace
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handlePress('pooling')}
+          style={[s.btn, !inMarket && { backgroundColor: G.g700 }]}
+        >
+          <Text style={[s.label, { color: !inMarket ? G.lime : G.txt2 }]}>
+            🚗 Pooling
+          </Text>
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
-const Btn: React.FC<any> = ({ active, t, icon, label, onPress, testID }) => (
-  <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.85}
-    style={[styles.btn, active && { backgroundColor: t.primary }]}>
-    {icon}
-    <Text style={{ color: active ? t.primaryContrast : t.textSecondary, fontSize: 13, fontWeight: '700' }}>{label}</Text>
-  </TouchableOpacity>
-);
-
-const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignSelf: 'center', padding: 4, marginTop: 6, borderRadius: 9999, gap: 4 },
-  btn: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999 },
+const s = StyleSheet.create({
+  container: {
+    backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'ios' ? 54 : 12, // Handle status bar padding manually if not using SafeAreaView
+    paddingBottom: 8,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  bar: {
+    flexDirection: 'row',
+    gap: 6,
+    borderRadius: 28,
+    padding: 4,
+    width: '92%',
+    borderWidth: 1,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });

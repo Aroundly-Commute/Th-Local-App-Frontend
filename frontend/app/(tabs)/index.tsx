@@ -15,7 +15,6 @@ import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { Shimmer } from '../../src/Shimmer';
 import { VerifiedAvatar, RideCard } from '../../src/components';
 import { tap } from '../../src/haptics';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
 
 export default function Home() {
   const cs = useColorScheme();
@@ -61,7 +60,6 @@ export default function Home() {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: t.background }}>
-      <ModeSwitcher />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 12 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
