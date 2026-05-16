@@ -12,6 +12,7 @@ import {
   RippleTap, FloatView, PulseView, FadeUp, FlashCountdown,
   IconZap, IconMapPin, IconChevronDown, IconSearch, IconChevronRight, IconHeart,
 } from './components/primitives';
+import { useRouter } from 'expo-router';
 import { CATS, STORES, DEAL_TILES, FLASH_ITEMS, SHOPS, COUPONS, OFFERS } from './data';
 import { useCart } from './CartContext';
 import { ModeSwitcher } from '../ModeSwitcher';
@@ -30,6 +31,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
   const [activeStore, setActiveStore] = useState('Verdex');
   const [liked,       setLiked]       = useState<Record<string, boolean>>({});
   const [search,      setSearch]      = useState('');
+  const router = useRouter();
 
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }} stickyHeaderIndices={[4]}>
@@ -88,6 +90,12 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
             <IconSearch c={G.txt3} />
             <TextInput
               value={search} onChangeText={setSearch}
+              onSubmitEditing={() => {
+                if (search.trim()) {
+                  router.push(`/search?q=${encodeURIComponent(search.trim())}`);
+                }
+              }}
+              returnKeyType="search"
               placeholder='Search "Atta, Milk, Soap…"' placeholderTextColor={G.txt3}
               style={[s.searchInput, { color: G.txt }]}
             />

@@ -1,0 +1,18 @@
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  color: var(--text-muted);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px;
+  color: var(--text-muted);
+}
+
+.admin-profile {
+  font-weight: 600;
+  color: var(--text-muted);
+}

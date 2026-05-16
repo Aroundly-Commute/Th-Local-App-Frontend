@@ -101,7 +101,9 @@ function InnerMarket() {
           tap();
           setActiveNav(tab);
           if (tab === 'home') goScreen('home');
-          if (tab === 'cart') showToast(`Cart: ${totalCount} item${totalCount !== 1 ? 's' : ''}`);
+          if (tab === 'cart') {
+            router.push('/cart');
+          }
         }}
       />
 
@@ -118,11 +120,7 @@ function InnerMarket() {
 // ─── Root export — wraps with CartProvider ────────────────────────────────────
 
 export default function MarketIndex() {
-  return (
-    <CartProvider>
-      <InnerMarket />
-    </CartProvider>
-  );
+  return <InnerMarket />;
 }
 
 const styles = StyleSheet.create({

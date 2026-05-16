@@ -9,6 +9,7 @@ type Ctx  = {
   totalCount:  number;
   addItem:     (id: string, name: string) => void;
   removeItem:  (id: string) => void;
+  clearCart:   () => void;
 };
 
 const CartCtx = createContext<Ctx | undefined>(undefined);
@@ -30,7 +31,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  return <CartCtx.Provider value={{ items, totalCount, addItem, removeItem }}>{children}</CartCtx.Provider>;
+  const clearCart = useCallback(() => {
+    setItems({});
+  }, []);
+
+  return <CartCtx.Provider value={{ items, totalCount, addItem, removeItem, clearCart }}>{children}</CartCtx.Provider>;
 };
 
 export const useCart = () => {
