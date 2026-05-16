@@ -1,7 +1,7 @@
 /**
  * market/data.ts — All static data for the Verdex marketplace UI
  */
-import { verdexColors as G } from '../../src/theme';
+import { verdexColors as G } from '../theme';
 
 export const CATS = [
   { id: 'all',         label: 'All',         emoji: '🏪' },
