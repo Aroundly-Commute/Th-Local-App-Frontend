@@ -7,14 +7,14 @@ import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
 } from 'react-native';
-import { verdexColors as G } from '../../src/theme';
+import { verdexColors as G } from '../theme';
 import {
   RippleTap, FloatView, PulseView, FadeUp, FlashCountdown,
   IconZap, IconMapPin, IconChevronDown, IconSearch, IconChevronRight, IconHeart,
 } from './components/primitives';
 import { CATS, STORES, DEAL_TILES, FLASH_ITEMS, SHOPS, COUPONS, OFFERS } from './data';
 import { useCart } from './CartContext';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
+import { ModeSwitcher } from '../ModeSwitcher';
 import { Ticker } from './components/Ticker';
 
 const sb = (c: string, a = '25') => ({ borderWidth: 1, borderColor: `${c}${a}` } as const);

@@ -28,11 +28,11 @@ import Animated, {
 
 import { verdexColors as G } from '../../src/theme';
 import { tap } from '../../src/haptics';
-import { CartProvider, useCart } from './CartContext';
-import { MarketBottomNav }   from './components/MarketBottomNav';
-import { Toast }             from './components/primitives';
-import { MarketHome }        from './MarketHome';
-import { ShopDetail }        from './ShopDetail';
+import { CartProvider, useCart } from '../../src/market/CartContext';
+import { MarketBottomNav }   from '../../src/market/components/MarketBottomNav';
+import { Toast }             from '../../src/market/components/primitives';
+import { MarketHome }        from '../../src/market/MarketHome';
+import { ShopDetail }        from '../../src/market/ShopDetail';
 
 // ─── Inner app (wraps everything that needs CartContext) ──────────────────────
 

@@ -7,7 +7,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, cancelAnimation,
 } from 'react-native-reanimated';
-import { verdexColors as G } from '../../../src/theme';
+import { verdexColors as G } from '../../theme';
 
 const ITEMS = [
   '🔥 Flash Sale LIVE', '⚡ 10-min delivery', '🌿 Local brands only',

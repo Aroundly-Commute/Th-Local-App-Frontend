@@ -8,7 +8,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from '
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withSequence, withTiming, cancelAnimation,
 } from 'react-native-reanimated';
-import { verdexColors as G } from '../../../src/theme';
+import { verdexColors as G } from '../../theme';
 import {
   IconHome, IconGrid, IconCart, IconHeart, IconUser,
 } from './primitives';

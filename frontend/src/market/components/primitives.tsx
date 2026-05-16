@@ -12,7 +12,7 @@ import Animated, {
   withTiming, withSpring, withDelay, cancelAnimation, Easing,
 } from 'react-native-reanimated';
 import Svg, { Path, Circle, Polyline, Rect, Line } from 'react-native-svg';
-import { verdexColors as G } from '../../../src/theme';
+import { verdexColors as G } from '../../theme';
 
 // ─── Ripple / Tap Button ──────────────────────────────────────────────────────
 

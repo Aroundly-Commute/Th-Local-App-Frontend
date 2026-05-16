@@ -3,7 +3,7 @@
  */
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { verdexColors as G } from '../../src/theme';
+import { verdexColors as G } from '../theme';
 import { RippleTap, FloatView, FadeUp, IconChevronLeft, IconShare } from './components/primitives';
 import { PRODS } from './data';
 import { useCart } from './CartContext';
