@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { io, Socket } from 'socket.io-client';
 import { verdexColors as G } from '../../src/theme';
-import { useCart } from '../../src/market/CartContext';
-import { Toast } from '../../src/market/components/primitives';
+import { useCart } from '../../src/contexts/CartContext';
+import { Toast } from '../../src/components/marketplace/primitives';
 
 import { useAuth } from '../../src/auth';
 
@@ -24,14 +24,25 @@ export default function CartScreen() {
   useEffect(() => {
     const apiUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000/api';
     const socketUrl = apiUrl.replace('/api', '');
-    const newSocket = io(socketUrl);
+    console.log('[Cart] Connecting socket to:', socketUrl);
+
+    // Force WebSocket transport — avoids HTTP polling race where events are silently dropped
+    const newSocket = io(socketUrl, { transports: ['websocket'] });
     
     newSocket.on('connect', () => {
+      console.log('[Cart] Socket connected:', newSocket.id);
       newSocket.emit('joinCustomerRoom', customerId);
     });
 
+    newSocket.on('connect_error', (err) => {
+      console.error('[Cart] Socket connect_error:', err.message);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.warn('[Cart] Socket disconnected:', reason);
+    });
+
     newSocket.on('orderStatusUpdated', (order) => {
-      // Background notifications could be added here
       if (order.status === 'CONFIRMED') {
         showToast('✅ Merchant accepted your order!');
       } else if (order.status === 'REJECTED') {
@@ -51,28 +62,48 @@ export default function CartScreen() {
   };
 
   const handlePlaceOrder = () => {
-    if (!socket || totalCount === 0) return;
-    
-    // We assume items belong to one shop for this simplified demo
+    if (!socket) {
+      console.error('[Cart] Cannot place order: socket is null');
+      showToast('Connection error. Please try again.');
+      return;
+    }
+    if (!socket.connected) {
+      console.error('[Cart] Cannot place order: socket not connected, id=', socket.id);
+      showToast('Not connected to server. Please wait...');
+      return;
+    }
+    if (totalCount === 0) return;
+
     const cartArray = Object.values(items);
     if (cartArray.length === 0) return;
-    
-    const formattedItems = cartArray.map(i => ({
-      shopProductId: i.id,
-      quantity: i.quantity,
-      price: i.price
-    }));
 
-    const totalAmount = formattedItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-    const orderData = {
-      shopId: cartArray[0].shopId,
-      customerId,
-      items: formattedItems,
-      totalAmount
-    };
+    // ✅ Group items by shopId — each shop gets its own order notification
+    const ordersByShop: Record<string, typeof cartArray> = {};
+    for (const item of cartArray) {
+      if (!ordersByShop[item.shopId]) ordersByShop[item.shopId] = [];
+      ordersByShop[item.shopId].push(item);
+    }
 
-    socket.emit('placeOrder', orderData, (response: any) => {
-      console.log('Order placed', response);
+    // Emit a separate placeOrder event for every shop involved
+    Object.entries(ordersByShop).forEach(([shopId, shopItems]) => {
+      const formattedItems = shopItems.map(i => ({
+        shopProductId: i.id,
+        quantity: i.quantity,
+        price: i.price,
+      }));
+      const totalAmount = formattedItems.reduce((acc, curr) => acc + curr.price * curr.quantity, 0);
+
+      const orderData = {
+        shopId,          // ← correct shop, not always cartArray[0]
+        customerId,
+        items: formattedItems,
+        totalAmount,
+      };
+
+      console.log(`[Cart] Placing order for shop ${shopId}`, orderData);
+      socket.emit('placeOrder', orderData, (response: any) => {
+        console.log(`[Cart] Order ack from shop ${shopId}:`, response);
+      });
     });
     
     showToast('Order placed successfully!');

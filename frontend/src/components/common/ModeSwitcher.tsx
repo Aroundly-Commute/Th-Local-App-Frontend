@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
-import { verdexColors as G, lightTheme, darkTheme } from './theme';
-import { tap } from './haptics';
+import { verdexColors as G, lightTheme, darkTheme } from '../../theme';
+import { tap } from '../../services/haptics';
 
 /**
  * Verdex-style persistent top switcher.

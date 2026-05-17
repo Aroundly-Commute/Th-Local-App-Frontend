@@ -6,8 +6,8 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { verdexColors as G } from '../../src/theme';
-import { IconChevronRight } from '../../src/market/components/primitives';
-import { useCart } from '../../src/market/CartContext';
+import { IconChevronRight } from '../../src/components/marketplace/primitives';
+import { useCart } from '../../src/contexts/CartContext';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_WIDTH = (width - 48) / 2;

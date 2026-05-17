@@ -4,9 +4,9 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { verdexColors as G } from '../theme';
-import { RippleTap, FloatView, FadeUp, IconChevronLeft, IconShare } from './components/primitives';
+import { RippleTap, FloatView, FadeUp, IconChevronLeft, IconShare } from '../components/marketplace/primitives';
 import { PRODS } from './data';
-import { useCart } from './CartContext';
+import { useCart } from '../contexts/CartContext';
 
 const sb = (c: string, a = '35') => ({ borderWidth: 1, borderColor: `${c}${a}` } as const);
 

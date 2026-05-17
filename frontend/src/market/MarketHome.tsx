@@ -11,12 +11,12 @@ import { verdexColors as G } from '../theme';
 import {
   RippleTap, FloatView, PulseView, FadeUp, FlashCountdown,
   IconZap, IconMapPin, IconChevronDown, IconSearch, IconChevronRight, IconHeart,
-} from './components/primitives';
+} from '../components/marketplace/primitives';
 import { useRouter } from 'expo-router';
 import { CATS, STORES, DEAL_TILES, FLASH_ITEMS, SHOPS, COUPONS, OFFERS } from './data';
-import { useCart } from './CartContext';
-import { ModeSwitcher } from '../ModeSwitcher';
-import { Ticker } from './components/Ticker';
+import { useCart } from '../contexts/CartContext';
+import { ModeSwitcher } from '../components/common/ModeSwitcher';
+import { Ticker } from '../components/marketplace/Ticker';
 
 const sb = (c: string, a = '25') => ({ borderWidth: 1, borderColor: `${c}${a}` } as const);
 

@@ -21,35 +21,110 @@ interface Order {
 
 const BACKEND_URL = 'http://localhost:3000/api';
 
-function App() {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'settings'>('products');
+// --- LOGIN SCREEN ---
+function LoginScreen({ onLogin }: { onLogin: (shopId: string) => void }) {
+  const [shops, setShops] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newShopName, setNewShopName] = useState('');
+
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/marketplace/shops/search?q=`)
+      .then(res => res.json())
+      .then(data => {
+        setShops(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleCreateShop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newShopName.trim()) return;
+    try {
+      // Mock ownerId for testing
+      const ownerId = 'merchant-user-' + Date.now();
+      const res = await fetch(`${BACKEND_URL}/marketplace/shops`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerId, name: newShopName, description: 'A new shop' })
+      });
+      const shop = await res.json();
+      onLogin(shop.id);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="dashboard-container" style={{ justifyContent: 'center', alignItems: 'center', display: 'flex', flexDirection: 'column', backgroundColor: '#f3f4f6' }}>
+      <div className="card" style={{ width: '400px', padding: '30px' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Merchant Login</h2>
+        
+        {loading ? (
+          <p style={{ textAlign: 'center' }}>Loading shops...</p>
+        ) : (
+          <>
+            <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>Select Existing Shop:</h3>
+            {shops.length === 0 ? (
+              <p style={{ color: 'gray', marginBottom: '20px' }}>No shops found.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '30px' }}>
+                {shops.map(shop => (
+                  <button key={shop.id} className="btn-primary" style={{ backgroundColor: '#4f46e5', textAlign: 'left' }} onClick={() => onLogin(shop.id)}>
+                    🏪 {shop.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <hr style={{ border: '1px solid #e5e7eb', marginBottom: '20px' }} />
+
+            <h3 style={{ marginBottom: '10px', fontSize: '16px' }}>Or Create New Shop:</h3>
+            <form onSubmit={handleCreateShop} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input 
+                type="text" 
+                placeholder="Shop Name" 
+                value={newShopName} 
+                onChange={e => setNewShopName(e.target.value)} 
+                required
+                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+              />
+              <button type="submit" className="btn-primary" style={{ backgroundColor: '#10b981' }}>Create & Login</button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- DASHBOARD ---
+function Dashboard({ shopId, onLogout }: { shopId: string, onLogout: () => void }) {
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'settings'>('orders');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', description: '', imageUrl: '' });
   
-  const [shopId, setShopId] = useState<string | null>(null);
   const [shopName, setShopName] = useState('My Awesome Shop');
   const [shopImageUrl, setShopImageUrl] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
-  // Ref so cleanup always has the latest socket (avoids stale closure)
   const socketRef = useRef<Socket | null>(null);
 
   // Init Shop & Socket
   useEffect(() => {
     let cancelled = false;
-    const initApp = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/marketplace/debug/init`);
-        const data = await res.json();
-        if (cancelled) return;
-        setShopId(data.shopId);
 
-        // Fetch products initially
+    const initDashboard = async () => {
+      try {
+        // Fetch products for this shop
         const prodRes = await fetch(`${BACKEND_URL}/marketplace/products/search?q=`);
         const prodData = await prodRes.json();
         const results = Array.isArray(prodData) ? prodData : [];
-        const shopProds = results.filter((p: any) => p.shopId === data.shopId).map((p: any) => ({
+        const shopProds = results.filter((p: any) => p.shopId === shopId).map((p: any) => ({
           id: p.id,
           name: p.product.name,
           price: p.price,
@@ -59,13 +134,22 @@ function App() {
         }));
         if (!cancelled) setProducts(shopProds);
 
-        // Force WebSocket transport — avoids polling race where events are missed
+        // Fetch shop details (optional, but good for settings tab)
+        const shopsRes = await fetch(`${BACKEND_URL}/marketplace/shops/search?q=`);
+        const shopsData = await shopsRes.json();
+        const myShop = Array.isArray(shopsData) ? shopsData.find(s => s.id === shopId) : null;
+        if (myShop && !cancelled) {
+          setShopName(myShop.name);
+          setShopImageUrl(myShop.imageUrl || '');
+        }
+
+        // Connect WebSocket
         const newSocket = io('http://localhost:3000', { transports: ['websocket'] });
         socketRef.current = newSocket;
 
         const joinRoom = () => {
-          console.log('[Merchant] Joining shop room:', data.shopId);
-          newSocket.emit('joinShopRoom', data.shopId);
+          console.log('[Merchant] Joining shop room:', shopId);
+          newSocket.emit('joinShopRoom', shopId);
         };
 
         newSocket.on('connect', () => {
@@ -73,11 +157,10 @@ function App() {
           joinRoom();
         });
 
-        // Safety: if socket already connected (hot-reload)
         if (newSocket.connected) joinRoom();
 
         newSocket.on('newOrder', (order: Order) => {
-          console.log('[Merchant] New order received!');
+          console.log('[Merchant] New order received!', order);
           if (!cancelled) setOrders(prev => [order, ...prev]);
         });
 
@@ -90,22 +173,20 @@ function App() {
         console.error('Init error', err);
       }
     };
-    initApp();
+    
+    initDashboard();
 
     return () => {
       cancelled = true;
-      // Use ref — always the latest socket, never stale
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, []);
+  }, [shopId]);
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopId) return;
-
     try {
       const res = await fetch(`${BACKEND_URL}/marketplace/products`, {
         method: 'POST',
@@ -149,20 +230,25 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo-container">
-          <h2>Merchant Hub</h2>
-          <p style={{ fontSize: 12, color: 'gray' }}>Shop ID: {shopId?.slice(0, 8)}...</p>
+          <h2>{shopName}</h2>
+          <p style={{ fontSize: 12, color: 'gray' }}>Shop ID: {shopId.slice(0, 8)}...</p>
         </div>
         <nav>
-          <button className={activeTab === 'products' ? 'active' : ''} onClick={() => setActiveTab('products')}>
-            📦 Products
-          </button>
           <button className={activeTab === 'orders' ? 'active' : ''} onClick={() => setActiveTab('orders')}>
             🛒 Orders {orders.filter(o => o.status === 'PENDING').length > 0 && `(${orders.filter(o => o.status === 'PENDING').length})`}
+          </button>
+          <button className={activeTab === 'products' ? 'active' : ''} onClick={() => setActiveTab('products')}>
+            📦 Products
           </button>
           <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
             ⚙️ Settings
           </button>
         </nav>
+        <div style={{ marginTop: 'auto', padding: '20px' }}>
+          <button className="btn-primary" style={{ backgroundColor: '#ef4444', width: '100%' }} onClick={onLogout}>
+            🚪 Logout
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -177,23 +263,6 @@ function App() {
         </header>
 
         <section className="content-area">
-          {activeTab === 'products' && (
-            <div className="product-grid">
-              {products.map(p => (
-                <div key={p.id} className="card product-card">
-                  <div className="product-image-container">
-                    <img src={p.imageUrl || 'https://via.placeholder.com/150'} alt={p.name} className="product-image" />
-                  </div>
-                  <h3>{p.name}</h3>
-                  <p className="price">₹{p.price.toFixed(2)}</p>
-                  <p className="stock">Stock: {p.stock}</p>
-                  <p className="description">{p.description}</p>
-                </div>
-              ))}
-              {products.length === 0 && <p>No products yet. Add some!</p>}
-            </div>
-          )}
-
           {activeTab === 'orders' && (
             <div className="orders-list">
               {orders.length === 0 ? (
@@ -205,11 +274,11 @@ function App() {
                       <h3>Order from {o.user?.name || 'Customer'}</h3>
                       <span className={`status-badge ${o.status.toLowerCase()}`}>{o.status}</span>
                     </div>
-                    <p style={{ margin: '8px 0', fontSize: 18, fontWeight: 'bold' }}>Total: ${o.totalAmount.toFixed(2)}</p>
+                    <p style={{ margin: '8px 0', fontSize: 18, fontWeight: 'bold' }}>Total: ₹{o.totalAmount.toFixed(2)}</p>
                     <div>
                       {o.items?.map((i: any, idx: number) => (
                         <p key={idx} style={{ color: 'gray' }}>
-                          {i.quantity}x {i.shopProduct?.product?.name || 'Item'} (@ ${i.priceAtTime})
+                          {i.quantity}x {i.shopProduct?.product?.name || 'Item'} (@ ₹{i.priceAtTime})
                         </p>
                       ))}
                     </div>
@@ -226,6 +295,23 @@ function App() {
                   </div>
                 ))
               )}
+            </div>
+          )}
+
+          {activeTab === 'products' && (
+            <div className="product-grid">
+              {products.map(p => (
+                <div key={p.id} className="card product-card">
+                  <div className="product-image-container">
+                    <img src={p.imageUrl || 'https://via.placeholder.com/150'} alt={p.name} className="product-image" />
+                  </div>
+                  <h3>{p.name}</h3>
+                  <p className="price">₹{p.price.toFixed(2)}</p>
+                  <p className="stock">Stock: {p.stock}</p>
+                  <p className="description">{p.description}</p>
+                </div>
+              ))}
+              {products.length === 0 && <p>No products yet. Add some!</p>}
             </div>
           )}
 
@@ -282,6 +368,27 @@ function App() {
       )}
     </div>
   );
+}
+
+// --- APP COMPONENT ---
+function App() {
+  const [shopId, setShopId] = useState<string | null>(localStorage.getItem('merchant_shop_id'));
+
+  const handleLogin = (id: string) => {
+    localStorage.setItem('merchant_shop_id', id);
+    setShopId(id);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('merchant_shop_id');
+    setShopId(null);
+  };
+
+  if (!shopId) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return <Dashboard shopId={shopId} onLogout={handleLogout} />;
 }
 
 export default App;

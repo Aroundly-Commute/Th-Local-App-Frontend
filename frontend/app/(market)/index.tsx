@@ -27,10 +27,10 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { verdexColors as G } from '../../src/theme';
-import { tap } from '../../src/haptics';
-import { CartProvider, useCart } from '../../src/market/CartContext';
-import { MarketBottomNav }   from '../../src/market/components/MarketBottomNav';
-import { Toast }             from '../../src/market/components/primitives';
+import { tap } from '../../src/services/haptics';
+import { useCart } from '../../src/contexts/CartContext';
+import { MarketBottomNav }   from '../../src/components/marketplace/MarketBottomNav';
+import { Toast }             from '../../src/components/marketplace/primitives';
 import { MarketHome }        from '../../src/market/MarketHome';
 import { ShopDetail }        from '../../src/market/ShopDetail';
 
