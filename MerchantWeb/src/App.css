@@ -7,6 +7,8 @@
 .sidebar {
   width: 260px;
   background: var(--sidebar-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -57,7 +59,9 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  background: white;
+  background: rgba(18, 18, 18, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -69,9 +73,9 @@
 
 .btn-primary {
   background: var(--primary);
-  color: white;
+  color: #121212;
   padding: 10px 20px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .btn-primary:hover {
@@ -82,6 +86,21 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
+}
+
+.product-image-container {
+  width: 100%;
+  height: 200px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--border);
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .product-card h3 {

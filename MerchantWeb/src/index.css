@@ -1,24 +1,24 @@
 :root {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --bg: #f8fafc;
-  --sidebar-bg: #ffffff;
-  --card-bg: #ffffff;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
-  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --radius: 12px;
+  --primary: #c4f042;
+  --primary-hover: #b3df30;
+  --bg: #121212;
+  --sidebar-bg: rgba(26, 26, 26, 0.7);
+  --card-bg: rgba(30, 30, 30, 0.6);
+  --text-main: #f5f5f5;
+  --text-muted: #a3a3a3;
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --radius: 16px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f172a;
-    --sidebar-bg: #1e293b;
-    --card-bg: #1e293b;
-    --text-main: #f1f5f9;
-    --text-muted: #94a3b8;
-    --border: #334155;
+    --bg: #0a0a0a;
+    --sidebar-bg: rgba(20, 20, 20, 0.7);
+    --card-bg: rgba(25, 25, 25, 0.6);
+    --text-main: #fafafa;
+    --text-muted: #888888;
+    --border: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -63,6 +63,8 @@ input:focus {
 
 .card {
   background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 24px;

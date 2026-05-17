@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import './App.css';
 
@@ -8,6 +8,7 @@ interface Product {
   price: number;
   stock: number;
   description: string;
+  imageUrl?: string;
 }
 
 interface Order {
@@ -25,47 +26,66 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', description: '' });
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', description: '', imageUrl: '' });
   
   const [shopId, setShopId] = useState<string | null>(null);
+  const [shopName, setShopName] = useState('My Awesome Shop');
+  const [shopImageUrl, setShopImageUrl] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
+  // Ref so cleanup always has the latest socket (avoids stale closure)
+  const socketRef = useRef<Socket | null>(null);
 
   // Init Shop & Socket
   useEffect(() => {
+    let cancelled = false;
     const initApp = async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/marketplace/debug/init`);
         const data = await res.json();
+        if (cancelled) return;
         setShopId(data.shopId);
 
         // Fetch products initially
         const prodRes = await fetch(`${BACKEND_URL}/marketplace/products/search?q=`);
         const prodData = await prodRes.json();
-        
-        // Ensure prodData is an array
         const results = Array.isArray(prodData) ? prodData : [];
-        
-        // filter for this shop just in case
         const shopProds = results.filter((p: any) => p.shopId === data.shopId).map((p: any) => ({
           id: p.id,
           name: p.product.name,
           price: p.price,
           stock: p.stock,
-          description: p.product.description
+          description: p.product.description,
+          imageUrl: p.product.imageUrl
         }));
-        setProducts(shopProds);
+        if (!cancelled) setProducts(shopProds);
 
-        // Init Socket
-        const newSocket = io('http://localhost:3000'); // Socket still uses base URL
-        newSocket.on('connect', () => {
+        // Force WebSocket transport — avoids polling race where events are missed
+        const newSocket = io('http://localhost:3000', { transports: ['websocket'] });
+        socketRef.current = newSocket;
+
+        const joinRoom = () => {
+          console.log('[Merchant] Joining shop room:', data.shopId);
           newSocket.emit('joinShopRoom', data.shopId);
+        };
+
+        newSocket.on('connect', () => {
+          console.log('[Merchant] Socket connected:', newSocket.id);
+          joinRoom();
         });
+
+        // Safety: if socket already connected (hot-reload)
+        if (newSocket.connected) joinRoom();
 
         newSocket.on('newOrder', (order: Order) => {
-          setOrders(prev => [order, ...prev]);
+          console.log('[Merchant] New order received!');
+          if (!cancelled) setOrders(prev => [order, ...prev]);
         });
 
-        setSocket(newSocket);
+        newSocket.on('connect_error', (err) => {
+          console.error('[Merchant] Socket connect error:', err.message);
+        });
+
+        if (!cancelled) setSocket(newSocket);
       } catch (err) {
         console.error('Init error', err);
       }
@@ -73,7 +93,12 @@ function App() {
     initApp();
 
     return () => {
-      socket?.disconnect();
+      cancelled = true;
+      // Use ref — always the latest socket, never stale
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
   }, []);
 
@@ -91,6 +116,7 @@ function App() {
           price: parseFloat(newProduct.price),
           stock: parseInt(newProduct.stock),
           description: newProduct.description,
+          imageUrl: newProduct.imageUrl
         })
       });
       const data = await res.json();
@@ -100,11 +126,12 @@ function App() {
         name: data.product.name,
         price: data.price,
         stock: data.stock,
-        description: data.product.description
+        description: data.product.description,
+        imageUrl: data.product.imageUrl
       };
       setProducts(prev => [...prev, p]);
       setShowAddModal(false);
-      setNewProduct({ name: '', price: '', stock: '', description: '' });
+      setNewProduct({ name: '', price: '', stock: '', description: '', imageUrl: '' });
     } catch (err) {
       console.error(err);
     }
@@ -154,8 +181,11 @@ function App() {
             <div className="product-grid">
               {products.map(p => (
                 <div key={p.id} className="card product-card">
+                  <div className="product-image-container">
+                    <img src={p.imageUrl || 'https://via.placeholder.com/150'} alt={p.name} className="product-image" />
+                  </div>
                   <h3>{p.name}</h3>
-                  <p className="price">${p.price.toFixed(2)}</p>
+                  <p className="price">₹{p.price.toFixed(2)}</p>
                   <p className="stock">Stock: {p.stock}</p>
                   <p className="description">{p.description}</p>
                 </div>
@@ -202,9 +232,11 @@ function App() {
           {activeTab === 'settings' && (
             <div className="card">
               <h3>Shop Settings</h3>
-              <form className="settings-form" onSubmit={(e) => e.preventDefault()}>
+              <form className="settings-form" onSubmit={(e) => { e.preventDefault(); alert('Shop saved!'); }}>
                 <label>Shop Name</label>
-                <input type="text" placeholder="My Awesome Shop" defaultValue="My Awesome Shop" />
+                <input type="text" placeholder="My Awesome Shop" value={shopName} onChange={e => setShopName(e.target.value)} />
+                <label>Shop Image URL</label>
+                <input type="text" placeholder="https://example.com/shop-image.jpg" value={shopImageUrl} onChange={e => setShopImageUrl(e.target.value)} />
                 <button className="btn-primary" style={{ marginTop: 16 }}>Save Changes</button>
               </form>
             </div>
@@ -231,6 +263,10 @@ function App() {
                   <label>Stock</label>
                   <input type="number" required value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} />
                 </div>
+              </div>
+              <div className="form-group">
+                <label>Image URL</label>
+                <input type="text" placeholder="https://..." value={newProduct.imageUrl} onChange={e => setNewProduct({...newProduct, imageUrl: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Description</label>

@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Dimensions
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { verdexColors as G } from '../../src/theme';
 import { IconChevronRight } from '../../src/market/components/primitives';
+import { useCart } from '../../src/market/CartContext';
+
+const { width } = Dimensions.get('window');
+const GRID_ITEM_WIDTH = (width - 48) / 2;
 
 export default function SearchScreen() {
   const { q } = useLocalSearchParams();
@@ -15,6 +20,7 @@ export default function SearchScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [shops, setShops] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'products' | 'shops'>('products');
+  const { addItem } = useCart();
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -48,23 +54,35 @@ export default function SearchScreen() {
   }, [q]);
 
   const renderProduct = ({ item }: { item: any }) => (
-    <View style={s.card}>
-      <View style={{ flex: 1 }}>
-        <Text style={s.cardTitle}>{item.product?.name || 'Unknown Product'}</Text>
-        <Text style={s.cardSub}>Shop: {item.shop?.name || 'Unknown Shop'}</Text>
-        {item.product?.description && (
-          <Text style={s.cardDesc} numberOfLines={2}>{item.product.description}</Text>
+    <View style={s.gridCard}>
+      <Image 
+        source={{ uri: item.product?.imageUrl || 'https://via.placeholder.com/150' }} 
+        style={s.productImage} 
+        contentFit="cover"
+      />
+      <View style={s.gridCardContent}>
+        <Text style={s.cardTitle} numberOfLines={1}>{item.product?.name || 'Unknown Product'}</Text>
+        <Text style={s.cardSub} numberOfLines={1}>{item.shop?.name || 'Unknown Shop'}</Text>
+        
+        <View style={s.priceRow}>
+          <Text style={s.price}>₹{item.price}</Text>
+          <Text style={s.stock}>{item.stock > 0 ? `In Stock: ${item.stock}` : 'Out of Stock'}</Text>
+        </View>
+        
+        {item.stock > 0 && (
+          <TouchableOpacity 
+            style={s.addToCartBtn}
+            onPress={() => addItem(item.id, item.product?.name || 'Product', item.price, item.shopId, item.product?.imageUrl)}
+          >
+            <Text style={s.addToCartText}>Add to Cart</Text>
+          </TouchableOpacity>
         )}
-      </View>
-      <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-        <Text style={s.price}>₹{item.price}</Text>
-        <Text style={s.stock}>{item.stock > 0 ? `In Stock: ${item.stock}` : 'Out of Stock'}</Text>
       </View>
     </View>
   );
 
   const renderShop = ({ item }: { item: any }) => (
-    <View style={s.card}>
+    <TouchableOpacity style={s.card} onPress={() => router.push(`/shop/${item.id}`)}>
       <View style={{ flex: 1 }}>
         <Text style={s.cardTitle}>{item.name}</Text>
         <Text style={s.cardSub}>Owner: {item.owner?.name || 'Unknown'}</Text>
@@ -73,7 +91,7 @@ export default function SearchScreen() {
         )}
       </View>
       <IconChevronRight c={G.g400} />
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -113,9 +131,12 @@ export default function SearchScreen() {
         </View>
       ) : (
         <FlatList
+          key={activeTab}
           data={activeTab === 'products' ? products : shops}
           keyExtractor={(item) => item.id}
           contentContainerStyle={s.listContent}
+          numColumns={activeTab === 'products' ? 2 : 1}
+          columnWrapperStyle={activeTab === 'products' ? s.columnWrapper : undefined}
           renderItem={activeTab === 'products' ? renderProduct : renderShop}
           ListEmptyComponent={
             <View style={s.center}>
@@ -178,7 +199,45 @@ const s = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+  },
+  gridCard: {
+    width: GRID_ITEM_WIDTH,
+    backgroundColor: G.surf || '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: `${G.g200}60`,
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: '100%',
+    height: GRID_ITEM_WIDTH,
+    backgroundColor: G.surf3 || '#eee',
+  },
+  gridCardContent: {
+    padding: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  addToCartBtn: {
+    backgroundColor: G.lime || '#000',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addToCartText: {
+    color: G.g900 || '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   card: {
     flexDirection: 'row',

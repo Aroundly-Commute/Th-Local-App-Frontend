@@ -7,15 +7,17 @@ import { verdexColors as G } from '../../src/theme';
 import { useCart } from '../../src/market/CartContext';
 import { Toast } from '../../src/market/components/primitives';
 
+import { useAuth } from '../../src/auth';
+
 export default function CartScreen() {
   const router = useRouter();
-  const { items, totalCount, clearCart } = useCart();
+  const { items, totalCount, clearCart, addItem, removeItem } = useCart();
+  const { user } = useAuth();
   
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [orderStatus, setOrderStatus] = useState<'idle' | 'pending' | 'confirmed' | 'rejected'>('idle');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const customerId = 'customer-123'; // Dummy for test
+  const customerId = user?.id || 'customer-123'; // Dynamic ID falling back to test dummy
   // In a real app we'd determine shopId from the items (assuming all items are from 1 shop)
   const shopId = 'dummy-shop-id'; // To be replaced in actual flow or handled properly
 
@@ -29,19 +31,11 @@ export default function CartScreen() {
     });
 
     newSocket.on('orderStatusUpdated', (order) => {
-      setOrderStatus(order.status.toLowerCase());
+      // Background notifications could be added here
       if (order.status === 'CONFIRMED') {
         showToast('✅ Merchant accepted your order!');
-        clearCart();
-        setTimeout(() => {
-          setOrderStatus('idle');
-          router.replace('/(market)');
-        }, 2500);
       } else if (order.status === 'REJECTED') {
         showToast('❌ Merchant rejected your order.');
-        setTimeout(() => {
-          setOrderStatus('idle');
-        }, 2500);
       }
     });
 
@@ -60,15 +54,18 @@ export default function CartScreen() {
     if (!socket || totalCount === 0) return;
     
     // We assume items belong to one shop for this simplified demo
-    const formattedItems = Object.values(items).map(i => ({
+    const cartArray = Object.values(items);
+    if (cartArray.length === 0) return;
+    
+    const formattedItems = cartArray.map(i => ({
       shopProductId: i.id,
       quantity: i.quantity,
-      price: 10.00 // hardcoded price for simplicity, should come from product
+      price: i.price
     }));
 
     const totalAmount = formattedItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
     const orderData = {
-      shopId: 'c82736b0-73f1-4fc3-a9dd-63e8dfc7ccab', // We should fetch dynamic shop ID but sticking to the flow
+      shopId: cartArray[0].shopId,
       customerId,
       items: formattedItems,
       totalAmount
@@ -78,12 +75,15 @@ export default function CartScreen() {
       console.log('Order placed', response);
     });
     
-    setOrderStatus('pending');
-    showToast('Order placed! Waiting for merchant to accept...');
+    showToast('Order placed successfully!');
+    clearCart();
+    setTimeout(() => {
+      router.replace('/(market)');
+    }, 2000);
   };
 
   const cartArray = Object.values(items);
-  const totalAmount = cartArray.reduce((acc, i) => acc + (10 * i.quantity), 0); // Mock price $10
+  const totalAmount = cartArray.reduce((acc, i) => acc + (i.price * i.quantity), 0);
 
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right', 'bottom']}>
@@ -109,8 +109,19 @@ export default function CartScreen() {
               <Text style={s.cardHeader}>Items ({totalCount})</Text>
               {cartArray.map(item => (
                 <View key={item.id} style={s.cartItem}>
-                  <Text style={s.itemName}>{item.quantity}x {item.name}</Text>
-                  <Text style={s.itemPrice}>₹{10 * item.quantity}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.itemName}>{item.name}</Text>
+                    <Text style={s.itemPrice}>₹{item.price * item.quantity}</Text>
+                  </View>
+                  <View style={s.quantityControl}>
+                    <TouchableOpacity onPress={() => removeItem(item.id)} style={s.qtyBtn}>
+                      <Text style={s.qtyText}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={s.qtyValue}>{item.quantity}</Text>
+                    <TouchableOpacity onPress={() => addItem(item.id, item.name, item.price, item.shopId, item.image)} style={s.qtyBtn}>
+                      <Text style={s.qtyText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
               <View style={s.divider} />
@@ -120,17 +131,9 @@ export default function CartScreen() {
               </View>
             </View>
 
-            {orderStatus === 'pending' ? (
-              <View style={s.pendingBox}>
-                <ActivityIndicator size="small" color={G.lime} style={{ marginBottom: 12 }} />
-                <Text style={s.pendingText}>Waiting for Merchant...</Text>
-                <Text style={s.pendingSub}>They have been notified of your order.</Text>
-              </View>
-            ) : (
-              <TouchableOpacity style={s.checkoutBtn} onPress={handlePlaceOrder}>
-                <Text style={s.checkoutBtnText}>Place Order (₹{totalAmount})</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={s.checkoutBtn} onPress={handlePlaceOrder}>
+              <Text style={s.checkoutBtnText}>Place Order (₹{totalAmount})</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -245,26 +248,6 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  pendingBox: {
-    backgroundColor: `${G.g800}80`,
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginTop: 24,
-    borderWidth: 1,
-    borderColor: G.g700,
-  },
-  pendingText: {
-    color: G.lime,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  pendingSub: {
-    color: G.g300,
-    fontSize: 12,
-    textAlign: 'center',
-  },
   toastWrap: {
     position: 'absolute',
     bottom: 90,
@@ -272,5 +255,28 @@ const s = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 999,
+  },
+  quantityControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${G.g200}20`,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+  },
+  qtyBtn: {
+    padding: 8,
+    paddingHorizontal: 12,
+  },
+  qtyText: {
+    color: G.lime,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  qtyValue: {
+    color: G.txt,
+    fontSize: 16,
+    fontWeight: '600',
+    minWidth: 24,
+    textAlign: 'center',
   },
 });

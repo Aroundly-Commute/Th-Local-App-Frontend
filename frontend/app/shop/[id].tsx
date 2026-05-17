@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Star, MapPin, Heart, BadgeCheck } from 'lucide-react-native';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
 import { tap, success } from '../../src/haptics';
-import { mockShops, mockProducts, mockFollowStatus } from '../../src/marketData';
+import { useCart } from '../../src/market/CartContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -23,15 +23,41 @@ export default function ShopDetail() {
   const [follow, setFollow] = useState<{ is_following: boolean; followers: number }>({ is_following: false, followers: 0 });
   const [loading, setLoading] = useState(true);
 
+  const { addItem } = useCart();
+
   useEffect(() => {
-    // Resolve from mock data — replace with api calls once backend is ready
-    const found = mockShops.find((s) => s.id === id);
-    const prods = mockProducts[id] ?? [];
-    const fStatus = mockFollowStatus[id] ?? { is_following: false, followers: found?.followers ?? 0 };
-    setShop(found ?? null);
-    setProducts(prods);
-    setFollow(fStatus);
-    setLoading(false);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+        const [prodRes, shopRes] = await Promise.all([
+          fetch(`${baseUrl}/api/marketplace/products/search?q=`),
+          fetch(`${baseUrl}/api/marketplace/shops/search?q=`)
+        ]);
+
+        const prodData = await prodRes.json();
+        const shopData = await shopRes.json();
+        
+        const allShops = Array.isArray(shopData) ? shopData : [];
+        const found = allShops.find((s: any) => s.id === id);
+        
+        const allProds = Array.isArray(prodData) ? prodData : [];
+        const shopProds = allProds.filter((p: any) => p.shopId === id).map((p: any) => ({
+          ...p,
+          image: p.product?.imageUrl || 'https://via.placeholder.com/150',
+          name: p.product?.name || 'Unknown',
+        }));
+
+        setShop(found ?? { id, name: 'Unknown Shop', rating: 0, distance_km: 0, image: 'https://via.placeholder.com/500', avatar: 'https://via.placeholder.com/150', description: 'No description' });
+        setProducts(shopProds);
+        setFollow({ is_following: false, followers: found?.followers ?? 0 });
+      } catch (err) {
+        console.error('Error fetching shop data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, [id]);
 
   const toggleFollow = () => {
@@ -73,12 +99,12 @@ export default function ShopDetail() {
               <Text style={[styles.name, { color: t.textPrimary }]}>{shop.name}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                 <Star color={t.warning} size={12} fill={t.warning} />
-                <Text style={[styles.meta, { color: t.textSecondary }]}>{shop.rating.toFixed(1)}</Text>
+                <Text style={[styles.meta, { color: t.textSecondary }]}>{(shop.rating ?? 4.5).toFixed(1)}</Text>
                 <Text style={[styles.meta, { color: t.textTertiary }]}>·</Text>
                 <MapPin color={t.textSecondary} size={11} />
-                <Text style={[styles.meta, { color: t.textSecondary }]}>{shop.distance_km} km</Text>
+                <Text style={[styles.meta, { color: t.textSecondary }]}>{shop.distance_km ?? 1.2} km</Text>
                 <Text style={[styles.meta, { color: t.textTertiary }]}>·</Text>
-                <Text style={[styles.meta, { color: t.textSecondary }]}>{follow.followers.toLocaleString()} followers</Text>
+                <Text style={[styles.meta, { color: t.textSecondary }]}>{(follow.followers ?? 0).toLocaleString()} followers</Text>
               </View>
             </View>
           </View>
@@ -138,12 +164,17 @@ export default function ShopDetail() {
                   <Text style={[styles.productName, { color: t.textPrimary }]} numberOfLines={2}>{p.name}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                     <Text style={[styles.productPrice, { color: t.textPrimary }]}>
-                      ${(p.on_flash_sale ? p.sale_price : p.price).toFixed(2)}
+                      ₹{p.price}
                     </Text>
-                    {p.on_flash_sale && (
-                      <Text style={[styles.productOrig, { color: t.textTertiary }]}>${p.price.toFixed(2)}</Text>
-                    )}
                   </View>
+                  {p.stock > 0 && (
+                    <TouchableOpacity 
+                      style={[styles.addToCartBtn, { backgroundColor: t.primary }]}
+                      onPress={() => addItem(p.id, p.name, p.price, p.shopId, p.image)}
+                    >
+                      <Text style={[styles.addToCartText, { color: t.primaryContrast }]}>Add</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -155,8 +186,8 @@ export default function ShopDetail() {
       <View style={[styles.fab, { backgroundColor: t.background, borderTopColor: t.border }]}>
         <TouchableOpacity testID="visit-btn" activeOpacity={0.85}
           style={[styles.cta, { backgroundColor: t.primary }]}
-          onPress={() => tap()}>
-          <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Buy Now · Visit Shop</Text>
+          onPress={() => router.push('/(market)/cart')}>
+          <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>View Cart</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -187,4 +218,14 @@ const styles = StyleSheet.create({
   saleTagText: { color: '#fff', fontSize: 9, fontWeight: '800' },
   fab: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.md, borderTopWidth: 1 },
   cta: { height: 50, borderRadius: 9999, alignItems: 'center', justifyContent: 'center' },
+  addToCartBtn: {
+    marginTop: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  addToCartText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 });
