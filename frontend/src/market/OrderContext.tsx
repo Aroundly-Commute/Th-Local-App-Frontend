@@ -47,9 +47,46 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const [merchantOrders, setMerchantOrders] = useState<Order[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
+  const [shopId, setShopId] = useState<string | null>(null);
 
-  // In a real app, you might have multiple shopIds for a merchant user
-  const shopId = user?.role === 'merchant' ? 'dummy-shop-id' : null; // Replace with actual shop ID resolution
+  // Resolve business / shop ID dynamically from database
+  useEffect(() => {
+    if (!user) {
+      setShopId(null);
+      return;
+    }
+    const resolveShopId = async () => {
+      try {
+        const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/marketplace/user-business?userId=${user.id}`);
+        if (res.ok) {
+          const biz = await res.json();
+          if (biz.role === 'merchant') {
+            const shopsRes = await fetch(`${baseUrl}/api/marketplace/shops/search?q=`);
+            if (shopsRes.ok) {
+              const shops = await shopsRes.json();
+              const userShop = shops.find((s: any) => s.ownerId === user.id);
+              if (userShop) {
+                setShopId(userShop.id);
+              }
+            }
+          } else if (biz.role === 'provider') {
+            const provRes = await fetch(`${baseUrl}/api/marketplace/providers/search?q=`);
+            if (provRes.ok) {
+              const providers = await provRes.json();
+              const userProv = providers.find((sp: any) => sp.ownerId === user.id);
+              if (userProv) {
+                setShopId(userProv.id);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[OrderContext] Error resolving shopId:', err);
+      }
+    };
+    resolveShopId();
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -126,41 +163,66 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, [user, shopId]);
 
   const placeOrder = async (targetShopId: string, items: any[], totalAmount: number) => {
-    if (!socket || !socket.connected) {
-      console.warn('[OrderContext] Socket not connected, cannot place order via WS');
-      return;
-    }
-    const orderData = {
-      shopId: targetShopId,
-      customerId: user?.id,
-      items,
-      totalAmount,
-    };
-    
-    return new Promise<void>((resolve) => {
-      socket.emit('placeOrder', orderData, (response: any) => {
-        if (response?.data) {
-           // Optimistically add to customer orders
-           setCustomerOrders(prev => [response.data, ...prev]);
-        }
-        resolve();
+    if (socket && socket.connected) {
+      const orderData = {
+        shopId: targetShopId,
+        customerId: user?.id,
+        items,
+        totalAmount,
+      };
+      
+      return new Promise<void>((resolve) => {
+        socket.emit('placeOrder', orderData, (response: any) => {
+          if (response?.data) {
+             setCustomerOrders(prev => {
+               if (prev.find(o => o.id === response.data.id)) return prev;
+               return [response.data, ...prev];
+             });
+          }
+          resolve();
+        });
       });
-    });
+    } else {
+      console.warn('[OrderContext] Socket not connected, falling back to REST API for order placement');
+      try {
+        const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/marketplace/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user?.id,
+            items: items.map(i => ({
+              shopProductId: i.shopProductId,
+              quantity: i.quantity,
+              priceAtTime: i.price,
+            })),
+          }),
+        });
+        if (res.ok) {
+          const orderData = await res.json();
+          setCustomerOrders(prev => {
+            if (prev.find(o => o.id === orderData.id)) return prev;
+            return [orderData, ...prev];
+          });
+        }
+      } catch (err) {
+        console.error('[OrderContext] REST fallback placeOrder failed:', err);
+      }
+    }
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-    if (!socket || !socket.connected) {
-       console.warn('[OrderContext] Socket not connected, cannot update order status');
-       return;
-    }
-    return new Promise<void>((resolve) => {
-      socket.emit('updateOrderStatus', { orderId, status }, (response: any) => {
-        if (response?.data) {
-           // Local state updated via socket event 'orderStatusUpdated'
-        }
-        resolve();
+    // Instantly update states locally for maximum UI responsiveness
+    setCustomerOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    setMerchantOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+
+    if (socket && socket.connected) {
+      return new Promise<void>((resolve) => {
+        socket.emit('updateOrderStatus', { orderId, status }, (response: any) => {
+          resolve();
+        });
       });
-    });
+    }
   };
 
   return (

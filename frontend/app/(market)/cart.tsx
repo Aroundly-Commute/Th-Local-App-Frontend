@@ -5,9 +5,8 @@ import { useRouter } from 'expo-router';
 import { verdexColors as G } from '../../src/theme';
 import { useCart } from '../../src/contexts/CartContext';
 import { useOrders } from '../../src/market/OrderContext';
-import { Toast } from '../../src/components/marketplace/primitives';
-
 import { useAuth } from '../../src/auth';
+import { Toast, MarketBackButton } from '../../src/components/marketplace/primitives';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -37,6 +36,10 @@ export default function CartScreen() {
 
     // Emit a separate placeOrder event for every shop involved
     try {
+      // Clear the cart context state instantly so UI updates without waiting
+      clearCart();
+      showToast('Order placed successfully!');
+
       const orderPromises = Object.entries(ordersByShop).map(([shopId, shopItems]) => {
         const formattedItems = shopItems.map(i => ({
           shopProductId: i.id,
@@ -56,8 +59,6 @@ export default function CartScreen() {
        return;
     }
     
-    showToast('Order placed successfully!');
-    clearCart();
     setTimeout(() => {
       router.replace('/(market)');
     }, 2000);
@@ -69,9 +70,7 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={s.backBtnText}>← Back</Text>
-        </TouchableOpacity>
+        <MarketBackButton style={s.backBtn} color={G.txt} size={18} />
         <Text style={s.headerTitle}>Your Cart</Text>
       </View>
 

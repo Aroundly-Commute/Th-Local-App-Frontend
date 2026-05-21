@@ -5,12 +5,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme } 
 import { useRouter } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,
-  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award,
+  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, ShoppingBag,
 } from 'lucide-react-native';
 import { useAuth } from '../../src/auth';
+import { useMarketData } from '../../src/contexts/MarketDataContext';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { VerifiedAvatar } from '../../src/components';
 import { tap, success } from '../../src/haptics';
+import { ModeSwitcher } from '../../src/ModeSwitcher';
 
 const BADGES = [
   { icon: '🌱', name: 'Eco Starter' },
@@ -24,6 +26,7 @@ export default function Profile() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { registeredRole } = useMarketData();
 
   if (!user) return null;
 
@@ -38,9 +41,19 @@ export default function Profile() {
     router.replace('/(auth)/login');
   };
 
-  const menu = [
-    { icon: Award, label: 'Merchant Portal', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' },
-    { icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' },
+  const menu = [];
+  
+  if (registeredRole === 'merchant') {
+    menu.push({ icon: Award, label: 'Manage Shop', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
+  } else if (registeredRole === 'provider') {
+    menu.push({ icon: Settings, label: 'Manage Service', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
+  } else {
+    menu.push({ icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' });
+  }
+
+  menu.push(
+    { icon: Calendar, label: 'My Bookings', badge: null, route: '/(market)/customer-bookings' },
+    { icon: ShoppingBag, label: 'My Orders', badge: null, route: '/(market)/customer-orders' },
     { icon: Car, label: 'My Vehicles', badge: user.vehicle ? '1' : null },
     { icon: Wallet, label: 'Payment Methods', badge: null },
     { icon: MapPin, label: 'Saved Places', badge: '4' },
@@ -49,10 +62,11 @@ export default function Profile() {
     { icon: Bell, label: 'Notifications', badge: null },
     { icon: Settings, label: 'Settings', badge: null },
     { icon: HelpCircle, label: 'Help & Support', badge: null },
-  ];
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
+      <ModeSwitcher />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 140 }}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>

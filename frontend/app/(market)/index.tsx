@@ -34,6 +34,9 @@ import { Toast }             from '../../src/components/marketplace/primitives';
 import { MarketHome }        from '../../src/market/MarketHome';
 import { ShopDetail }        from '../../src/market/ShopDetail';
 
+type AppTab = 'marketplace' | 'pooling';
+type MarketScreen = 'home' | 'detail';
+
 // ─── Inner app (wraps everything that needs CartContext) ──────────────────────
 
 function InnerMarket() {
@@ -44,6 +47,10 @@ function InnerMarket() {
   const [screen,      setScreen]      = useState<MarketScreen>('home');
   const [activeNav,   setActiveNav]   = useState<any>('home');
   const [toast,       setToast]       = useState<string | null>(null);
+
+  // Dynamic detail states
+  const [selectedShopId, setSelectedShopId] = useState<string>('s1');
+  const [selectedShopType, setSelectedShopType] = useState<'shop' | 'provider'>('shop');
 
   // Fade transition
   const opacity  = useSharedValue(1);
@@ -82,11 +89,17 @@ function InnerMarket() {
       <Animated.View style={[{ flex: 1 }, screenAnim]}>
         {screen === 'home' ? (
           <MarketHome
-            onShopPress={() => goScreen('detail')}
+            onShopPress={(id, type) => {
+              setSelectedShopId(id);
+              setSelectedShopType(type);
+              goScreen('detail');
+            }}
             showToast={showToast}
           />
         ) : (
           <ShopDetail
+            shopId={selectedShopId}
+            shopType={selectedShopType}
             onBack={() => goScreen('home')}
             showToast={showToast}
           />

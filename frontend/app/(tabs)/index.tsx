@@ -16,8 +16,11 @@ import { Shimmer } from '../../src/Shimmer';
 import { VerifiedAvatar, RideCard } from '../../src/components';
 import { tap } from '../../src/haptics';
 import { ModeSwitcher } from '../../src/ModeSwitcher';
+import { useMarketData } from '../../src/contexts/MarketDataContext';
+import MarketDashboard from '../../src/market/MarketDashboard';
 
 export default function Home() {
+  const { activeMode } = useMarketData();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
@@ -56,21 +59,24 @@ export default function Home() {
     { icon: MapPin, label: 'Find Ride', onPress: () => router.push('/(tabs)/search') },
     { icon: Users, label: 'Offer Ride', onPress: () => router.push({ pathname: '/(tabs)/search', params: { mode: 'offer' } }) },
     { icon: Calendar, label: 'Schedule', onPress: () => router.push('/(tabs)/rides') },
-    { icon: Leaf, label: 'My Impact', onPress: () => router.push('/(tabs)/profile') },
+    { icon: MapPin, label: 'Parking', onPress: () => router.push('/(tabs)/parking') },
   ];
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: t.background }}>
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[3]}
-      >
-        <ModeSwitcher />
-        {/* Greeting */}
-        <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
-        <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.background }}>
+      <ModeSwitcher />
+      {activeMode === 'marketplace' ? (
+        <MarketDashboard />
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 12 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[2]}
+        >
+          {/* Greeting */}
+          <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
+          <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>
 
         {/* Quick search */}
         <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg }}>
@@ -186,6 +192,7 @@ export default function Home() {
           </View>
         </View>
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

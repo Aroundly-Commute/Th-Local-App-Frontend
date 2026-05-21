@@ -57,6 +57,15 @@ type MarketDataContextType = {
   addService: (name: string, price: string, desc: string, providerName: string, category: string) => Promise<void>;
   createBooking: (serviceId: string, timeSlot: string, date?: string) => Promise<any>;
   loading: boolean;
+  registeredRole: 'merchant' | 'provider' | null;
+  setRegisteredRole: (role: 'merchant' | 'provider' | null) => Promise<void>;
+  registeredBrandName: string | null;
+  setRegisteredBrandName: (name: string | null) => Promise<void>;
+  followedIds: string[];
+  toggleFollow: (id: string) => Promise<void>;
+  refreshData: () => Promise<void>;
+  activeMode: 'marketplace' | 'pooling';
+  setActiveMode: (mode: 'marketplace' | 'pooling') => void;
 };
 
 const MarketDataContext = createContext<MarketDataContextType | undefined>(undefined);
@@ -69,152 +78,210 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const initAndFetchData = async () => {
-      try {
+  // Business Onboarding State
+  const [registeredRole, setRegisteredRoleState] = useState<'merchant' | 'provider' | null>(null);
+  const [registeredBrandName, setRegisteredBrandNameState] = useState<string | null>(null);
+
+  // Business Follow State
+  const [followedIds, setFollowedIds] = useState<string[]>([]);
+  const [activeMode, setActiveMode] = useState<'marketplace' | 'pooling'>('marketplace');
+
+  const initAndFetchData = async (showLoadingIndicator = true) => {
+    try {
+      if (showLoadingIndicator) {
         setLoading(true);
-        console.log('[MarketDataContext] Fetching marketplace registry from database...');
-        
-        // 1. Fetch shops
-        const shopsRes = await api.get('/marketplace/shops/search?q=');
-        let currentShops = shopsRes.data || [];
+      }
+      console.log('[MarketDataContext] Fetching marketplace registry from database...');
+      
+      // 1. Fetch shops
+      const shopsRes = await api.get('/marketplace/shops/search?q=');
+      let currentShops = shopsRes.data || [];
 
-        // If database is clean/empty, seed mock records so the app is instantly stunning
-        if (currentShops.length === 0) {
-          console.log('[MarketDataContext] Database is empty. Seeding initial shops, products, providers, and services...');
-          const ownerId = user?.id || 'mock-owner-id';
+      // If database is clean/empty, seed mock records so the app is instantly stunning
+      if (currentShops.length === 0) {
+        console.log('[MarketDataContext] Database is empty. Seeding initial shops, products, providers, and services...');
+        const ownerId = user?.id || 'mock-owner-id';
 
-          // Seed Shops and their Products
-          for (const sh of SHOPS) {
-            try {
-              const shopData = await api.post('/marketplace/shops', {
-                ownerId,
-                name: sh.name,
-                description: 'Groceries',
-              });
-              // Seed a product linked to this shop
-              await api.post('/marketplace/products', {
-                shopId: shopData.data.id,
-                name: `${sh.name} Fresh Item`,
-                price: 99,
-                stock: 50,
-                description: 'Fresh quality product',
-                imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80'
-              });
-            } catch (seedErr) {
-              console.warn('[MarketDataContext] Seeding shop error:', seedErr);
-            }
+        // Seed Shops and their Products
+        for (const sh of SHOPS) {
+          try {
+            const shopData = await api.post('/marketplace/shops', {
+              ownerId,
+              name: sh.name,
+              description: 'Groceries',
+            });
+            // Seed a product linked to this shop
+            await api.post('/marketplace/products', {
+              shopId: shopData.data.id,
+              name: `${sh.name} Fresh Item`,
+              price: 99,
+              stock: 50,
+              description: 'Fresh quality product',
+              imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80'
+            });
+          } catch (seedErr) {
+            console.warn('[MarketDataContext] Seeding shop error:', seedErr);
           }
+        }
 
-          // Seed Service Providers and Services
-          for (const sp of SERVICE_PROVIDERS) {
-            try {
-              const providerData = await api.post('/marketplace/providers', {
-                ownerId,
-                name: sp.name,
-                services: sp.services,
-              });
-              // Seed a service for this provider
-              await api.post('/marketplace/services', {
-                providerId: providerData.data.id,
-                name: `${sp.name} General Repair`,
-                price: 299,
-                description: 'Expert local professional services',
-                category: 'Plumbing & Repairs',
-              });
-            } catch (seedErr) {
-              console.warn('[MarketDataContext] Seeding provider error:', seedErr);
-            }
+        // Seed Service Providers and Services
+        for (const sp of SERVICE_PROVIDERS) {
+          try {
+            const providerData = await api.post('/marketplace/providers', {
+              ownerId,
+              name: sp.name,
+              services: sp.services,
+            });
+            // Seed a service for this provider
+            await api.post('/marketplace/services', {
+              providerId: providerData.data.id,
+              name: `${sp.name} General Repair`,
+              price: 299,
+              description: 'Expert local professional services',
+              category: 'Plumbing & Repairs',
+            });
+          } catch (seedErr) {
+            console.warn('[MarketDataContext] Seeding provider error:', seedErr);
           }
-
-          // Re-fetch clean list after seeding
-          const freshShops = await api.get('/marketplace/shops/search?q=');
-          currentShops = freshShops.data || [];
         }
 
-        // Fetch products, services, and providers from database
-        const [prodsRes, srvsRes, provsRes] = await Promise.all([
-          api.get('/marketplace/products/search?q='),
-          api.get('/marketplace/services/search?q='),
-          api.get('/marketplace/providers/search?q='),
-        ]);
+        // Re-fetch clean list after seeding
+        const freshShops = await api.get('/marketplace/shops/search?q=');
+        currentShops = freshShops.data || [];
+      }
 
-        // Map database schemas directly to the premium frontend UI structures
-        if (currentShops) {
-          setShops(currentShops.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            rating: '4.8',
-            dist: '0.3 km',
-            emoji: '🏪',
-            bg: '#E8FBF9',
-            orders: '1.2k',
-            category: s.description || 'Groceries'
-          })));
+      // Fetch products, services, and providers from database
+      const [prodsRes, srvsRes, provsRes] = await Promise.all([
+        api.get('/marketplace/products/search?q='),
+        api.get('/marketplace/services/search?q='),
+        api.get('/marketplace/providers/search?q='),
+      ]);
+
+      // Map database schemas directly to the premium frontend UI structures
+      if (currentShops) {
+        setShops(currentShops.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          rating: '4.8',
+          dist: '0.3 km',
+          emoji: '🏪',
+          bg: '#E8FBF9',
+          orders: '1.2k',
+          category: s.description || 'Groceries'
+        })));
+      }
+
+      if (prodsRes.data) {
+        setProducts(prodsRes.data.map((p: any) => ({
+          name: p.product?.name || p.name || 'Product',
+          emoji: '🎁',
+          bg: '#FFFBEA',
+          was: `₹${Math.round((p.price || 100) * 1.25)}`,
+          now: `₹${p.price || 89}`,
+          off: '20%'
+        })));
+      }
+
+      if (srvsRes.data) {
+        setServices(srvsRes.data.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          provider: s.provider?.name || 'Local Provider',
+          price: `₹${s.price || 249}`,
+          rating: '4.9',
+          emoji: s.emoji || '🔧',
+          category: s.category || 'Plumbing & Repairs',
+          bg: '#E8FBF9'
+        })));
+      }
+
+      if (provsRes.data) {
+        setServiceProviders(provsRes.data.map((sp: any) => ({
+          id: sp.id,
+          name: sp.name,
+          rating: '4.8',
+          dist: sp.dist || '0.8 km',
+          emoji: sp.emoji || '👨‍🔧',
+          bg: '#E8FBF9',
+          services: sp.services || 'General Services',
+          ratingCount: String(sp.ratingCount || 10)
+        })));
+      }
+
+      // Load roles and follows from database
+      if (user?.id) {
+        try {
+          const [bizRes, followsRes] = await Promise.all([
+            api.get(`/marketplace/user-business?userId=${user.id}`),
+            api.get(`/marketplace/follows?userId=${user.id}`),
+          ]);
+          if (bizRes.data) {
+            setRegisteredRoleState(bizRes.data.role);
+            setRegisteredBrandNameState(bizRes.data.brandName);
+          }
+          if (followsRes.data) {
+            setFollowedIds(followsRes.data);
+          }
+        } catch (dbErr) {
+          console.error('[MarketDataContext] Error loading profile/follows from DB:', dbErr);
         }
+      }
 
-        if (prodsRes.data) {
-          setProducts(prodsRes.data.map((p: any) => ({
-            name: p.product?.name || p.name || 'Product',
-            emoji: '🎁',
-            bg: '#FFFBEA',
-            was: `₹${Math.round((p.price || 100) * 1.25)}`,
-            now: `₹${p.price || 89}`,
-            off: '20%'
-          })));
-        }
+    } catch (err) {
+      console.error('[MarketDataContext] Error connecting to backend, using local/offline storage:', err);
+      // Fallback gracefully from AsyncStorage/data.ts
+      const storedShops = await AsyncStorage.getItem('@verdex_shops');
+      const storedServices = await AsyncStorage.getItem('@verdex_services');
+      const storedProviders = await AsyncStorage.getItem('@verdex_providers');
+      const storedProducts = await AsyncStorage.getItem('@verdex_products');
 
-        if (srvsRes.data) {
-          setServices(srvsRes.data.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            provider: s.provider?.name || 'Local Provider',
-            price: `₹${s.price || 249}`,
-            rating: '4.9',
-            emoji: s.emoji || '🔧',
-            category: s.category || 'Plumbing & Repairs',
-            bg: '#E8FBF9'
-          })));
-        }
-
-        if (provsRes.data) {
-          setServiceProviders(provsRes.data.map((sp: any) => ({
-            id: sp.id,
-            name: sp.name,
-            rating: '4.8',
-            dist: sp.dist || '0.8 km',
-            emoji: sp.emoji || '👨‍🔧',
-            bg: '#E8FBF9',
-            services: sp.services || 'General Services',
-            ratingCount: String(sp.ratingCount || 10)
-          })));
-        }
-
-      } catch (err) {
-        console.error('[MarketDataContext] Error connecting to backend, using local/offline storage:', err);
-        // Fallback gracefully from AsyncStorage/data.ts
-        const storedShops = await AsyncStorage.getItem('@verdex_shops');
-        const storedServices = await AsyncStorage.getItem('@verdex_services');
-        const storedProviders = await AsyncStorage.getItem('@verdex_providers');
-        const storedProducts = await AsyncStorage.getItem('@verdex_products');
-
-        setShops(storedShops ? JSON.parse(storedShops) : SHOPS.map(s => ({ ...s, category: 'Groceries' })));
-        setServices(storedServices ? JSON.parse(storedServices) : SERVICES);
-        setServiceProviders(storedProviders ? JSON.parse(storedProviders) : SERVICE_PROVIDERS);
-        setProducts(storedProducts ? JSON.parse(storedProducts) : FLASH_ITEMS);
-      } finally {
+      setShops(storedShops ? JSON.parse(storedShops) : SHOPS.map(s => ({ ...s, category: 'Groceries' })));
+      setServices(storedServices ? JSON.parse(storedServices) : SERVICES);
+      setServiceProviders(storedProviders ? JSON.parse(storedProviders) : SERVICE_PROVIDERS);
+      setProducts(storedProducts ? JSON.parse(storedProducts) : FLASH_ITEMS);
+    } finally {
+      if (showLoadingIndicator) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    initAndFetchData();
+  useEffect(() => {
+    initAndFetchData(true);
   }, [user]);
+
+  const refreshData = async () => {
+    await initAndFetchData(false);
+  };
 
   const saveToStorage = async (key: string, data: any) => {
     try {
       await AsyncStorage.setItem(key, JSON.stringify(data));
     } catch (e) {
       console.error('[MarketDataContext] Error persisting data locally:', e);
+    }
+  };
+
+  const setRegisteredRole = async (role: 'merchant' | 'provider' | null) => {
+    setRegisteredRoleState(role);
+  };
+
+  const setRegisteredBrandName = async (name: string | null) => {
+    setRegisteredBrandNameState(name);
+  };
+
+  const toggleFollow = async (id: string) => {
+    if (!user?.id) return;
+    try {
+      await api.post('/marketplace/follows', {
+        userId: user.id,
+        businessId: id,
+      });
+      setFollowedIds(prev =>
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      );
+    } catch (err) {
+      console.error('[MarketDataContext] toggleFollow failed:', err);
     }
   };
 
@@ -418,6 +485,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         addService,
         createBooking,
         loading,
+        registeredRole,
+        setRegisteredRole,
+        registeredBrandName,
+        setRegisteredBrandName,
+        followedIds,
+        toggleFollow,
+        refreshData,
+        activeMode,
+        setActiveMode,
       }}
     >
       {children}

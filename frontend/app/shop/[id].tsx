@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  ImageBackground, Dimensions, ActivityIndicator,
+  ImageBackground, Dimensions, ActivityIndicator, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { ChevronLeft, Star, MapPin, Heart, BadgeCheck } from 'lucide-react-nativ
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
 import { tap, success } from '../../src/haptics';
 import { useCart } from '../../src/market/CartContext';
+import { useAuth } from '../../src/auth';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -17,7 +18,8 @@ export default function ShopDetail() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
+  const { id, type } = useLocalSearchParams<{ id: string; type?: 'shop' | 'provider' }>();
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [follow, setFollow] = useState<{ is_following: boolean; followers: number }>({ is_following: false, followers: 0 });
@@ -30,27 +32,67 @@ export default function ShopDetail() {
       try {
         setLoading(true);
         const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-        const [prodRes, shopRes] = await Promise.all([
-          fetch(`${baseUrl}/api/marketplace/products/search?q=`),
-          fetch(`${baseUrl}/api/marketplace/shops/search?q=`)
-        ]);
-
-        const prodData = await prodRes.json();
-        const shopData = await shopRes.json();
         
-        const allShops = Array.isArray(shopData) ? shopData : [];
-        const found = allShops.find((s: any) => s.id === id);
-        
-        const allProds = Array.isArray(prodData) ? prodData : [];
-        const shopProds = allProds.filter((p: any) => p.shopId === id).map((p: any) => ({
-          ...p,
-          image: p.product?.imageUrl || 'https://via.placeholder.com/150',
-          name: p.product?.name || 'Unknown',
-        }));
+        if (type === 'provider') {
+          // Provider mode
+          const [provRes, servRes] = await Promise.all([
+            fetch(`${baseUrl}/api/marketplace/service-providers?q=`),
+            fetch(`${baseUrl}/api/marketplace/services/search?q=`)
+          ]);
+          
+          const provData = await provRes.json();
+          const servData = await servRes.json();
+          
+          const allProviders = Array.isArray(provData) ? provData : [];
+          const found = allProviders.find((p: any) => p.id === id);
+          
+          const allServices = Array.isArray(servData) ? servData : [];
+          const providerServices = allServices.filter((s: any) => s.providerId === id).map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            price: s.price,
+            description: s.description || 'Professional service',
+            image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80',
+            shopId: s.providerId,
+            stock: 1, // dummy stock
+            isService: true,
+          }));
+          
+          setShop({
+            id: found?.id || id,
+            name: found?.name || 'Local Service Provider',
+            rating: 4.8,
+            distance_km: 0.8,
+            image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80',
+            avatar: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&q=80',
+            description: found?.services || 'Professional marketplace service provider.'
+          });
+          setProducts(providerServices);
+          setFollow({ is_following: false, followers: 124 });
+        } else {
+          // Shop mode
+          const [prodRes, shopRes] = await Promise.all([
+            fetch(`${baseUrl}/api/marketplace/products/search?q=`),
+            fetch(`${baseUrl}/api/marketplace/shops/search?q=`)
+          ]);
 
-        setShop(found ?? { id, name: 'Unknown Shop', rating: 0, distance_km: 0, image: 'https://via.placeholder.com/500', avatar: 'https://via.placeholder.com/150', description: 'No description' });
-        setProducts(shopProds);
-        setFollow({ is_following: false, followers: found?.followers ?? 0 });
+          const prodData = await prodRes.json();
+          const shopData = await shopRes.json();
+          
+          const allShops = Array.isArray(shopData) ? shopData : [];
+          const found = allShops.find((s: any) => s.id === id);
+          
+          const allProds = Array.isArray(prodData) ? prodData : [];
+          const shopProds = allProds.filter((p: any) => p.shopId === id).map((p: any) => ({
+            ...p,
+            image: p.product?.imageUrl || 'https://via.placeholder.com/150',
+            name: p.product?.name || 'Unknown',
+          }));
+
+          setShop(found ?? { id, name: 'Unknown Shop', rating: 4.5, distance_km: 1.2, image: 'https://via.placeholder.com/500', avatar: 'https://via.placeholder.com/150', description: 'No description' });
+          setProducts(shopProds);
+          setFollow({ is_following: false, followers: found?.followers ?? 0 });
+        }
       } catch (err) {
         console.error('Error fetching shop data', err);
       } finally {
@@ -58,7 +100,45 @@ export default function ShopDetail() {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, type]);
+
+  const handleBookService = async (service: any) => {
+    tap();
+    Alert.alert(
+      'Confirm Booking',
+      `Would you like to book ${service.name} for ₹${service.price}?\nSlot: Tomorrow at 10:00 AM`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Book Now',
+          onPress: async () => {
+            try {
+              const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+              const res = await fetch(`${baseUrl}/api/marketplace/bookings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: user?.id || 'unknown',
+                  serviceId: service.id,
+                  timeSlot: '10:00 AM - 11:00 AM',
+                  date: 'Tomorrow',
+                }),
+              });
+              if (res.ok) {
+                success();
+                Alert.alert('Success', 'Your booking request has been submitted successfully!');
+              } else {
+                Alert.alert('Error', 'Failed to book slot.');
+              }
+            } catch (err) {
+              console.error('Booking error:', err);
+              Alert.alert('Error', 'Failed to book slot.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const toggleFollow = () => {
     tap();
@@ -167,7 +247,14 @@ export default function ShopDetail() {
                       ₹{p.price}
                     </Text>
                   </View>
-                  {p.stock > 0 && (
+                  {p.isService ? (
+                    <TouchableOpacity 
+                      style={[styles.addToCartBtn, { backgroundColor: t.primary }]}
+                      onPress={() => handleBookService(p)}
+                    >
+                      <Text style={[styles.addToCartText, { color: t.primaryContrast }]}>Book</Text>
+                    </TouchableOpacity>
+                  ) : p.stock > 0 && (
                     <TouchableOpacity 
                       style={[styles.addToCartBtn, { backgroundColor: t.primary }]}
                       onPress={() => addItem(p.id, p.name, p.price, p.shopId, p.image)}

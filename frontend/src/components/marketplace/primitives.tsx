@@ -219,6 +219,55 @@ export const IconChevronLeft  = ({ c, sz = 18 }: { c: string; sz?: number }) => 
   </Svg>
 );
 
+import { useRouter } from 'expo-router';
+
+export const MarketBackButton: React.FC<{
+  onPress?: () => void;
+  color?: string;
+  backgroundColor?: string;
+  size?: number;
+  style?: any;
+}> = ({ onPress, color = G.g800, backgroundColor = '#fff', size = 18, style }) => {
+  const router = useRouter();
+  
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(market)');
+      }
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={handlePress}
+      style={[
+        {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: backgroundColor,
+          alignItems: 'center',
+          justifyContent: 'center',
+          elevation: 3,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.15,
+          shadowRadius: 2,
+        },
+        style
+      ]}
+    >
+      <IconChevronLeft c={color} sz={size} />
+    </TouchableOpacity>
+  );
+};
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const p = StyleSheet.create({

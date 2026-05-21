@@ -1,7 +1,8 @@
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
-import { useRouter, useSegments } from 'expo-router';
+import { useSegments } from 'expo-router';
 import { verdexColors as G, lightTheme, darkTheme } from './theme';
 import { tap } from './haptics';
+import { useMarketData } from './contexts/MarketDataContext';
 
 /**
  * Verdex-style persistent top switcher.
@@ -10,12 +11,11 @@ import { tap } from './haptics';
 export const ModeSwitcher: React.FC = () => {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
-  const router = useRouter();
   const segs = useSegments() as string[];
+  const { activeMode, setActiveMode } = useMarketData();
   
-  // Logic to determine active tab based on route segments
-  const inMarket = segs.includes('(market)');
-  const inTabs = segs.includes('(tabs)');
+  // Logic to determine active tab based on context state
+  const inMarket = activeMode === 'marketplace';
   const inAuth = segs.includes('(auth)');
 
   // Don't show in auth screens or splash
@@ -23,11 +23,7 @@ export const ModeSwitcher: React.FC = () => {
 
   const handlePress = (target: 'marketplace' | 'pooling') => {
     tap();
-    if (target === 'marketplace' && !inMarket) {
-      router.replace('/(market)');
-    } else if (target === 'pooling' && !inTabs) {
-      router.replace('/(tabs)');
-    }
+    setActiveMode(target);
   };
 
   return (

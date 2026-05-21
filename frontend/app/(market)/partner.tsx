@@ -16,7 +16,7 @@ export default function PartnerOnboarding() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
-  const { addShop, addProduct, addServiceProvider, addService } = useMarketData();
+  const { addShop, addProduct, addServiceProvider, addService, setRegisteredRole, setRegisteredBrandName } = useMarketData();
 
   const [step, setStep] = useState(1);
   const [role, setRole] = useState<'merchant' | 'provider' | null>(null);
@@ -110,11 +110,15 @@ export default function PartnerOnboarding() {
         for (const item of itemsList) {
           await addProduct(item.name, item.price, item.description || '', item.stock || '20');
         }
+        await setRegisteredRole('merchant');
+        await setRegisteredBrandName(brandName);
       } else if (role === 'provider') {
         const newProviderId = await addServiceProvider(brandName, category, '🛠️');
         for (const item of itemsList) {
           await addService(item.name, item.price, item.description || '', brandName, category);
         }
+        await setRegisteredRole('provider');
+        await setRegisteredBrandName(brandName);
       }
 
       success();

@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Modal, FlatList,
+  View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Modal, FlatList, RefreshControl,
 } from 'react-native';
 import { verdexColors as G } from '../theme';
 import {
@@ -25,24 +25,35 @@ import { Ticker } from '../components/marketplace/Ticker';
 const sb = (c: string, a = '25') => ({ borderWidth: 1, borderColor: `${c}${a}` } as const);
 
 interface Props {
-  onShopPress: (shopId: string) => void;
+  onShopPress: (shopId: string, shopType: 'shop' | 'provider') => void;
   showToast:   (msg: string) => void;
 }
 
 export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
-  const { addItem } = useCart();
-  const { shops, services, serviceProviders, products } = useMarketData();
+  const router = useRouter();
+  const { addItem, totalCount } = useCart();
+  const { shops, services, serviceProviders, products, refreshData } = useMarketData();
   const [activeCat,   setActiveCat]   = useState('all');
   const [activeStore, setActiveStore] = useState('Home');
   const [liked,       setLiked]       = useState<Record<string, boolean>>({});
   const [search,      setSearch]      = useState('');
+  const [refreshing,  setRefreshing]  = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } catch (err) {
+      console.error('[MarketHome] Refresh error:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   
   // Interactive slot booking states
   const [bookingService, setBookingService] = useState<any | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [userBookings, setUserBookings] = useState<any[]>([]);
-
-  const router = useRouter();
 
   const MOCK_SLOTS = [
     { time: '09:00 AM', status: 'Available' },
@@ -81,8 +92,15 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
     : services.filter(s => s.category.toLowerCase() === activeCat.toLowerCase());
 
   return (
-    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }} stickyHeaderIndices={[4]}>
-      <ModeSwitcher />
+    <ScrollView
+      style={{ flex: 1 }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 160 }}
+      stickyHeaderIndices={[3]}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[G.g800]} tintColor={G.g800} />
+      }
+    >
       <Ticker />
       
       {/* ── Delivery Header ── */}
@@ -105,9 +123,32 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
             <RippleTap style={s.referBtn}>
               <Text style={s.referText}>REFER &amp;{'\n'}<Text style={{ fontSize: 9, color: G.g200 }}>EARN ⚡</Text></Text>
             </RippleTap>
-            <View style={[s.avatar, sb(G.g300, '30')]}>
-              <Text style={{ fontSize: 18 }}>👤</Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(market)/cart')}
+              style={[s.avatar, sb(G.g300, '30'), { position: 'relative', justifyContent: 'center', alignItems: 'center' }]}
+            >
+              <Text style={{ fontSize: 18 }}>🛒</Text>
+              {totalCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  backgroundColor: '#EF4444',
+                  borderRadius: 10,
+                  width: 18,
+                  height: 18,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: '#fff',
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>
+                    {totalCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </FadeUp>
@@ -134,25 +175,18 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
       {/* ── Search + Promo ── */}
       <FadeUp delay={150}>
         <View style={[s.searchRow, { backgroundColor: G.surf }]}>
-          <View style={[s.searchBox, sb(G.g300, '30'), { backgroundColor: G.surf3 }]}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/(market)/search')}
+            style={[s.searchBox, sb(G.g300, '30'), { backgroundColor: G.surf3, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 24 }]}
+          >
             <IconSearch c={G.txt3} />
-            <TextInput
-              value={search} onChangeText={setSearch}
-              onSubmitEditing={() => {
-                if (search.trim()) {
-                  router.push(`/search?q=${encodeURIComponent(search.trim())}`);
-                }
-              }}
-              returnKeyType="search"
-              placeholder={
-                activeStore === 'Services' ? 'Search "Plumber, Haircut, Repair…"' : 
-                activeStore === 'Home' ? 'Search "Groceries, Haircut, Soap…"' :
-                'Search "Atta, Milk, Soap…"'
-              }
-              placeholderTextColor={G.txt3}
-              style={[s.searchInput, { color: G.txt }]}
-            />
-          </View>
+            <Text style={{ color: G.txt3, flex: 1, fontSize: 13 }}>
+              {activeStore === 'Services' ? 'Search "Plumber, Haircut, Repair…"' : 
+               activeStore === 'Home' ? 'Search "Groceries, Haircut, Soap…"' :
+               'Search "Atta, Milk, Soap…"'}
+            </Text>
+          </TouchableOpacity>
           <RippleTap style={s.promoTile} onPress={() => router.push('/(market)/partner')}>
             <Text style={s.promoText}>Partner{'\n'}With Us ⚡</Text>
             <FloatView><Text style={{ fontSize: 18, alignSelf: 'flex-end' }}>💼</Text></FloatView>
@@ -291,7 +325,8 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, gap: 10, paddingBottom: 12 }}>
                   {serviceProviders.map(sp => (
-                    <View key={sp.id} style={[s.providerCard, sb(G.g200, '35'), { backgroundColor: G.surf }]}>
+                    <TouchableOpacity key={sp.id} activeOpacity={0.88} onPress={() => onShopPress(sp.id, 'provider')}
+                      style={[s.providerCard, sb(G.g200, '35'), { backgroundColor: G.surf }]}>
                       <View style={[s.providerImg, { backgroundColor: sp.bg }]}>
                         <Text style={{ fontSize: 32 }}>{sp.emoji}</Text>
                       </View>
@@ -305,7 +340,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
                         </View>
                       </View>
                       <IconChevronRight c={G.g400} />
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </FadeUp>
@@ -399,7 +434,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, gap: 10, paddingBottom: 4 }}>
                   {shops.map(sh => (
                     <TouchableOpacity key={sh.id} activeOpacity={0.88}
-                      onPress={() => onShopPress(sh.id)}
+                      onPress={() => onShopPress(sh.id, 'shop')}
                       style={[s.shopCard, sb(G.g200, '35'), { backgroundColor: G.surf }]}>
                       <View style={[s.shopImg, { backgroundColor: sh.bg }]}>
                         <Text style={{ fontSize: 34 }}>{sh.emoji}</Text>
