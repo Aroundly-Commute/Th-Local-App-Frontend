@@ -12,7 +12,6 @@ import { useMarketData } from '../../src/contexts/MarketDataContext';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { VerifiedAvatar } from '../../src/components';
 import { tap, success } from '../../src/haptics';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
 
 const BADGES = [
   { icon: '🌱', name: 'Eco Starter' },
@@ -66,7 +65,6 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ModeSwitcher />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 140 }}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>

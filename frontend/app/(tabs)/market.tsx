@@ -7,7 +7,6 @@ import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Compass } from 'lucide-react-native';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
 import { FloatView, FadeUp } from '../../src/components/marketplace/primitives';
 
 export default function ExploreComingSoonScreen() {
@@ -16,9 +15,6 @@ export default function ExploreComingSoonScreen() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.background }}>
-      {/* Persistent top module switcher */}
-      <ModeSwitcher />
-
       <View style={styles.centerContainer}>
         <FloatView delay={100} style={[styles.iconContainer, { backgroundColor: t.muted }]}>
           <Compass color={t.textPrimary} size={48} strokeWidth={1.5} />
