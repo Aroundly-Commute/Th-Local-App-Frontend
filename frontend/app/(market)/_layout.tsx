@@ -8,6 +8,7 @@ export default function MarketLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="merchant" options={{ animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

@@ -105,7 +105,7 @@ export const ShopDetail: React.FC<Props> = ({ onBack, showToast }) => {
                   <Text style={[s.prodName, { color: G.txt }]}>{p.name}</Text>
                   <Text style={[s.prodPrice, { color: G.g500 }]}>{p.price}</Text>
                   {qty === 0 ? (
-                    <RippleTap onPress={() => { addItem(p.id, p.name); showToast(`Added ${p.name} 🛒`); }}
+                    <RippleTap onPress={() => { addItem(p.id, p.name, parseFloat(p.price.replace('₹', '')) || 50, 's1', p.emoji); showToast(`Added ${p.name} 🛒`); }}
                       style={[s.addBtn, { backgroundColor: G.g400 }]}>
                       <Text style={s.addBtnText}>+</Text>
                     </RippleTap>
@@ -115,7 +115,7 @@ export const ShopDetail: React.FC<Props> = ({ onBack, showToast }) => {
                         <Text style={{ color: G.g600, fontWeight: '800', fontSize: 14 }}>−</Text>
                       </TouchableOpacity>
                       <Text style={{ flex: 1, textAlign: 'center', fontWeight: '800', color: G.g700 }}>{qty}</Text>
-                      <TouchableOpacity onPress={() => { addItem(p.id, p.name); showToast(`Added ${p.name} 🛒`); }}
+                      <TouchableOpacity onPress={() => { addItem(p.id, p.name, parseFloat(p.price.replace('₹', '')) || 50, 's1', p.emoji); showToast(`Added ${p.name} 🛒`); }}
                         style={[s.qtyBtn, { backgroundColor: G.g400 }]}>
                         <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>+</Text>
                       </TouchableOpacity>

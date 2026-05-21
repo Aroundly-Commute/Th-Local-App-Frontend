@@ -39,6 +39,8 @@ export default function Profile() {
   };
 
   const menu = [
+    { icon: Award, label: 'Merchant Portal', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' },
+    { icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' },
     { icon: Car, label: 'My Vehicles', badge: user.vehicle ? '1' : null },
     { icon: Wallet, label: 'Payment Methods', badge: null },
     { icon: MapPin, label: 'Saved Places', badge: '4' },
@@ -139,7 +141,12 @@ export default function Profile() {
             const Icon = m.icon;
             return (
               <React.Fragment key={m.label}>
-                <TouchableOpacity testID={`menu-${m.label}`} activeOpacity={0.6} onPress={() => tap()}
+                <TouchableOpacity testID={`menu-${m.label}`} activeOpacity={0.6} onPress={() => {
+                  tap();
+                  if ((m as any).route) {
+                    router.push((m as any).route);
+                  }
+                }}
                   style={styles.menuRow}>
                   <View style={[styles.menuIcon, { backgroundColor: t.muted }]}>
                     <Icon color={t.textPrimary} size={16} />
