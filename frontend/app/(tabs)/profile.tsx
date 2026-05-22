@@ -53,6 +53,8 @@ export default function Profile() {
   menu.push(
     { icon: Calendar, label: 'My Bookings', badge: null, route: '/(market)/customer-bookings' },
     { icon: ShoppingBag, label: 'My Orders', badge: null, route: '/(market)/customer-orders' },
+    { icon: Car, label: 'Register Parking Spot', badge: null, route: '/parking/register' },
+    { icon: Settings, label: 'Manage My Parking', badge: null, route: '/parking/manage' },
     { icon: Car, label: 'My Vehicles', badge: user.vehicle ? '1' : null },
     { icon: Wallet, label: 'Payment Methods', badge: null },
     { icon: MapPin, label: 'Saved Places', badge: '4' },

@@ -36,19 +36,31 @@ function DateTimePicker({
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
 
-  const [tempYear, setTempYear] = useState(value.getFullYear());
-  const [tempMonth, setTempMonth] = useState(value.getMonth());
-  const [tempDay, setTempDay] = useState(value.getDate());
-  const [tempHour, setTempHour] = useState(value.getHours());
-  const [tempMin, setTempMin] = useState(value.getMinutes());
+  const getISTComponents = (d: Date) => {
+    const istShifted = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    return {
+      year: istShifted.getUTCFullYear(),
+      month: istShifted.getUTCMonth(),
+      day: istShifted.getUTCDate(),
+      hour: istShifted.getUTCHours(),
+      minute: istShifted.getUTCMinutes(),
+    };
+  };
+
+  const [tempYear, setTempYear] = useState(() => getISTComponents(value).year);
+  const [tempMonth, setTempMonth] = useState(() => getISTComponents(value).month);
+  const [tempDay, setTempDay] = useState(() => getISTComponents(value).day);
+  const [tempHour, setTempHour] = useState(() => getISTComponents(value).hour);
+  const [tempMin, setTempMin] = useState(() => getISTComponents(value).minute);
 
   useEffect(() => {
-    setTempYear(value.getFullYear());
-    setTempMonth(value.getMonth());
-    setTempDay(value.getDate());
-    setTempHour(value.getHours());
-    setTempMin(value.getMinutes());
-  }, [visible]);
+    const comps = getISTComponents(value);
+    setTempYear(comps.year);
+    setTempMonth(comps.month);
+    setTempDay(comps.day);
+    setTempHour(comps.hour);
+    setTempMin(comps.minute);
+  }, [visible, value]);
 
   const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -56,13 +68,15 @@ function DateTimePicker({
   const clampDay = (d: number, y: number, m: number) => Math.min(d, daysInMonth(y, m));
 
   const confirm = () => {
+    const comps = getISTComponents(value);
     let d: Date;
     if (mode === 'date') {
-      d = new Date(value);
-      d.setFullYear(tempYear, tempMonth, clampDay(tempDay, tempYear, tempMonth));
+      const targetDay = clampDay(tempDay, tempYear, tempMonth);
+      const utcMs = Date.UTC(tempYear, tempMonth, targetDay, comps.hour, comps.minute, 0, 0);
+      d = new Date(utcMs - 5.5 * 60 * 60 * 1000);
     } else {
-      d = new Date(value);
-      d.setHours(tempHour, tempMin, 0, 0);
+      const utcMs = Date.UTC(comps.year, comps.month, comps.day, tempHour, tempMin, 0, 0);
+      d = new Date(utcMs - 5.5 * 60 * 60 * 1000);
     }
     onChange(d);
     onClose();
@@ -142,11 +156,20 @@ export default function Search() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  // Date/time as a single Date object for easy formatting
+  // Date/time as a single Date object for easy formatting (aligned in IST)
   const [datetime, setDatetime] = useState<Date>(() => {
     const d = new Date();
-    d.setHours(d.getHours() + 1, 0, 0, 0); // default: 1 hour from now
-    return d;
+    const istMs = d.getTime() + 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(istMs);
+    const targetHour = istDate.getUTCHours() + 1;
+    const utcMs = Date.UTC(
+      istDate.getUTCFullYear(),
+      istDate.getUTCMonth(),
+      istDate.getUTCDate(),
+      targetHour,
+      0, 0, 0
+    );
+    return new Date(utcMs - 5.5 * 60 * 60 * 1000);
   });
   const [seats, setSeats] = useState('1');
 
@@ -160,13 +183,14 @@ export default function Search() {
     }
   }, [params.mode]);
 
-  const dateLabel = datetime.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
-  const timeLabel = datetime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dateLabel = datetime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  const timeLabel = datetime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
   const submitAction = useCallback(async () => {
     setLoading(true); setSearched(true);
-    const dateStr = `${datetime.getFullYear()}-${String(datetime.getMonth() + 1).padStart(2, '0')}-${String(datetime.getDate()).padStart(2, '0')}`;
-    const timeStr = `${String(datetime.getHours()).padStart(2,'0')}:${String(datetime.getMinutes()).padStart(2,'0')}`;
+    const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
+    const dateStr = `${istShifted.getUTCFullYear()}-${String(istShifted.getUTCMonth() + 1).padStart(2, '0')}-${String(istShifted.getUTCDate()).padStart(2, '0')}`;
+    const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
     try {
       if (mode === 'offer') {
         await api.post('/rides/offer', {

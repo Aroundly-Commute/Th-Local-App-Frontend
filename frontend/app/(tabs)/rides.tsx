@@ -87,8 +87,8 @@ export default function Rides() {
 
 const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: boolean; router: any }> = ({ r, t, isPast, isRequested, router }) => {
   const date = new Date(r.departure_time);
-  const dateStr = isNaN(date.getTime()) ? '—' : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  const timeStr = isNaN(date.getTime()) ? '—' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dateStr = isNaN(date.getTime()) ? '—' : date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
+  const timeStr = isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
   const isDriver = r.role === 'driver';
 

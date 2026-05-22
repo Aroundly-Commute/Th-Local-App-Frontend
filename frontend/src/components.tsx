@@ -60,7 +60,7 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
   const co2 = ride.co2_saved_kg ?? 0;
 
   const time = new Date(departureTime);
-  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
   
   const vehicle = ride.driver_vehicle || ride.vehicle;
 

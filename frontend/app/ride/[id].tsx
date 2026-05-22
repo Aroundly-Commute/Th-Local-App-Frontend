@@ -136,8 +136,8 @@ export default function RideDetail() {
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <View style={{ height: '40%' }}>
         <RouteMap
-          origin={{ lat: origin_lat, lng: origin_lng, name: origin }}
-          destination={{ lat: dest_lat, lng: dest_lng, name: destination }}
+          origin={{ lat: origin_lat ?? 0, lng: origin_lng ?? 0, name: origin }}
+          destination={{ lat: dest_lat ?? 0, lng: dest_lng ?? 0, name: destination }}
           t={t}
         />
         <TouchableOpacity testID="ride-back" onPress={() => { tap(); router.back(); }}
@@ -175,7 +175,7 @@ export default function RideDetail() {
                 <Text style={[styles.label, { color: t.textSecondary }]}>PICKUP</Text>
                 <Text style={[styles.loc, { color: t.textPrimary }]}>{origin}</Text>
                 <Text style={[styles.time, { color: t.textSecondary }]}>
-                  {isNaN(time.getTime()) ? '???' : time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {isNaN(time.getTime()) ? '???' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
                 </Text>
               </View>
               <View>
