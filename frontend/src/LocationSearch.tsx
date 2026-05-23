@@ -1,6 +1,6 @@
 /**
- * Legacy shim — re-exports from modular LocationSearch component.
+ * Legacy shim — re-exports from core components LocationSearch.
  * Old path: src/LocationSearch.tsx
- * New path: src/components/common/LocationSearch.tsx
+ * New path: src/core/components/LocationSearch.tsx
  */
-export * from './components/common/LocationSearch';
+export * from './core/components/LocationSearch';

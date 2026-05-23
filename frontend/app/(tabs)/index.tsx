@@ -18,9 +18,12 @@ import { tap } from '../../src/haptics';
 import { ModeSwitcher } from '../../src/ModeSwitcher';
 import { useMarketData } from '../../src/contexts/MarketDataContext';
 import MarketDashboard from '../../src/market/MarketDashboard';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 export default function Home() {
+  const { enableMarketplace, enableRideSharing, enableParking } = useFeatureFlags();
   const { activeMode } = useMarketData();
+  const effectiveMode = !enableMarketplace ? 'pooling' : !enableRideSharing ? 'marketplace' : activeMode;
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
@@ -55,17 +58,24 @@ export default function Home() {
 
   const upcoming = myRides.upcoming?.[0];
 
-  const actions = [
-    { icon: MapPin, label: 'Find Ride', onPress: () => router.push('/(tabs)/search') },
-    { icon: Users, label: 'Offer Ride', onPress: () => router.push({ pathname: '/(tabs)/search', params: { mode: 'offer' } }) },
-    { icon: Calendar, label: 'Schedule', onPress: () => router.push('/(tabs)/rides') },
-    { icon: MapPin, label: 'Parking', onPress: () => router.push('/(tabs)/parking') },
-  ];
+  const actions = [];
+  if (enableRideSharing) {
+    actions.push(
+      { icon: MapPin, label: 'Find Ride', onPress: () => router.push('/(tabs)/search') },
+      { icon: Users, label: 'Offer Ride', onPress: () => router.push({ pathname: '/(tabs)/search', params: { mode: 'offer' } }) },
+      { icon: Calendar, label: 'Schedule', onPress: () => router.push('/(tabs)/rides') }
+    );
+  }
+  if (enableParking) {
+    actions.push(
+      { icon: MapPin, label: 'Parking', onPress: () => router.push('/(tabs)/parking') }
+    );
+  }
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.background }}>
       <ModeSwitcher />
-      {activeMode === 'marketplace' ? (
+      {effectiveMode === 'marketplace' ? (
         <MarketDashboard />
       ) : (
         <ScrollView

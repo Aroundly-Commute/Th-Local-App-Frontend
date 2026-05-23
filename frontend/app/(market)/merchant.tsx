@@ -416,7 +416,7 @@ export default function MerchantDashboard() {
                       onPress={() => {
                         tap();
                         router.push({
-                          pathname: `/chat/chat_${booking.id}`,
+                          pathname: `/chat/chat_${booking.id}` as any,
                           params: { name: booking.user?.name || 'Customer' }
                         });
                       }}
@@ -500,8 +500,8 @@ export default function MerchantDashboard() {
                         onPress={() => {
                           tap();
                           router.push({
-                            pathname: `/chat/chat_${order.id}`,
-                            params: { name: order.user?.name || 'Customer' }
+                            pathname: `/chat/chat_${order.id}` as any,
+                            params: { name: (order as any).user?.name || 'Customer' }
                           });
                         }}
                       >

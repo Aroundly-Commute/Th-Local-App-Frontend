@@ -6,11 +6,13 @@ import { lightTheme, darkTheme } from '../../src/theme';
 import { tap } from '../../src/haptics';
 import { wsUrl, api } from '../../src/api';
 import { useAuth } from '../../src/auth';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 export default function TabsLayout() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
+  const { enableMarketplace } = useFeatureFlags();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -55,7 +57,7 @@ export default function TabsLayout() {
       screenListeners={{ tabPress: () => tap() }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Home color={color} size={size - 2} strokeWidth={2} /> }} />
-      <Tabs.Screen name="market" options={{ title: 'Explore', tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} strokeWidth={2} /> }} />
+      <Tabs.Screen name="market" options={{ href: enableMarketplace ? undefined : null, title: 'Explore', tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} strokeWidth={2} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <User color={color} size={size - 2} strokeWidth={2} /> }} />
       <Tabs.Screen name="search" options={{ href: null }} />
       <Tabs.Screen name="rides" options={{ href: null }} />

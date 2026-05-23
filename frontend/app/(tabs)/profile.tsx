@@ -12,6 +12,7 @@ import { useMarketData } from '../../src/contexts/MarketDataContext';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
 import { VerifiedAvatar } from '../../src/components';
 import { tap, success } from '../../src/haptics';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 const BADGES = [
   { icon: '🌱', name: 'Eco Starter' },
@@ -40,29 +41,45 @@ export default function Profile() {
     router.replace('/(auth)/login');
   };
 
+  const { enableMarketplace, enableRideSharing, enableParking } = useFeatureFlags();
+
   const menu = [];
   
-  if (registeredRole === 'merchant') {
-    menu.push({ icon: Award, label: 'Manage Shop', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
-  } else if (registeredRole === 'provider') {
-    menu.push({ icon: Settings, label: 'Manage Service', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
-  } else {
-    menu.push({ icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' });
+  if (enableMarketplace) {
+    if (registeredRole === 'merchant') {
+      menu.push({ icon: Award, label: 'Manage Shop', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
+    } else if (registeredRole === 'provider') {
+      menu.push({ icon: Settings, label: 'Manage Service', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
+    } else {
+      menu.push({ icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' });
+    }
+    menu.push(
+      { icon: Calendar, label: 'My Bookings', badge: null, route: '/(market)/customer-bookings' },
+      { icon: ShoppingBag, label: 'My Orders', badge: null, route: '/(market)/customer-orders' }
+    );
+  }
+
+  if (enableParking) {
+    menu.push(
+      { icon: Car, label: 'Register Parking Spot', badge: null, route: '/parking/register' },
+      { icon: Settings, label: 'Manage My Parking', badge: null, route: '/parking/manage' }
+    );
+  }
+
+  if (enableRideSharing) {
+    menu.push(
+      { icon: Car, label: 'My Vehicles', badge: user.vehicle ? '1' : null },
+      { icon: Calendar, label: 'Scheduled Rides', badge: '1' }
+    );
   }
 
   menu.push(
-    { icon: Calendar, label: 'My Bookings', badge: null, route: '/(market)/customer-bookings' },
-    { icon: ShoppingBag, label: 'My Orders', badge: null, route: '/(market)/customer-orders' },
-    { icon: Car, label: 'Register Parking Spot', badge: null, route: '/parking/register' },
-    { icon: Settings, label: 'Manage My Parking', badge: null, route: '/parking/manage' },
-    { icon: Car, label: 'My Vehicles', badge: user.vehicle ? '1' : null },
     { icon: Wallet, label: 'Payment Methods', badge: null },
     { icon: MapPin, label: 'Saved Places', badge: '4' },
-    { icon: Calendar, label: 'Scheduled Rides', badge: '1' },
     { icon: Shield, label: 'Verification', badge: user.is_verified ? 'Verified' : null, badgeVariant: 'success' },
     { icon: Bell, label: 'Notifications', badge: null },
-    { icon: Settings, label: 'Settings', badge: null },
-    { icon: HelpCircle, label: 'Help & Support', badge: null },
+    { icon: Settings, label: 'Settings', badge: null, route: '/settings' },
+    { icon: HelpCircle, label: 'Help & Support', badge: null }
   );
 
   return (

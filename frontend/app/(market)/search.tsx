@@ -156,7 +156,7 @@ export default function SearchScreen() {
         {item.isService ? (
           <TouchableOpacity 
             style={[s.addToCartBtn, { backgroundColor: G.g800 }]}
-            onPress={() => router.push(`/shop/${item.providerId}?type=provider`)}
+            onPress={() => router.push(`/shop/${item.providerId}?type=provider` as any)}
           >
             <Text style={[s.addToCartText, { color: G.lime }]}>Book Now</Text>
           </TouchableOpacity>
@@ -176,7 +176,7 @@ export default function SearchScreen() {
     <TouchableOpacity 
       style={s.card} 
       onPress={() => router.push({
-        pathname: `/shop/${item.id}`,
+        pathname: `/shop/${item.id}` as any,
         params: item.isProvider ? { type: 'provider' } : {}
       })}
     >

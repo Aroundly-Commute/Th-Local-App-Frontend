@@ -1,6 +1,6 @@
 /**
- * Compatibility shim — re-exports from new location.
+ * Legacy shim — re-exports from core utils haptics.
  * Old path: src/haptics.ts
- * New path: src/services/haptics.ts
+ * New path: src/core/utils/haptics.ts
  */
-export * from './services/haptics';
+export * from './core/utils/haptics';

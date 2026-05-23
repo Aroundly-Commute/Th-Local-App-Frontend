@@ -1,6 +1,6 @@
 /**
- * Compatibility shim — re-exports from new location.
+ * Legacy shim — re-exports from core API client directory.
  * Old path: src/api.ts
- * New path: src/services/api.ts
+ * New path: src/core/api/api.ts
  */
-export * from './services/api';
+export * from './core/api/api';

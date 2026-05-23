@@ -12,6 +12,7 @@ import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { Terminal } from 'lucide-react-native';
 import { LogViewerModal } from '../src/components/common/LogViewerModal';
 import '../src/services/logger'; // Boot up console interception immediately
+import { FeatureFlagProvider } from '../src/services/feature-flag/FeatureFlagContext';
 
 // Ignore framework-level Expo DevTools fragment style prop warnings to prevent log lag and overlay popups
 LogBox.ignoreLogs([
@@ -89,16 +90,18 @@ export default function RootLayout() {
       <ErrorBoundary>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <AuthProvider>
-            <MarketDataProvider>
-              <CartProvider>
-              <OrderProvider>
-                <StatusBar style={cs === 'dark' ? 'light' : 'dark'} />
-                <AppNavigationWrapper />
-              </OrderProvider>
-            </CartProvider>
-          </MarketDataProvider>
-        </AuthProvider>
-      </GestureHandlerRootView>
+            <FeatureFlagProvider>
+              <MarketDataProvider>
+                <CartProvider>
+                  <OrderProvider>
+                    <StatusBar style={cs === 'dark' ? 'light' : 'dark'} />
+                    <AppNavigationWrapper />
+                  </OrderProvider>
+                </CartProvider>
+              </MarketDataProvider>
+            </FeatureFlagProvider>
+          </AuthProvider>
+        </GestureHandlerRootView>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

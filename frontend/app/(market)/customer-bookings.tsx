@@ -228,7 +228,7 @@ export default function CustomerBookings() {
                     tap();
                     setSelectedBooking(null);
                     router.push({
-                      pathname: `/chat/chat_${selectedBooking.id}`,
+                      pathname: `/chat/chat_${selectedBooking.id}` as any,
                       params: { name: selectedBooking.service?.provider?.name || 'Provider' }
                     });
                   }}

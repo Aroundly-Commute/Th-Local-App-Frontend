@@ -221,7 +221,7 @@ export default function CustomerOrders() {
                     tap();
                     setSelectedOrder(null);
                     router.push({
-                      pathname: `/chat/chat_${selectedOrder.id}`,
+                      pathname: `/chat/chat_${selectedOrder.id}` as any,
                       params: { name: selectedOrder.items?.[0]?.shopProduct?.shop?.name || 'Store' }
                     });
                   }}
