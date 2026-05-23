@@ -43,6 +43,32 @@ export default function RideDetail() {
     } finally { setBooking(false); }
   };
 
+  const onAcceptRequest = async (requestId: string) => {
+    tap();
+    try {
+      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'ACCEPTED' });
+      success();
+      Alert.alert('Request Accepted', 'The passenger has been added to your ride.');
+      load(); // refresh
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to accept request');
+    }
+  };
+
+  const onRejectRequest = async (requestId: string) => {
+    tap();
+    try {
+      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'REJECTED' });
+      success();
+      Alert.alert('Request Rejected', 'The request has been declined.');
+      load(); // refresh
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to reject request');
+    }
+  };
+
   if (!ride) return (
     <View style={{ flex: 1, backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator color={t.primary} />
@@ -230,18 +256,38 @@ export default function RideDetail() {
                   <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>{p.rider_name}</Text>
-                    <Text style={{ color: p.status === 'ACCEPTED' ? t.success : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                      {p.status === 'ACCEPTED' ? 'Accepted' : 'Pending'}
+                    <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                      {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
                     </Text>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
-                    activeOpacity={0.8}
-                    style={{ backgroundColor: t.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                  >
-                    <MessageCircle color="#fff" size={14} />
-                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Chat</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    {p.status === 'REQUESTED' && (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => onAcceptRequest(p.request_id)}
+                          activeOpacity={0.8}
+                          style={{ backgroundColor: t.success, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 }}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => onRejectRequest(p.request_id)}
+                          activeOpacity={0.8}
+                          style={{ backgroundColor: t.error, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 }}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
+                      activeOpacity={0.8}
+                      style={{ backgroundColor: t.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      <MessageCircle color="#fff" size={12} />
+                      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}

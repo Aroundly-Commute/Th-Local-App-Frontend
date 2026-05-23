@@ -193,9 +193,10 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
 
       {/* Pending request hint */}
       {isRequested && (
-        <View style={{ backgroundColor: statusBg, borderRadius: radius.sm, padding: 10 }}>
-          <Text style={{ color: statusColor, fontSize: 12, fontWeight: '600' }}>
-            ⏳ Waiting for driver to accept your request
+        <View style={{ backgroundColor: statusBg, borderRadius: radius.sm, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Clock color={statusColor} size={13} strokeWidth={2.5} />
+          <Text style={{ color: statusColor, fontSize: 12, fontWeight: '600', flex: 1 }}>
+            Waiting for driver to accept your request
           </Text>
         </View>
       )}

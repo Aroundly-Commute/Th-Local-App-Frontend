@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Calendar, ShoppingBag, Package, DollarSign } from 'lucide-react-native';
+import { ChevronLeft, Calendar, ShoppingBag, Package, DollarSign, MessageSquare } from 'lucide-react-native';
 import { useAuth } from '../../src/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
 import { tap, success } from '../../src/haptics';
@@ -79,7 +79,7 @@ export default function CustomerOrders() {
         </View>
       ) : orders.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={{ fontSize: 64, marginBottom: 16 }}>🛍️</Text>
+          <ShoppingBag color={t.textTertiary} size={64} strokeWidth={1.5} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyText, { color: t.textSecondary }]}>No orders placed yet.</Text>
           <TouchableOpacity
             style={[styles.shopBtn, { backgroundColor: '#10B981' }]}
@@ -226,7 +226,10 @@ export default function CustomerOrders() {
                     });
                   }}
                 >
-                  <Text style={[styles.chatBtnText, { color: t.primaryContrast }]}>💬 Chat with Store</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MessageSquare color={t.primaryContrast} size={18} strokeWidth={2.5} />
+                    <Text style={[styles.chatBtnText, { color: t.primaryContrast }]}>Chat with Store</Text>
+                  </View>
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -287,7 +290,7 @@ const styles = StyleSheet.create({
   closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalBody: { paddingBottom: 24 },
   detailSection: { paddingVertical: 16, borderBottomWidth: 1 },
-  detailLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', tracking: 0.5, marginBottom: 4 },
+  detailLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   detailValue: { fontSize: 15, fontWeight: '600' },
   detailSub: { fontSize: 13, marginTop: 4 },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

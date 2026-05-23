@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { verdexColors as G } from '../theme';
 import { RippleTap, FloatView, FadeUp, IconChevronLeft, IconShare, MarketBackButton } from '../components/marketplace/primitives';
+import { Store, Wrench, Package, Phone } from 'lucide-react-native';
 import { useCart } from '../contexts/CartContext';
 import { useMarketData } from '../contexts/MarketDataContext';
 
@@ -82,7 +83,13 @@ export const ShopDetail: React.FC<Props> = ({ shopId, shopType, onBack, showToas
         <FadeUp delay={0}>
           <View style={[s.hero, { backgroundColor: business.bg || '#E8FBF9' }]}>
             <FloatView style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 72 }}>{business.emoji || (shopType === 'shop' ? '🏪' : '👨‍🔧')}</Text>
+              {business.emoji && !['🏪', '👨‍🔧'].includes(business.emoji) ? (
+                <Text style={{ fontSize: 72 }}>{business.emoji}</Text>
+              ) : shopType === 'shop' ? (
+                <Store color={G.g700} size={72} strokeWidth={1.2} />
+              ) : (
+                <Wrench color={G.g700} size={72} strokeWidth={1.2} />
+              )}
             </FloatView>
             <MarketBackButton onPress={onBack} style={s.circleBtn} color={G.txt} size={18} />
             <TouchableOpacity style={[s.circleBtn, { right: 14, left: undefined }]}>
@@ -101,9 +108,16 @@ export const ShopDetail: React.FC<Props> = ({ shopId, shopType, onBack, showToas
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[s.shopName, { color: G.txt }]}>{business.name}</Text>
-                <Text style={[s.shopSub, { color: G.txt2 }]}>
-                  {shopType === 'shop' ? `🏪 ${business.category || 'Shop'}` : `🛠️ ${business.services || 'Professional Services'}`} · Sector 12, Delhi
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
+                  {shopType === 'shop' ? (
+                    <Store color={G.txt2} size={13} strokeWidth={2} />
+                  ) : (
+                    <Wrench color={G.txt2} size={13} strokeWidth={2} />
+                  )}
+                  <Text style={[s.shopSub, { color: G.txt2, marginTop: 0 }]}>
+                    {shopType === 'shop' ? (business.category || 'Shop') : (business.services || 'Professional Services')} · Sector 12, Delhi
+                  </Text>
+                </View>
               </View>
               <RippleTap onPress={async () => {
                 await toggleFollow(business.id);
@@ -161,7 +175,7 @@ export const ShopDetail: React.FC<Props> = ({ shopId, shopType, onBack, showToas
 
         {itemsToShow.length === 0 ? (
           <View style={{ padding: 30, alignItems: 'center' }}>
-            <Text style={{ fontSize: 40, marginBottom: 8 }}>📦</Text>
+            <Package color={G.txt3} size={40} strokeWidth={1.5} style={{ marginBottom: 8 }} />
             <Text style={{ fontSize: 14, color: G.txt3 }}>No listings found for this business.</Text>
           </View>
         ) : (
@@ -212,11 +226,18 @@ export const ShopDetail: React.FC<Props> = ({ shopId, shopType, onBack, showToas
 
         {/* WhatsApp CTA */}
         <View style={{ padding: 14, paddingBottom: 0 }}>
-          <RippleTap onPress={() => showToast('Opening WhatsApp… 📲')}
+          <RippleTap onPress={() => showToast('Opening WhatsApp…')}
             style={[s.ctaBtn, { backgroundColor: G.g800 }]}>
-            <Text style={{ color: G.lime, fontSize: 14, fontWeight: '800' }}>
-              {shopType === 'shop' ? '🛒 Visit Store · Chat on WhatsApp' : '📞 Call Provider · Chat on WhatsApp'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {shopType === 'shop' ? (
+                <Store color={G.lime} size={16} strokeWidth={2.5} />
+              ) : (
+                <Phone color={G.lime} size={16} strokeWidth={2.5} />
+              )}
+              <Text style={{ color: G.lime, fontSize: 14, fontWeight: '800' }}>
+                {shopType === 'shop' ? 'Visit Store · Chat on WhatsApp' : 'Call Provider · Chat on WhatsApp'}
+              </Text>
+            </View>
           </RippleTap>
         </View>
       </ScrollView>

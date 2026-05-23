@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { useSegments } from 'expo-router';
+import { ShoppingBag, Car } from 'lucide-react-native';
 import { verdexColors as G, lightTheme, darkTheme } from './theme';
 import { tap } from './haptics';
 import { useMarketData } from './contexts/MarketDataContext';
@@ -34,9 +35,12 @@ export const ModeSwitcher: React.FC = () => {
           onPress={() => handlePress('marketplace')}
           style={[s.btn, inMarket && { backgroundColor: G.g700 }]}
         >
-          <Text style={[s.label, { color: inMarket ? G.lime : G.txt2 }]}>
-            🏪 Marketplace
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <ShoppingBag color={inMarket ? G.lime : G.txt2} size={15} strokeWidth={2.5} />
+            <Text style={[s.label, { color: inMarket ? G.lime : G.txt2 }]}>
+              Marketplace
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -44,9 +48,12 @@ export const ModeSwitcher: React.FC = () => {
           onPress={() => handlePress('pooling')}
           style={[s.btn, !inMarket && { backgroundColor: G.g700 }]}
         >
-          <Text style={[s.label, { color: !inMarket ? G.lime : G.txt2 }]}>
-            🚗 Pooling
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Car color={!inMarket ? G.lime : G.txt2} size={16} strokeWidth={2.5} />
+            <Text style={[s.label, { color: !inMarket ? G.lime : G.txt2 }]}>
+              Pooling
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
     </View>

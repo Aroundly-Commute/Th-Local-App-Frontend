@@ -4,14 +4,13 @@ import {
   ActivityIndicator, Platform, Keyboard,
 } from 'react-native';
 import { MapPin, X, Search } from 'lucide-react-native';
-import { Theme, radius, spacing } from './theme';
+import { Theme, radius, spacing } from '../../theme';
 
-import { api } from './api';
+import { api } from '../../api';
 
 interface Prediction {
   id: string;
   place_name: string;
-  center: [number, number]; // [lng, lat]
 }
 
 interface Props {
@@ -48,6 +47,7 @@ export const LocationSearch: React.FC<Props> = ({
       setPredictions(resp.data);
     } catch (e) {
       console.error('Location search error:', e);
+      setPredictions([]);
     } finally {
       setLoading(false);
     }
@@ -62,12 +62,24 @@ export const LocationSearch: React.FC<Props> = ({
     timerRef.current = setTimeout(() => search(text), 400);
   };
 
-  const handleSelect = (item: Prediction) => {
+  const handleSelect = async (item: Prediction) => {
     setQuery(item.place_name);
     setShowDropdown(false);
     setPredictions([]);
-    onSelect(item.place_name, item.center[1], item.center[0]);
     Keyboard.dismiss();
+
+    setLoading(true);
+    try {
+      const resp = await api.get(`/locations/details?place_id=${item.id}`);
+      if (resp.data && !resp.data.error) {
+        const { lat, lng } = resp.data;
+        onSelect(item.place_name, lat, lng);
+      }
+    } catch (e) {
+      console.error('Location details fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

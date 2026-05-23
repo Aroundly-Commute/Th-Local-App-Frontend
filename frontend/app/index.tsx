@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../src/auth';
 import { lightTheme, darkTheme } from '../src/theme';
 import { useColorScheme } from 'react-native';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
+import { ModeSwitcher } from '../src/ModeSwitcher';
 
 export default function Index() {
   const { user, loading } = useAuth();

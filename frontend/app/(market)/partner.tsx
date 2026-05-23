@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Plus, X, Briefcase, Clock, Sparkles, Award, CheckCircle, Store, Wrench } from 'lucide-react-native';
+import { ChevronLeft, Plus, X, Briefcase, Clock, Sparkles, Award, CheckCircle, Store, Wrench, Home } from 'lucide-react-native';
 import { useAuth } from '../../src/auth';
 import { useMarketData } from '../../src/contexts/MarketDataContext';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
@@ -346,9 +346,12 @@ export default function PartnerOnboarding() {
 
             {/* Catalog Add form */}
             <View style={[s.subCard, { backgroundColor: t.surfaceElevated, borderColor: t.border }]}>
-              <Text style={[s.subCardTitle, { color: t.textPrimary }]}>
-                {role === 'merchant' ? '➕ Add Product Item' : '➕ Add Service Task'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Plus size={14} color={t.textPrimary} strokeWidth={2.5} />
+                <Text style={[s.subCardTitle, { color: t.textPrimary, marginTop: 0 }]}>
+                  {role === 'merchant' ? 'Add Product Item' : 'Add Service Task'}
+                </Text>
+              </View>
               
               <Text style={[s.label, { color: t.textSecondary }]}>
                 {role === 'merchant' ? 'Product Name *' : 'Service Task Name *'}
@@ -430,7 +433,10 @@ export default function PartnerOnboarding() {
             {/* Slot & Scheduling Availability for Service Provider */}
             {role === 'provider' && (
               <View style={[s.subCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: 16 }]}>
-                <Text style={[s.subCardTitle, { color: t.textPrimary }]}>🕒 Manage Slots & Scheduling</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Clock size={14} color={t.textPrimary} strokeWidth={2.5} />
+                  <Text style={[s.subCardTitle, { color: t.textPrimary, marginTop: 0 }]}>Manage Slots & Scheduling</Text>
+                </View>
                 
                 <Text style={[s.label, { color: t.textSecondary }]}>Available Booking Days *</Text>
                 <View style={s.dayGrid}>
@@ -492,7 +498,7 @@ export default function PartnerOnboarding() {
               {isSubmitting ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={s.btnTxt}>Complete Registration &amp; Onboard! 🚀</Text>
+                <Text style={s.btnTxt}>Complete Registration & Onboard</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -504,7 +510,10 @@ export default function PartnerOnboarding() {
             <View style={[s.successCircle, { backgroundColor: t.successBg }]}>
               <Award size={64} color={t.success} />
             </View>
-            <Text style={[s.successTitle, { color: t.textPrimary }]}>Congratulations! 🎉</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Sparkles size={24} color={t.success} />
+              <Text style={[s.successTitle, { color: t.textPrimary, marginBottom: 0 }]}>Congratulations!</Text>
+            </View>
             <Text style={[s.successSub, { color: t.textSecondary }]}>
               Your business, <Text style={{ fontWeight: '800' }}>{brandName}</Text>, has been successfully onboarded as a registered {role === 'merchant' ? 'Marketplace Merchant' : 'Local Service Provider'}.
             </Text>
@@ -543,9 +552,16 @@ export default function PartnerOnboarding() {
               }}
               style={[s.nextBtn, { backgroundColor: t.primary, marginTop: 30 }]}
             >
-              <Text style={s.btnTxt}>
-                {role === 'merchant' ? 'Go to Merchant Portal 📦' : 'Go to Marketplace Home 🏠'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {role === 'merchant' ? (
+                  <Store color={t.primaryContrast} size={16} strokeWidth={2.5} />
+                ) : (
+                  <Home color={t.primaryContrast} size={16} strokeWidth={2.5} />
+                )}
+                <Text style={[s.btnTxt, { color: t.primaryContrast }]}>
+                  {role === 'merchant' ? 'Go to Merchant Portal' : 'Go to Marketplace Home'}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         )}

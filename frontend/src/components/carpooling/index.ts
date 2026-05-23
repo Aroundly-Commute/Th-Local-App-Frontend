@@ -1,1 +1,1 @@
-export { default as RouteMap } from './RouteMap';
+export { RouteMap } from './RouteMap';

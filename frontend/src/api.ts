@@ -4,4 +4,3 @@
  * New path: src/services/api.ts
  */
 export * from './services/api';
-export { default } from './services/api';

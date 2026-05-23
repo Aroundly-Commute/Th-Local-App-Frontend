@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from './MapWrapper';
-import { Theme } from './theme';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from './MapWrapper';
+import { Theme } from '../../theme';
+import { api } from '../../api';
 
 interface Point {
   lat: number;
@@ -15,28 +16,57 @@ interface Props {
   t: Theme;
 }
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+// Decodes Google's compressed overview_polyline string to lat/lng coordinates
+function decodePolyline(encoded: string) {
+  const points = [];
+  let index = 0, len = encoded.length;
+  let lat = 0, lng = 0;
+
+  while (index < len) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lng += dlng;
+
+    points.push({
+      latitude: lat / 1e5,
+      longitude: lng / 1e5
+    });
+  }
+  return points;
+}
 
 export const RouteMap: React.FC<Props> = ({ origin, destination, t }) => {
   const [routeCoords, setRouteCoords] = useState<{latitude: number, longitude: number}[]>([]);
 
   useEffect(() => {
-    if (!MAPBOX_TOKEN || !origin.lat || !origin.lng || !destination.lat || !destination.lng) return;
+    if (!origin.lat || !origin.lng || !destination.lat || !destination.lng) return;
 
     const fetchRoute = async () => {
       try {
-        const coords = `${origin.lng},${origin.lat};${destination.lng},${destination.lat}`;
-        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&access_token=${MAPBOX_TOKEN}`;
-        const resp = await fetch(url);
-        const data = await resp.json();
+        const resp = await api.get(`/locations/directions?origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}`);
+        const data = resp.data;
         
         if (data.routes && data.routes.length > 0) {
-          const geometry = data.routes[0].geometry.coordinates;
-          const mapped = geometry.map((c: number[]) => ({
-            latitude: c[1],
-            longitude: c[0]
-          }));
-          setRouteCoords(mapped);
+          const encodedPoints = data.routes[0].overview_polyline.points;
+          const decoded = decodePolyline(encodedPoints);
+          setRouteCoords(decoded);
         }
       } catch (e) {
         console.error('Failed to fetch route', e);
@@ -65,7 +95,7 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t }) => {
     <View style={styles.container}>
       <MapView
         style={StyleSheet.absoluteFillObject}
-        provider={PROVIDER_DEFAULT}
+        provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
       >
         <Marker 
@@ -90,9 +120,9 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t }) => {
         )}
       </MapView>
       
-      {!MAPBOX_TOKEN && (
+      {!GOOGLE_MAPS_API_KEY && (
         <View style={[styles.warningOverlay, { backgroundColor: t.surface }]}>
-          <Text style={{ color: t.warning }}>Mapbox token missing. Route cannot be drawn.</Text>
+          <Text style={{ color: t.warning }}>Google Maps API Key missing. Route cannot be drawn.</Text>
         </View>
       )}
     </View>

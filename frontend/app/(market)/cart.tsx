@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { ShoppingCart } from 'lucide-react-native';
 import { verdexColors as G } from '../../src/theme';
 import { useCart } from '../../src/contexts/CartContext';
 import { useOrders } from '../../src/market/OrderContext';
@@ -77,7 +78,7 @@ export default function CartScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.content}>
         {cartArray.length === 0 ? (
           <View style={s.emptyState}>
-            <Text style={{ fontSize: 60, marginBottom: 16 }}>🛒</Text>
+            <ShoppingCart color={G.txt3} size={64} strokeWidth={1.5} style={{ marginBottom: 16 }} />
             <Text style={s.emptyText}>Your cart is empty.</Text>
             <TouchableOpacity style={s.shopBtn} onPress={() => router.back()}>
               <Text style={s.shopBtnText}>Start Shopping</Text>
@@ -165,7 +166,7 @@ const s = StyleSheet.create({
     marginBottom: 24,
   },
   shopBtn: {
-    backgroundColor: G.primary,
+    backgroundColor: G.g800,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

@@ -14,6 +14,7 @@ export const Marker: React.FC<any> = () => null;
 export const Polyline: React.FC<any> = () => null;
 export const UrlTile: React.FC<any> = () => null;
 export const PROVIDER_DEFAULT = undefined;
+export const PROVIDER_GOOGLE = 'google' as const;
 
 const styles = StyleSheet.create({
   box: { backgroundColor: '#1B5E20', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

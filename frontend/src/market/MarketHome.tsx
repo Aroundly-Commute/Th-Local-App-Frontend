@@ -13,8 +13,9 @@ import {
 import { verdexColors as G } from '../theme';
 import {
   RippleTap, FloatView, PulseView, FadeUp, FlashCountdown,
-  IconZap, IconMapPin, IconChevronDown, IconSearch, IconChevronRight, IconHeart,
+  IconZap, IconMapPin, IconChevronDown, IconSearch, IconChevronRight, IconHeart, IconCart,
 } from '../components/marketplace/primitives';
+import { Briefcase, Calendar, Wrench, Sparkles, ShoppingBag } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { CATS, STORES, DEAL_TILES, COUPONS, OFFERS } from './data';
 import { useCart } from '../contexts/CartContext';
@@ -128,7 +129,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
               onPress={() => router.push('/(market)/cart')}
               style={[s.avatar, sb(G.g300, '30'), { position: 'relative', justifyContent: 'center', alignItems: 'center' }]}
             >
-              <Text style={{ fontSize: 18 }}>🛒</Text>
+              <IconCart c={G.g700} sz={18} />
               {totalCount > 0 && (
                 <View style={{
                   position: 'absolute',
@@ -189,7 +190,9 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
           </TouchableOpacity>
           <RippleTap style={s.promoTile} onPress={() => router.push('/(market)/partner')}>
             <Text style={s.promoText}>Partner{'\n'}With Us ⚡</Text>
-            <FloatView><Text style={{ fontSize: 18, alignSelf: 'flex-end' }}>💼</Text></FloatView>
+            <FloatView style={{ alignSelf: 'flex-end', marginTop: 4 }}>
+              <Briefcase color={G.lime} size={18} strokeWidth={2.5} />
+            </FloatView>
           </RippleTap>
         </View>
       </FadeUp>
@@ -199,7 +202,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
         /* ── Fresh Direct Blank Screen ── */
         <FadeUp delay={200}>
           <View style={s.blankContainer}>
-            <Text style={{ fontSize: 60, marginBottom: 16 }}>🥬</Text>
+            <ShoppingBag color={G.g300} size={64} strokeWidth={1.5} style={{ marginBottom: 16 }} />
             <Text style={[s.blankTitle, { color: G.txt }]}>Fresh Direct Coming Soon!</Text>
             <Text style={[s.blankSub, { color: G.txt3 }]}>
               We are partnering with local organic farms to bring fresh, direct pesticide-free harvests to your doorstep. Stay tuned for premium greens!
@@ -237,7 +240,10 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
           {activeStore === 'Services' && userBookings.length > 0 && (
             <FadeUp delay={210}>
               <View style={{ paddingHorizontal: 14, paddingTop: 10 }}>
-                <Text style={[s.secTitle, { color: G.txt, marginBottom: 8 }]}>Your Bookings 🗓️</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Calendar color={G.g500} size={15} strokeWidth={2.5} />
+                  <Text style={[s.secTitle, { color: G.txt }]}>Your Bookings</Text>
+                </View>
                 {userBookings.map((b) => (
                   <View key={b.id} style={[s.bookingBanner, sb(G.g300, '35'), { backgroundColor: G.g50 }]}>
                     <Text style={{ fontSize: 24 }}>{b.emoji}</Text>
@@ -281,7 +287,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
                 <View style={{ padding: 14, paddingTop: 16 }}>
                   <View style={s.secHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 16 }}>🛠️</Text>
+                      <Wrench color={G.g500} size={15} strokeWidth={2.5} />
                       <Text style={[s.secTitle, { color: G.txt }]}>Popular Services</Text>
                     </View>
                     <TouchableOpacity onPress={() => setActiveStore('Services')}>
@@ -364,7 +370,7 @@ export const MarketHome: React.FC<Props> = ({ onShopPress, showToast }) => {
                       <Text style={[s.heroLabel, { color: G.g200 }]}>TODAY'S DEAL</Text>
                       <Text style={[s.heroTitle, { color: G.lime }]}>{'Self-Care\nSTEALS'}</Text>
                       <FloatView style={{ marginTop: 10, marginBottom: 'auto' as any }}>
-                        <Text style={{ fontSize: 44 }}>✨</Text>
+                        <Sparkles color={G.lime} size={44} strokeWidth={1.5} />
                       </FloatView>
                       <View style={s.heroCta}><Text style={[s.heroCtaText, { color: G.g900 }]}>STARTS AT ₹49</Text></View>
                     </RippleTap>

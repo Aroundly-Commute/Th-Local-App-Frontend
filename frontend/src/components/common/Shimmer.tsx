@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import { lightTheme, darkTheme } from './theme';
+import { lightTheme, darkTheme } from '../../theme';
 import { useColorScheme } from 'react-native';
 
 export const Shimmer: React.FC<{ style?: ViewStyle | ViewStyle[] }> = ({ style }) => {

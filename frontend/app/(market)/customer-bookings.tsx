@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Calendar, Clock, DollarSign, Tag, Info, User } from 'lucide-react-native';
+import { ChevronLeft, Calendar, Clock, DollarSign, Tag, Info, User, MessageSquare } from 'lucide-react-native';
 import { useAuth } from '../../src/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
 import { tap, success } from '../../src/haptics';
@@ -77,7 +77,7 @@ export default function CustomerBookings() {
         </View>
       ) : bookings.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={{ fontSize: 64, marginBottom: 16 }}>🗓️</Text>
+          <Calendar color={t.textTertiary} size={64} strokeWidth={1.5} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyText, { color: t.textSecondary }]}>No appointments booked yet.</Text>
           <TouchableOpacity
             style={[styles.bookBtn, { backgroundColor: '#10B981' }]}
@@ -233,7 +233,10 @@ export default function CustomerBookings() {
                     });
                   }}
                 >
-                  <Text style={[styles.chatBtnText, { color: t.primaryContrast }]}>💬 Chat with Provider</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <MessageSquare color={t.primaryContrast} size={18} strokeWidth={2.5} />
+                    <Text style={[styles.chatBtnText, { color: t.primaryContrast }]}>Chat with Provider</Text>
+                  </View>
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -295,7 +298,7 @@ const styles = StyleSheet.create({
   modalBody: { paddingBottom: 24 },
   detailSection: { paddingVertical: 16, borderBottomWidth: 1 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  detailLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', tracking: 0.5, marginBottom: 4 },
+  detailLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   detailValue: { fontSize: 15, fontWeight: '600' },
   detailSub: { fontSize: 13, marginTop: 4 },
   gridRow: { flexDirection: 'row', justifyContent: 'space-between' },
