@@ -4,9 +4,9 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 
 import { useRouter } from 'expo-router';
 import { Mail, Lock, User as UserIcon, ChevronLeft, Car, UserCheck } from 'lucide-react-native';
-import { useAuth } from '../../src/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success, errorH } from '../../src/haptics';
+import { useAuth } from '../../src/core/auth/auth';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { tap, success, errorH } from '../../src/core/utils/haptics';
 
 export default function Signup() {
   const cs = useColorScheme();

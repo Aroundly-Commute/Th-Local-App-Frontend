@@ -1,15 +1,15 @@
 /**
- * (tabs)/market.tsx
- * Unified Explore tab screen showing a premium "Coming Soon" page with active mode switcher.
+ * ExploreScreen.tsx
+ * Modular Explore tab screen showing a premium "Coming Soon" page.
  */
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Compass } from 'lucide-react-native';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { FloatView, FadeUp } from '../../src/components/marketplace/primitives';
+import { lightTheme, darkTheme, spacing } from '../../../core/theme/theme';
+import { FloatView, FadeUp } from '../../marketplace/components/primitives';
 
-export default function ExploreComingSoonScreen() {
+export default function ExploreScreen() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
 

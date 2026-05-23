@@ -32,10 +32,10 @@ import {
   XCircle,
   RefreshCw,
 } from 'lucide-react-native';
-import { api } from '../../src/api';
-import { useAuth } from '../../src/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success } from '../../src/haptics';
+import { api } from '../../../core/api/api';
+import { useAuth } from '../../../core/auth/auth';
+import { lightTheme, darkTheme, spacing, radius } from '../../../core/theme/theme';
+import { tap, success } from '../../../core/utils/haptics';
 
 type SpotState = {
   id: string;
@@ -128,7 +128,7 @@ const convertISTToUTC = (dateStr: string, timeStr: string): string => {
   return new Date(utcMs - 5.5 * 60 * 60 * 1000).toISOString();
 };
 
-export default function Parking() {
+export default function ParkingHub() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();

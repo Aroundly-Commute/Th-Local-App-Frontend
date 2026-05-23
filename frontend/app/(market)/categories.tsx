@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
-import { tap } from '../../src/haptics';
-import { mockCategories } from '../../src/marketData';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { ModeSwitcher } from '../../src/core/components/ModeSwitcher';
+import { tap } from '../../src/core/utils/haptics';
+import { mockCategories } from '../../src/modules/marketplace/screens/marketData';
 
 export default function Categories() {
   const cs = useColorScheme();

@@ -2,14 +2,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Alert, Platform } from 'react-native';
 
-import { RouteMap } from '../../src/RouteMap';
+import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Star, Leaf, Car, MessageCircle, Users, Clock } from 'lucide-react-native';
-import { api } from '../../src/api';
-import { useAuth } from '../../src/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { VerifiedAvatar } from '../../src/components';
-import { tap, success, errorH } from '../../src/haptics';
+import { api } from '../../src/core/api/api';
+import { useAuth } from '../../src/core/auth/auth';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
+import { tap, success, errorH } from '../../src/core/utils/haptics';
 
 export default function RideDetail() {
   const cs = useColorScheme();

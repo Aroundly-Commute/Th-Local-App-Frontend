@@ -6,9 +6,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Calendar, ShoppingBag, Package, DollarSign, MessageSquare } from 'lucide-react-native';
-import { useAuth } from '../../src/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success } from '../../src/haptics';
+import { useAuth } from '../../src/core/auth/auth';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { tap, success } from '../../src/core/utils/haptics';
 
 export default function CustomerOrders() {
   const router = useRouter();

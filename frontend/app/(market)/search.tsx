@@ -6,10 +6,10 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, X, Compass, ChevronRight } from 'lucide-react-native';
-import { verdexColors as G } from '../../src/theme';
-import { IconChevronRight } from '../../src/components/marketplace/primitives';
-import { useCart } from '../../src/contexts/CartContext';
-import { useMarketData } from '../../src/contexts/MarketDataContext';
+import { verdexColors as G } from '../../src/core/theme/theme';
+import { IconChevronRight } from '../../src/modules/marketplace/components/primitives';
+import { useCart } from '../../src/modules/marketplace/contexts/CartContext';
+import { useMarketData } from '../../src/modules/marketplace/contexts/MarketDataContext';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_WIDTH = (width - 48) / 2;

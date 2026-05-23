@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ShoppingCart } from 'lucide-react-native';
-import { verdexColors as G } from '../../src/theme';
-import { useCart } from '../../src/contexts/CartContext';
-import { useOrders } from '../../src/market/OrderContext';
-import { useAuth } from '../../src/auth';
-import { Toast, MarketBackButton } from '../../src/components/marketplace/primitives';
+import { verdexColors as G } from '../../src/core/theme/theme';
+import { useCart } from '../../src/modules/marketplace/contexts/CartContext';
+import { useOrders } from '../../src/modules/marketplace/contexts/OrderContext';
+import { useAuth } from '../../src/core/auth/auth';
+import { Toast, MarketBackButton } from '../../src/modules/marketplace/components/primitives';
 
 export default function CartScreen() {
   const router = useRouter();

@@ -2,10 +2,10 @@ import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { useColorScheme, Platform, Alert } from 'react-native';
 import { Home, Search, Car, User, MapPin, ShoppingBag, Compass } from 'lucide-react-native';
-import { lightTheme, darkTheme } from '../../src/theme';
-import { tap } from '../../src/haptics';
-import { wsUrl, api } from '../../src/api';
-import { useAuth } from '../../src/auth';
+import { lightTheme, darkTheme } from '../../src/core/theme/theme';
+import { tap } from '../../src/core/utils/haptics';
+import { wsUrl, api } from '../../src/core/api/api';
+import { useAuth } from '../../src/core/auth/auth';
 import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 export default function TabsLayout() {
@@ -57,11 +57,8 @@ export default function TabsLayout() {
       screenListeners={{ tabPress: () => tap() }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Home color={color} size={size - 2} strokeWidth={2} /> }} />
-      <Tabs.Screen name="market" options={{ href: enableMarketplace ? undefined : null, title: 'Explore', tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} strokeWidth={2} /> }} />
+      <Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} strokeWidth={2} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <User color={color} size={size - 2} strokeWidth={2} /> }} />
-      <Tabs.Screen name="search" options={{ href: null }} />
-      <Tabs.Screen name="rides" options={{ href: null }} />
-      <Tabs.Screen name="parking" options={{ href: null }} />
     </Tabs>
   );
 }

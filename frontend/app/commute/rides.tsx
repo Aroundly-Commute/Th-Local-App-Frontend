@@ -4,11 +4,11 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, R
 
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users } from 'lucide-react-native';
-import { api } from '../../src/api';
-import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
-import { VerifiedAvatar } from '../../src/components';
-import { Shimmer } from '../../src/Shimmer';
-import { tap } from '../../src/haptics';
+import { api } from '../../src/core/api/api';
+import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
+import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
+import { Shimmer } from '../../src/core/components/Shimmer';
+import { tap } from '../../src/core/utils/haptics';
 
 export default function Rides() {
   const cs = useColorScheme();
@@ -69,7 +69,7 @@ export default function Rides() {
                 : 'Your ride history will appear here'}
             </Text>
             {tab !== 'past' && (
-              <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push('/(tabs)/search'); }}
+              <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push('/commute/search'); }}
                 activeOpacity={0.8} style={[styles.emptyCta, { backgroundColor: t.primary }]}>
                 <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
                   {tab === 'upcoming' ? 'Find a Ride' : 'Search Rides'}

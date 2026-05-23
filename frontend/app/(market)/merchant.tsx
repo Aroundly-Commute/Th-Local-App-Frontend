@@ -7,11 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Plus, Image as ImageIcon, Package, ShoppingBag, Check, X, Tag } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useOrders } from '../../src/market/OrderContext';
-import { useAuth } from '../../src/auth';
-import { useMarketData } from '../../src/contexts/MarketDataContext';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success } from '../../src/haptics';
+import { useOrders } from '../../src/modules/marketplace/contexts/OrderContext';
+import { useAuth } from '../../src/core/auth/auth';
+import { useMarketData } from '../../src/modules/marketplace/contexts/MarketDataContext';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { tap, success } from '../../src/core/utils/haptics';
 
 const MOCK_PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80', // Red Shoes

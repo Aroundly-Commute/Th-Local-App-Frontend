@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import { Bookmark } from 'lucide-react-native';
-import { lightTheme, darkTheme, spacing } from '../../src/theme';
-import { ModeSwitcher } from '../../src/ModeSwitcher';
+import { lightTheme, darkTheme, spacing } from '../../src/core/theme/theme';
+import { ModeSwitcher } from '../../src/core/components/ModeSwitcher';
 
 export default function Saved() {
   const cs = useColorScheme();

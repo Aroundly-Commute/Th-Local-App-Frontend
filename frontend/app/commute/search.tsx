@@ -11,12 +11,12 @@ import {
   MapPin, Search as SearchIcon, Calendar, Clock, Users,
   ArrowDownUp, SlidersHorizontal, ChevronLeft, ChevronRight,
 } from 'lucide-react-native';
-import { api } from '../../src/api';
-import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/theme';
-import { RideCard } from '../../src/components';
-import { Shimmer } from '../../src/Shimmer';
-import { tap, success, errorH } from '../../src/haptics';
-import { LocationSearch } from '../../src/LocationSearch';
+import { api } from '../../src/core/api/api';
+import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
+import { RideCard } from '../../src/modules/commute/components/RideCard';
+import { Shimmer } from '../../src/core/components/Shimmer';
+import { tap, success, errorH } from '../../src/core/utils/haptics';
+import { LocationSearch } from '../../src/core/components/LocationSearch';
 import * as Location from 'expo-location';
 
 const RECENT = [
@@ -242,7 +242,7 @@ export default function Search() {
         });
         success();
         Alert.alert('Success', 'Ride offered! It is now visible to other users.');
-        router.push('/(tabs)/rides');
+        router.push('/commute/rides');
       } else {
         const { data } = await api.post('/matchmaking/search', {
           start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },

@@ -4,10 +4,10 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send } from 'lucide-react-native';
-import { api, wsUrl } from '../../src/api';
-import { useAuth } from '../../src/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success } from '../../src/haptics';
+import { api, wsUrl } from '../../src/core/api/api';
+import { useAuth } from '../../src/core/auth/auth';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { tap, success } from '../../src/core/utils/haptics';
 
 export default function ChatScreen() {
   const cs = useColorScheme();

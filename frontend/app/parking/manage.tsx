@@ -14,10 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Plus, Check, X, Calendar, DollarSign, Clock, MapPin, User as UserIcon } from 'lucide-react-native';
-import { api } from '../../src/api';
-import { useAuth } from '../../src/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success } from '../../src/haptics';
+import { api } from '../../src/core/api/api';
+import { useAuth } from '../../src/core/auth/auth';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { tap, success } from '../../src/core/utils/haptics';
 
 type Spot = {
   id: string;

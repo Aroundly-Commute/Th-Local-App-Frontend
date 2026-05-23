@@ -6,10 +6,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Plus, X, Briefcase, Clock, Sparkles, Award, CheckCircle, Store, Wrench, Home } from 'lucide-react-native';
-import { useAuth } from '../../src/auth';
-import { useMarketData } from '../../src/contexts/MarketDataContext';
-import { lightTheme, darkTheme, spacing, radius } from '../../src/theme';
-import { tap, success } from '../../src/haptics';
+import { useAuth } from '../../src/core/auth/auth';
+import { useMarketData } from '../../src/modules/marketplace/contexts/MarketDataContext';
+import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
+import { tap, success } from '../../src/core/utils/haptics';
 
 export default function PartnerOnboarding() {
   const router = useRouter();

@@ -13,8 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo } from 'lucide-react-native';
 import { useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
-import { lightTheme, darkTheme, spacing, radius } from '../src/theme';
-import { tap } from '../src/haptics';
+import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
+import { tap } from '../src/core/utils/haptics';
 
 export default function SettingsScreen() {
   const router = useRouter();

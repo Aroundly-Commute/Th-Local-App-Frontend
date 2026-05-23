@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '../src/auth';
-import { CartProvider } from '../src/contexts/CartContext';
-import { OrderProvider } from '../src/market/OrderContext';
-import { MarketDataProvider } from '../src/contexts/MarketDataContext';
+import { AuthProvider } from '../src/core/auth/auth';
+import { CartProvider } from '../src/modules/marketplace/contexts/CartContext';
+import { OrderProvider } from '../src/modules/marketplace/contexts/OrderContext';
+import { MarketDataProvider } from '../src/modules/marketplace/contexts/MarketDataContext';
 import { useColorScheme, BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
 import { Terminal } from 'lucide-react-native';
-import { LogViewerModal } from '../src/components/common/LogViewerModal';
+import { LogViewerModal } from '../src/core/components/LogViewerModal';
 import '../src/services/logger'; // Boot up console interception immediately
 import { FeatureFlagProvider } from '../src/services/feature-flag/FeatureFlagContext';
 

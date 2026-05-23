@@ -27,9 +27,9 @@ import {
 } from 'lucide-react-native';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import { api } from '../../../src/api';
-import { lightTheme, darkTheme, spacing, radius } from '../../../src/theme';
-import { tap, success } from '../../../src/haptics';
+import { api } from '../../../src/core/api/api';
+import { lightTheme, darkTheme, spacing, radius } from '../../../src/core/theme/theme';
+import { tap, success } from '../../../src/core/utils/haptics';
 
 type MyBooking = {
   id: string;
