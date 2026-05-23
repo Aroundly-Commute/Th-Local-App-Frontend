@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bpandey690.frontend",
@@ -17,7 +17,11 @@
     },
     "android": {
       "package": "com.bpandey690.frontend",
-      "googleMapsApiKey": "AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000"
