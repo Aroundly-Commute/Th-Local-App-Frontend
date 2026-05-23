@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   useColorScheme, KeyboardAvoidingView, Platform, Alert, TextInput, Modal,
+  ActivityIndicator,
 } from 'react-native';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,6 +17,7 @@ import { RideCard } from '../../src/components';
 import { Shimmer } from '../../src/Shimmer';
 import { tap, success, errorH } from '../../src/haptics';
 import { LocationSearch } from '../../src/LocationSearch';
+import * as Location from 'expo-location';
 
 const RECENT = [
   { from: 'Noida Sector 62', to: 'Connaught Place, Delhi' },
@@ -155,6 +157,42 @@ export default function Search() {
   const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [locLoading, setLocLoading] = useState(false);
+
+  const handleGetCurrentLocation = async () => {
+    try {
+      setLocLoading(true);
+      tap();
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied. Please enable it in settings.');
+        return;
+      }
+      
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced
+      });
+      
+      const { latitude, longitude } = loc.coords;
+      setFrom('Current Location');
+      setFromCoords({ lat: latitude, lng: longitude });
+      success();
+      
+      try {
+        const resp = await api.get(`/locations/reverse?lat=${latitude}&lng=${longitude}`);
+        if (resp.data && resp.data.place_name) {
+          setFrom(resp.data.place_name);
+        }
+      } catch (e) {
+        // Fallback is already handled
+      }
+    } catch (err: any) {
+      errorH();
+      Alert.alert('Error', 'Failed to get current location: ' + err.message);
+    } finally {
+      setLocLoading(false);
+    }
+  };
 
   // Date/time as a single Date object for easy formatting (aligned in IST)
   const [datetime, setDatetime] = useState<Date>(() => {
@@ -255,6 +293,32 @@ export default function Search() {
                 onSelect={(name, lat, lng) => { setTo(name); setToCoords({lat, lng}); }}
               />
             </View>
+
+            {/* Select current location option */}
+            <TouchableOpacity 
+              onPress={handleGetCurrentLocation}
+              activeOpacity={0.7}
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                gap: 6, 
+                alignSelf: 'flex-start',
+                marginTop: 2,
+                paddingVertical: 6,
+                paddingHorizontal: 12,
+                borderRadius: 14,
+                backgroundColor: t.muted,
+              }}
+            >
+              {locLoading ? (
+                <ActivityIndicator size="small" color={t.primary} style={{ marginRight: 2 }} />
+              ) : (
+                <MapPin color={t.primary} size={14} />
+              )}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: t.primary }}>
+                {locLoading ? 'Locating...' : 'Use Current Location'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Date / Time / Seats row */}

@@ -12,11 +12,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.bpandey690.frontend",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "GoPool needs access to your location to find rides and parking spots nearby."
       }
     },
     "android": {
       "package": "com.bpandey690.frontend",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As"
