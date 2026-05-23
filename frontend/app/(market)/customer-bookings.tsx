@@ -81,7 +81,7 @@ export default function CustomerBookings() {
           <Text style={[styles.emptyText, { color: t.textSecondary }]}>No appointments booked yet.</Text>
           <TouchableOpacity
             style={[styles.bookBtn, { backgroundColor: '#10B981' }]}
-            onPress={() => { tap(); router.push('/(market)'); }}
+            onPress={() => { tap(); router.push('/(tabs)'); }}
           >
             <Text style={styles.bookBtnText}>Explore Services</Text>
           </TouchableOpacity>

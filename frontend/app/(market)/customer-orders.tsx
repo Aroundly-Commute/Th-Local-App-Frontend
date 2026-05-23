@@ -83,7 +83,7 @@ export default function CustomerOrders() {
           <Text style={[styles.emptyText, { color: t.textSecondary }]}>No orders placed yet.</Text>
           <TouchableOpacity
             style={[styles.shopBtn, { backgroundColor: '#10B981' }]}
-            onPress={() => { tap(); router.push('/(market)'); }}
+            onPress={() => { tap(); router.push('/(tabs)'); }}
           >
             <Text style={styles.shopBtnText}>Start Shopping</Text>
           </TouchableOpacity>

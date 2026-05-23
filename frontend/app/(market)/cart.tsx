@@ -61,7 +61,7 @@ export default function CartScreen() {
     }
     
     setTimeout(() => {
-      router.replace('/(market)');
+      router.replace('/(tabs)');
     }, 2000);
   };
 

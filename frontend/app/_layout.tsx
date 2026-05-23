@@ -41,7 +41,7 @@ function AppNavigationWrapper() {
       }
 
       // Fallback: Redirect to dashboard
-      router.replace('/(market)');
+      router.replace('/(tabs)');
       return true;
     };
 
