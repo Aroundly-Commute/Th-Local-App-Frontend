@@ -8,6 +8,7 @@ import { OrderProvider } from '../src/market/OrderContext';
 import { MarketDataProvider } from '../src/contexts/MarketDataContext';
 import { useColorScheme, BackHandler, LogBox } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 // Ignore framework-level Expo DevTools fragment style prop warnings to prevent log lag and overlay popups
 LogBox.ignoreLogs([
@@ -68,10 +69,11 @@ export default function RootLayout() {
   const cs = useColorScheme();
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider>
-          <MarketDataProvider>
-            <CartProvider>
+      <ErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <AuthProvider>
+            <MarketDataProvider>
+              <CartProvider>
               <OrderProvider>
                 <StatusBar style={cs === 'dark' ? 'light' : 'dark'} />
                 <AppNavigationWrapper />
@@ -80,6 +82,7 @@ export default function RootLayout() {
           </MarketDataProvider>
         </AuthProvider>
       </GestureHandlerRootView>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
