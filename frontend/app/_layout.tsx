@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
@@ -6,9 +6,12 @@ import { AuthProvider } from '../src/auth';
 import { CartProvider } from '../src/contexts/CartContext';
 import { OrderProvider } from '../src/market/OrderContext';
 import { MarketDataProvider } from '../src/contexts/MarketDataContext';
-import { useColorScheme, BackHandler, LogBox } from 'react-native';
+import { useColorScheme, BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { Terminal } from 'lucide-react-native';
+import { LogViewerModal } from '../src/components/common/LogViewerModal';
+import '../src/services/logger'; // Boot up console interception immediately
 
 // Ignore framework-level Expo DevTools fragment style prop warnings to prevent log lag and overlay popups
 LogBox.ignoreLogs([
@@ -18,6 +21,7 @@ LogBox.ignoreLogs([
 function AppNavigationWrapper() {
   const router = useRouter();
   const pathname = usePathname();
+  const [logsVisible, setLogsVisible] = useState(false);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -53,15 +57,28 @@ function AppNavigationWrapper() {
   }, [pathname, router]);
 
   return (
-    <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(market)" />
-      <Stack.Screen name="shop/[id]" options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="ride/[id]" options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="chat/[chatId]" />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(market)" />
+        <Stack.Screen name="shop/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="ride/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="chat/[chatId]" />
+      </Stack>
+
+      {/* Floating Subtle In-App Log Viewer Trigger */}
+      <TouchableOpacity
+        activeOpacity={0.6}
+        onPress={() => setLogsVisible(true)}
+        style={styles.floatingDebugBtn}
+      >
+        <Terminal color="#FFFFFF" size={14} strokeWidth={2.5} />
+      </TouchableOpacity>
+
+      <LogViewerModal visible={logsVisible} onClose={() => setLogsVisible(false)} />
+    </View>
   );
 }
 
@@ -86,3 +103,24 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingDebugBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1E293B',
+    opacity: 0.35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+});
