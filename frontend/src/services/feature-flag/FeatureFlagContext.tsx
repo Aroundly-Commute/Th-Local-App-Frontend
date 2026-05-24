@@ -5,6 +5,9 @@ type FeatureFlags = {
   enableMarketplace: boolean;
   enableRideSharing: boolean;
   enableParking: boolean;
+  enableYourBadges: boolean;
+  enableEcoStarter: boolean;
+  enablePopularRoutes: boolean;
 };
 
 type FeatureFlagContextType = FeatureFlags & {
@@ -21,6 +24,9 @@ export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ c
     enableMarketplace: true,
     enableRideSharing: true,
     enableParking: true,
+    enableYourBadges: true,
+    enableEcoStarter: true,
+    enablePopularRoutes: true,
   });
   const [loading, setLoading] = useState(true);
 

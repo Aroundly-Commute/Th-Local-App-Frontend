@@ -3,11 +3,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, useColorScheme } from 'react-native';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Send } from 'lucide-react-native';
+import { Send } from 'lucide-react-native';
 import { api, wsUrl } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
+import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 
 export default function ChatScreen() {
   const cs = useColorScheme();
@@ -55,14 +56,8 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>
-        <TouchableOpacity testID="chat-back" onPress={() => { tap(); router.back(); }} style={{ padding: 6 }}>
-          <ChevronLeft color={t.textPrimary} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>{name || 'Chat'}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.background }} edges={['top', 'left', 'right']}>
+      <ScreenHeader title={name || 'Chat'} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
@@ -114,8 +109,6 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1 },
-  title: { fontSize: 17, fontWeight: '700', flex: 1, textAlign: 'center' },
   bubble: { maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: spacing.sm, borderTopWidth: 1 },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingTop: 12, fontSize: 15 },

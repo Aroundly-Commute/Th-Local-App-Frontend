@@ -9,6 +9,7 @@ import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/th
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { Shimmer } from '../../src/core/components/Shimmer';
 import { tap } from '../../src/core/utils/haptics';
+import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 
 export default function Rides() {
   const cs = useColorScheme();
@@ -36,8 +37,8 @@ export default function Rides() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
+      <ScreenHeader title="My Rides" />
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12 }}>
-        <Text style={[styles.h1, { color: t.textPrimary }]}>My Rides</Text>
         <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
           <TabBtn testID="tab-upcoming" label="Upcoming" count={data.upcoming.length}
             active={tab === 'upcoming'} t={t} onPress={() => { tap(); setTab('upcoming'); }} />
@@ -92,7 +93,8 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
 
   const isDriver = r.role === 'driver';
 
-  const statusLabel = isPast ? 'Completed'
+  const statusLabel = isPast
+    ? (r.request_status === 'REQUESTED' ? 'Expired' : 'Completed')
     : isRequested ? 'Pending'
     : 'Confirmed';
   const statusColor = isPast ? t.textSecondary : isRequested ? t.warning : t.success;
@@ -114,9 +116,8 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
       {/* Status row */}
       <View style={styles.statusRow}>
         <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-          {isPast ? <CheckCircle2 color={statusColor} size={12} />
-            : isRequested ? <AlertCircle color={statusColor} size={12} />
-            : <CheckCircle2 color={statusColor} size={12} />}
+          {isPast && r.request_status !== 'REQUESTED' ? <CheckCircle2 color={statusColor} size={12} />
+            : <AlertCircle color={statusColor} size={12} />}
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
         <Text style={[styles.role, { color: t.textTertiary }]}>

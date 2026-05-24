@@ -1,10 +1,12 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Platform } from 'react-native';
+import { Alert } from '../../src/core/components/CustomAlert';
+import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Star, Leaf, Car, MessageCircle, Users, Clock } from 'lucide-react-native';
+import { Star, Leaf, Car, MessageCircle, Users, Clock } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
@@ -160,16 +162,13 @@ export default function RideDetail() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <View style={{ height: '40%' }}>
+      <ScreenHeader title="Ride Details" />
+      <View style={{ height: '35%' }}>
         <RouteMap
           origin={{ lat: origin_lat ?? 0, lng: origin_lng ?? 0, name: origin }}
           destination={{ lat: dest_lat ?? 0, lng: dest_lng ?? 0, name: destination }}
           t={t}
         />
-        <TouchableOpacity testID="ride-back" onPress={() => { tap(); router.back(); }}
-          style={[styles.back, { backgroundColor: t.surface }]}>
-          <ChevronLeft color={t.textPrimary} size={22} />
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={[styles.sheet, { backgroundColor: t.background }]} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}>

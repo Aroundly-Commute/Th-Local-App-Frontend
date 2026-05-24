@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  ImageBackground, Dimensions, ActivityIndicator, Alert,
+  ImageBackground, Dimensions, ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert } from '../../src/core/components/CustomAlert';
+import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Star, MapPin, Heart, BadgeCheck } from 'lucide-react-native';
+import { Star, MapPin, Heart, BadgeCheck } from 'lucide-react-native';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
 import { useCart } from '../../src/modules/marketplace/contexts/CartContext';
@@ -158,15 +161,12 @@ export default function ShopDetail() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
+      <ScreenHeader title={shop.name || 'Store Details'} />
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Hero */}
         <ImageBackground source={{ uri: shop.image }} style={styles.hero}>
           <LinearGradient colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
-          <TouchableOpacity testID="shop-back" onPress={() => { tap(); router.back(); }}
-            style={[styles.back, { backgroundColor: 'rgba(255,255,255,0.95)' }]}>
-            <ChevronLeft color="#0A0A0A" size={22} />
-          </TouchableOpacity>
         </ImageBackground>
 
         {/* Card */}
@@ -277,7 +277,7 @@ export default function ShopDetail() {
           <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>View Cart</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

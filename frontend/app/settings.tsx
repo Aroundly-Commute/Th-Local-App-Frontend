@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo } from 'lucide-react-native';
+import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf } from 'lucide-react-native';
 import { useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
 import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
 import { tap } from '../src/core/utils/haptics';
+import { ScreenHeader } from '../src/core/components/ScreenHeader';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -25,11 +26,14 @@ export default function SettingsScreen() {
     enableMarketplace,
     enableRideSharing,
     enableParking,
+    enableYourBadges,
+    enableEcoStarter,
+    enablePopularRoutes,
     loading,
     toggleFeature,
   } = useFeatureFlags();
 
-  const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking') => {
+  const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes') => {
     tap();
     await toggleFeature(key);
   };
@@ -45,14 +49,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      {/* Header */}
-      <View style={[styles.header, { borderColor: t.border }]}>
-        <TouchableOpacity activeOpacity={0.7} onPress={handleBack} style={[styles.backBtn, { backgroundColor: t.surface, borderColor: t.border }]}>
-          <ChevronLeft color={t.textPrimary} size={20} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: t.textPrimary }]}>Feature Settings</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <ScreenHeader title="Feature Settings" onBack={handleBack} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 60 }}>
         <Text style={[styles.subtitle, { color: t.textSecondary }]}>
@@ -128,6 +125,72 @@ export default function SettingsScreen() {
                 value={enableParking}
               />
             </View>
+
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+            {/* Your Badges toggle */}
+            <View style={styles.toggleRow}>
+              <View style={[styles.iconWrap, { backgroundColor: '#F3E8FF' }]}>
+                <Award color="#A855F7" size={18} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Your Badges Section</Text>
+                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
+                  Display gained status badges like Eco Starter, First Drive, and Planet Saver.
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#767577', true: '#10B981' }}
+                thumbColor={enableYourBadges ? '#FFFFFF' : '#f4f3f4'}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={() => handleToggle('enableYourBadges')}
+                value={enableYourBadges}
+              />
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+            {/* Eco Starter badge toggle */}
+            <View style={styles.toggleRow}>
+              <View style={[styles.iconWrap, { backgroundColor: '#F0FDF4' }]}>
+                <Leaf color="#22C55E" size={18} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Eco Starter Badge</Text>
+                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
+                  Enable or disable the specific introductory 🌱 Eco Starter badge in the badges strip.
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#767577', true: '#10B981' }}
+                thumbColor={enableEcoStarter ? '#FFFFFF' : '#f4f3f4'}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={() => handleToggle('enableEcoStarter')}
+                value={enableEcoStarter}
+              />
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+            {/* Popular Routes toggle */}
+            <View style={styles.toggleRow}>
+              <View style={[styles.iconWrap, { backgroundColor: '#EFF6FF' }]}>
+                <MapPin color="#3B82F6" size={18} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Popular Routes</Text>
+                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
+                  Display the "Popular Routes" section on the commute rides search screen.
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#767577', true: '#10B981' }}
+                thumbColor={enablePopularRoutes ? '#FFFFFF' : '#f4f3f4'}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={() => handleToggle('enablePopularRoutes')}
+                value={enablePopularRoutes}
+              />
+            </View>
           </View>
         )}
 
@@ -149,7 +212,10 @@ export default function SettingsScreen() {
             Active Modules: {[
               enableMarketplace && 'Marketplace',
               enableRideSharing && 'Ride Sharing',
-              enableParking && 'Smart Parking'
+              enableParking && 'Smart Parking',
+              enableYourBadges && 'Your Badges',
+              enableEcoStarter && 'Eco Starter',
+              enablePopularRoutes && 'Popular Routes'
             ].filter(Boolean).join(', ') || 'None (All Disabled)'}
           </Text>
         </View>

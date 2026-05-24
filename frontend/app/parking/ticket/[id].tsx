@@ -7,7 +7,6 @@ import {
   ScrollView,
   useColorScheme,
   Platform,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -30,6 +29,8 @@ import * as Sharing from 'expo-sharing';
 import { api } from '../../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius } from '../../../src/core/theme/theme';
 import { tap, success } from '../../../src/core/utils/haptics';
+import { Alert } from '../../../src/core/components/CustomAlert';
+import { ScreenHeader } from '../../../src/core/components/ScreenHeader';
 
 type MyBooking = {
   id: string;
@@ -48,7 +49,7 @@ type MyBooking = {
   startTime: string;
   endTime: string;
   price: number;
-  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
   createdAt: string;
 };
 
@@ -144,12 +145,7 @@ export default function TicketDetails() {
   if (!booking) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => { tap(); router.back(); }} style={styles.backBtn}>
-            <ChevronLeft color={t.textPrimary} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: t.textPrimary }]}>Parking Pass</Text>
-        </View>
+        <ScreenHeader title="Parking Pass" />
         <View style={styles.center}>
           <AlertCircle size={40} color={t.error} />
           <Text style={[styles.errorTxt, { color: t.textPrimary }]}>Failed to load pass details.</Text>
@@ -164,6 +160,7 @@ export default function TicketDetails() {
   const isAccepted = booking.status === 'ACCEPTED';
   const isRequested = booking.status === 'REQUESTED';
   const isRejected = booking.status === 'REJECTED';
+  const isExpired = booking.status === 'EXPIRED';
 
   let statusColor = t.textSecondary;
   let statusBg = t.muted;
@@ -176,20 +173,16 @@ export default function TicketDetails() {
   } else if (isRejected) {
     statusColor = t.error;
     statusBg = t.errorBg;
+  } else if (isExpired) {
+    statusColor = t.textSecondary;
+    statusBg = t.muted;
   }
 
   const qrPayload = `gopool://parking/ticket/${booking.id}?spot=${booking.spot.spotName}`;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-      {/* Premium Header */}
-      <View style={[styles.header, { borderBottomColor: t.border }]}>
-        <TouchableOpacity onPress={() => { tap(); router.back(); }} style={styles.backBtn}>
-          <ChevronLeft color={t.textPrimary} size={24} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: t.textPrimary }]}>GO-PASS DIGITAL TICKET</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="GO-PASS DIGITAL TICKET" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Ticket Container for High Fidelity Capturing */}
@@ -300,6 +293,16 @@ export default function TicketDetails() {
                 </Text>
                 <Text style={{ fontSize: 11, color: t.textTertiary, textAlign: 'center', marginTop: 6, paddingHorizontal: 20 }}>
                   The verification QR code and final gate access pass will unlock instantly once your request is accepted.
+                </Text>
+              </View>
+            ) : isExpired ? (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <AlertCircle size={28} color={t.textSecondary} style={{ marginBottom: 10 }} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: t.textSecondary, textAlign: 'center' }}>
+                  Booking Request Expired
+                </Text>
+                <Text style={{ fontSize: 11, color: t.textTertiary, textAlign: 'center', marginTop: 6, paddingHorizontal: 20 }}>
+                  This booking has expired as the slot time has passed. Please select another slot.
                 </Text>
               </View>
             ) : (

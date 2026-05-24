@@ -7,7 +7,6 @@ import {
   ScrollView,
   useColorScheme,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,6 +15,8 @@ import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
+import { Alert } from '../../src/core/components/CustomAlert';
+import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 
 type SpotState = {
   id: string;
@@ -180,18 +181,7 @@ export default function RegisterParking() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: t.border }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => { tap(); router.back(); }}>
-          <ChevronLeft color={t.textPrimary} size={24} />
-        </TouchableOpacity>
-        <View style={{ flex: 1, marginLeft: 8 }}>
-          <Text style={[styles.headerTitle, { color: t.textPrimary }]}>Register Parking</Text>
-          <Text style={[styles.headerSub, { color: t.textSecondary }]}>
-            Claim your physical spot in the master grid
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title="Register Parking" />
 
       {loading ? (
         <View style={styles.center}>
@@ -360,7 +350,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.md,
-    paddingBottom: 140,
+    paddingBottom: 220,
   },
   banner: {
     flexDirection: 'row',

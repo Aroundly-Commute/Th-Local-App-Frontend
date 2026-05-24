@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { useColorScheme, Platform, Alert } from 'react-native';
+import { useColorScheme, Platform } from 'react-native';
 import { Home, Search, Car, User, MapPin, ShoppingBag, Compass } from 'lucide-react-native';
 import { lightTheme, darkTheme } from '../../src/core/theme/theme';
 import { tap } from '../../src/core/utils/haptics';
 import { wsUrl, api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
+import { Alert } from '../../src/core/components/CustomAlert';
 
 export default function TabsLayout() {
   const cs = useColorScheme();
@@ -32,6 +33,29 @@ export default function TabsLayout() {
                   api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' }).catch(()=>{})
               } }
             ]
+          );
+        } else if (msg.type === 'ride_request_updated') {
+          Alert.alert(
+            "Ride Request Status",
+            `Your request has been ${msg.payload.status.toLowerCase()} by the driver.`
+          );
+        } else if (msg.type === 'new_parking_booking_request') {
+          Alert.alert(
+            "New Parking Booking",
+            `${msg.payload.visitorName} requested spot ${msg.payload.spotName} on ${msg.payload.date}.`,
+            [
+              { text: "Reject", style: "cancel", onPress: () => {
+                  api.patch(`/parking/bookings/${msg.payload.id}/status`, { status: 'REJECTED' }).catch(()=>{})
+              } },
+              { text: "Accept", onPress: () => {
+                  api.patch(`/parking/bookings/${msg.payload.id}/status`, { status: 'ACCEPTED' }).catch(()=>{})
+              } }
+            ]
+          );
+        } else if (msg.type === 'parking_booking_status_updated') {
+          Alert.alert(
+            "Parking Booking Status",
+            `Your booking request for spot ${msg.payload.spotName} has been ${msg.payload.status.toLowerCase()} by the owner.`
           );
         }
       } catch (e) {}

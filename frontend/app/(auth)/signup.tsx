@@ -37,7 +37,7 @@ export default function Signup() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
           <TouchableOpacity testID="signup-back" onPress={() => { tap(); router.back(); }} style={styles.back}>
             <ChevronLeft color={t.textPrimary} size={24} />

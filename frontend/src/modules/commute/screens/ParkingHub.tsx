@@ -36,6 +36,7 @@ import { api } from '../../../core/api/api';
 import { useAuth } from '../../../core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../../core/theme/theme';
 import { tap, success } from '../../../core/utils/haptics';
+import { Shimmer } from '../../../core/components/Shimmer';
 
 type SpotState = {
   id: string;
@@ -531,12 +532,7 @@ export default function ParkingHub() {
         )}
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={t.primary} />
-          <Text style={{ color: t.textSecondary, marginTop: 12, fontSize: 13 }}>syncing parking state...</Text>
-        </View>
-      ) : showTicketView ? (
+      {showTicketView ? (
         /* --- TICKETS VIEW (PRIORITY FLOW) --- */
         <ScrollView
           contentContainerStyle={styles.ticketsContainer}
@@ -545,7 +541,13 @@ export default function ParkingHub() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.primary]} tintColor={t.primary} />
           }
         >
-          {myBookings.map((bk) => {
+          {loading ? (
+            <View style={{ gap: 16, padding: spacing.md }}>
+              <Shimmer style={{ height: 180, borderRadius: 16 }} />
+              <Shimmer style={{ height: 180, borderRadius: 16 }} />
+            </View>
+          ) : (
+            myBookings.map((bk) => {
             const isAccepted = bk.status === 'ACCEPTED';
             const isRequested = bk.status === 'REQUESTED';
             const isRejected = bk.status === 'REJECTED';
@@ -669,7 +671,8 @@ export default function ParkingHub() {
                 </View>
               </TouchableOpacity>
             );
-          })}
+          })
+          )}
 
           {/* Book Another Slot CTA */}
           <TouchableOpacity
@@ -800,7 +803,8 @@ export default function ParkingHub() {
           <View style={{ flex: 1 }}>
             {/* TAB 1: Visual Map Grid */}
             {activeTab === 'map' && (
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.mapScrollBody}>
+              <View style={{ flex: 1, position: 'relative' }}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.mapScrollBody}>
                 {/* Map Info details */}
                 <View style={[styles.infoBanner, { backgroundColor: t.surfaceElevated, borderColor: t.border }]}>
                   <Info color={t.primary} size={16} />
@@ -851,7 +855,6 @@ export default function ParkingHub() {
                     ))}
                   </View>
                 </ScrollView>
-
                 {/* Legends color code */}
                 <View style={styles.legendContainer}>
                   <View style={styles.legendItem}>
@@ -876,7 +879,14 @@ export default function ParkingHub() {
                   </View>
                 </View>
               </ScrollView>
-            )}
+              {loading && (
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: t.isDark ? 'rgba(10, 22, 40, 0.65)' : 'rgba(255, 255, 255, 0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }]}>
+                  <ActivityIndicator size="large" color={t.primary} />
+                  <Text style={{ color: t.textSecondary, marginTop: 12, fontSize: 13, fontWeight: '600' }}>syncing parking state...</Text>
+                </View>
+              )}
+            </View>
+          )}
 
             {/* TAB 2: List View Finder */}
             {activeTab === 'list' && (
@@ -893,7 +903,13 @@ export default function ParkingHub() {
                 </View>
 
                 <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
-                  {availableSpotsList.length === 0 ? (
+                  {loading ? (
+                    <View style={{ gap: 12 }}>
+                      <Shimmer style={{ height: 100, borderRadius: 12 }} />
+                      <Shimmer style={{ height: 100, borderRadius: 12 }} />
+                      <Shimmer style={{ height: 100, borderRadius: 12 }} />
+                    </View>
+                  ) : availableSpotsList.length === 0 ? (
                     <View style={styles.emptyList}>
                       <MapPin size={48} color={t.textTertiary} />
                       <Text style={[styles.emptyListTitle, { color: t.textSecondary }]}>

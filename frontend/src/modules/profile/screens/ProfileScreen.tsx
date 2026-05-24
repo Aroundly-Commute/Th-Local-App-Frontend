@@ -30,10 +30,6 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
-  const level = user.rides_count >= 100 ? 'Eco Champion' : user.rides_count >= 25 ? 'Green Commuter' : 'Eco Starter';
-  const progress = Math.min(100, (user.rides_count / 100) * 100);
-  const nextLevel = user.rides_count >= 100 ? 'Planet Saver' : 'Eco Champion';
-
   const onLogout = async () => {
     tap();
     await logout();
@@ -41,7 +37,11 @@ export default function ProfileScreen() {
     router.replace('/(auth)/login');
   };
 
-  const { enableMarketplace, enableRideSharing, enableParking } = useFeatureFlags();
+  const { enableMarketplace, enableRideSharing, enableParking, enableYourBadges, enableEcoStarter } = useFeatureFlags();
+
+  const level = user.rides_count >= 100 ? 'Eco Champion' : user.rides_count >= 25 ? 'Green Commuter' : (enableEcoStarter ? 'Eco Starter' : 'Green Starter');
+  const progress = Math.min(100, (user.rides_count / 100) * 100);
+  const nextLevel = user.rides_count >= 100 ? 'Planet Saver' : 'Eco Champion';
 
   const menu = [];
   
@@ -84,6 +84,19 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }} edges={['top']}>
+      {/* Header Bar */}
+      <View style={{
+        height: 54,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: t.border,
+        backgroundColor: t.surface,
+      }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: t.textPrimary, letterSpacing: -0.5 }}>Profile</Text>
+      </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 140 }}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>
@@ -153,18 +166,22 @@ export default function ProfileScreen() {
         </View>
 
         {/* Badges */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: t.textPrimary }]}>Your Badges</Text>
-          <TouchableOpacity onPress={() => tap()}><Text style={[styles.sectionAction, { color: t.textPrimary }]}>View all</Text></TouchableOpacity>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
-          {BADGES.map((b) => (
-            <View key={b.name} style={[styles.badge, { backgroundColor: t.surface, borderColor: t.border }]}>
-              <Text style={{ fontSize: 28 }}>{b.icon}</Text>
-              <Text style={[styles.badgeName, { color: t.textPrimary }]}>{b.name}</Text>
+        {enableYourBadges && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: t.textPrimary }]}>Your Badges</Text>
+              <TouchableOpacity onPress={() => tap()}><Text style={[styles.sectionAction, { color: t.textPrimary }]}>View all</Text></TouchableOpacity>
             </View>
-          ))}
-        </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
+              {BADGES.filter(b => b.name !== 'Eco Starter' || enableEcoStarter).map((b) => (
+                <View key={b.name} style={[styles.badge, { backgroundColor: t.surface, borderColor: t.border }]}>
+                  <Text style={{ fontSize: 28 }}>{b.icon}</Text>
+                  <Text style={[styles.badgeName, { color: t.textPrimary }]}>{b.name}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Menu */}
         <View style={[styles.menu, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.lg }]}>

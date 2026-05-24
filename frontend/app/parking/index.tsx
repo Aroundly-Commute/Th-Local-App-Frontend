@@ -8,11 +8,11 @@ import {
   ScrollView,
   useColorScheme,
   Platform,
-  Alert,
   TextInput,
   ActivityIndicator,
   RefreshControl,
   Image,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -27,6 +27,7 @@ import {
   Sparkles,
   Ticket,
   ChevronLeft,
+  ChevronRight,
   BadgeCheck,
   CheckCircle,
   XCircle,
@@ -36,6 +37,8 @@ import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
+import { Shimmer } from '../../src/core/components/Shimmer';
+import { Alert } from '../../src/core/components/CustomAlert';
 
 type SpotState = {
   id: string;
@@ -68,7 +71,7 @@ type SpotState = {
     startTime: string;
     endTime: string;
     price: number;
-    status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+    status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
     user: {
       id: string;
       name: string;
@@ -94,7 +97,7 @@ type MyBooking = {
   startTime: string;
   endTime: string;
   price: number;
-  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
   createdAt: string;
 };
 
@@ -128,6 +131,167 @@ const convertISTToUTC = (dateStr: string, timeStr: string): string => {
   return new Date(utcMs - 5.5 * 60 * 60 * 1000).toISOString();
 };
 
+// Minimal inline calendar date picker for Weekly/Monthly
+function DateTimePicker({
+  visible, onClose, value, onChange,
+}: {
+  visible: boolean; onClose: () => void;
+  value: Date; onChange: (d: Date) => void;
+}) {
+  const cs = useColorScheme();
+  const t = cs === 'dark' ? darkTheme : lightTheme;
+
+  const getISTComponents = (d: Date) => {
+    const istShifted = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+    return {
+      year: istShifted.getUTCFullYear(),
+      month: istShifted.getUTCMonth(),
+      day: istShifted.getUTCDate(),
+      hour: istShifted.getUTCHours(),
+      minute: istShifted.getUTCMinutes(),
+    };
+  };
+
+  const [tempYear, setTempYear] = useState(() => getISTComponents(value).year);
+  const [tempMonth, setTempMonth] = useState(() => getISTComponents(value).month);
+  const [tempDay, setTempDay] = useState(() => getISTComponents(value).day);
+
+  useEffect(() => {
+    const comps = getISTComponents(value);
+    setTempYear(comps.year);
+    setTempMonth(comps.month);
+    setTempDay(comps.day);
+  }, [visible, value]);
+
+  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const getISTToday = () => {
+    const d = new Date();
+    const istMs = d.getTime() + 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(istMs);
+    return new Date(Date.UTC(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate()));
+  };
+
+  const clampDay = (d: number, y: number, m: number) => Math.min(d, daysInMonth(y, m));
+
+  const confirm = () => {
+    const targetDay = clampDay(tempDay, tempYear, tempMonth);
+    const utcMs = Date.UTC(tempYear, tempMonth, targetDay, 12, 0, 0, 0);
+    const d = new Date(utcMs - 5.5 * 60 * 60 * 1000);
+    
+    if (new Date(Date.UTC(tempYear, tempMonth, targetDay)) < getISTToday()) {
+      Alert.alert('Invalid Date', 'Please select a future or present date.');
+      return;
+    }
+    onChange(d);
+    onClose();
+  };
+
+  const today = getISTToday();
+  const days = [];
+  const firstDayIndex = new Date(tempYear, tempMonth, 1).getDay();
+  const totalDays = new Date(tempYear, tempMonth + 1, 0).getDate();
+
+  for (let i = 0; i < firstDayIndex; i++) {
+    days.push(<View key={`pad-${i}`} style={{ width: '14.28%', height: 36 }} />);
+  }
+
+  for (let day = 1; day <= totalDays; day++) {
+    const thisDate = new Date(Date.UTC(tempYear, tempMonth, day));
+    const isDisabled = thisDate < today;
+    const isSelected = day === tempDay;
+
+    days.push(
+      <TouchableOpacity
+        key={`day-${day}`}
+        disabled={isDisabled}
+        onPress={() => { tap(); setTempDay(day); }}
+        style={{
+          width: '14.28%',
+          height: 36,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 18,
+          backgroundColor: isSelected ? t.primary : 'transparent',
+          opacity: isDisabled ? 0.25 : 1,
+          marginVertical: 2,
+        }}
+      >
+        <Text style={{
+          fontSize: 13,
+          fontWeight: isSelected ? '700' : '500',
+          color: isSelected ? '#fff' : t.textPrimary,
+        }}>
+          {day}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={onClose} />
+      <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+        <Text style={{ color: t.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 20, textAlign: 'center' }}>
+          Select Date
+        </Text>
+        
+        <View style={{ marginBottom: 20 }}>
+          <View style={{ width: '100%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => {
+                tap();
+                setTempMonth(m => {
+                  if (m === 0) {
+                    setTempYear(y => y - 1);
+                    return 11;
+                  }
+                  return m - 1;
+                });
+              }}>
+                <ChevronLeft color={t.textPrimary} size={20} />
+              </TouchableOpacity>
+              <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: '700' }}>
+                {MONTHS[tempMonth]} {tempYear}
+              </Text>
+              <TouchableOpacity onPress={() => {
+                tap();
+                setTempMonth(m => {
+                  if (m === 11) {
+                    setTempYear(y => y + 1);
+                    return 0;
+                  }
+                  return m + 1;
+                });
+              }}>
+                <ChevronRight color={t.textPrimary} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 6 }}>
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((w) => (
+                <Text key={w} style={{ width: '14.28%', textAlign: 'center', color: t.textSecondary, fontSize: 11, fontWeight: '600' }}>
+                  {w}
+                </Text>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {days}
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity onPress={confirm}
+          style={{ backgroundColor: t.primary, height: 50, borderRadius: 9999, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Confirm Selection</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
 export default function Parking() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
@@ -142,7 +306,13 @@ export default function Parking() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Filters State
-  const [selectedDate, setSelectedDate] = useState('2026-05-22');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [selectedSlotType, setSelectedSlotType] = useState<'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY'>('HOURLY');
   const [selectedHourlySlotIndex, setSelectedHourlySlotIndex] = useState(4); // Default: 12:00 - 15:00
 
@@ -157,21 +327,47 @@ export default function Parking() {
 
   // Selected visual grid spot
   const [selectedSpot, setSelectedSpot] = useState<SpotState | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const activeTickets = myBookings.filter(b => b.status === 'ACCEPTED' || b.status === 'REQUESTED');
   const hasActiveTicket = activeTickets.length > 0;
   const showTicketView = hasActiveTicket && !isBookingMode;
 
-  // Dynamic Horizontal Date Range Generator (7 Days starting 2026-05-22)
+  // Automatically select first valid slot if current one is past
+  useEffect(() => {
+    if (selectedSlotType === 'HOURLY') {
+      const todayStr = (() => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })();
+
+      if (selectedDate === todayStr) {
+        const now = new Date();
+        const istHours = new Date(now.getTime() + 5.5 * 60 * 60 * 1000).getUTCHours();
+        const currentSlot = HOURLY_SLOTS[selectedHourlySlotIndex];
+        const currentEndHour = parseInt(currentSlot.end.split(':')[0]);
+        if (currentEndHour <= istHours) {
+          const firstValidIdx = HOURLY_SLOTS.findIndex(slot => parseInt(slot.end.split(':')[0]) > istHours);
+          if (firstValidIdx !== -1) {
+            setSelectedHourlySlotIndex(firstValidIdx);
+          }
+        }
+      }
+    }
+  }, [selectedDate, selectedSlotType, selectedHourlySlotIndex]);
+
+  // Dynamic Horizontal Date Range Generator (7 Days starting from today)
   const dateOptions = (() => {
     const dates = [];
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const start = new Date('2026-05-22');
-
+    
     for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+      const d = new Date();
+      d.setDate(d.getDate() + i);
 
       const year = d.getFullYear();
       const monthNum = String(d.getMonth() + 1).padStart(2, '0');
@@ -224,36 +420,97 @@ export default function Parking() {
 
   // Compute spot reservation condition details
   const getSpotStatus = (spot: SpotState) => {
-    const targetHourlySlot = HOURLY_SLOTS[selectedHourlySlotIndex];
-
-    // Find availability matching filters
+    // Find availability matching filters using range checks
     const avail = spot.availabilities.find((av) => {
-      if (av.slotType !== selectedSlotType) return false;
-      if (av.date !== selectedDate) return false;
+      const avStart = new Date(av.startTime);
+      const avEnd = new Date(av.endTime);
 
       if (selectedSlotType === 'HOURLY') {
-        const avStartHour = getISTDate(av.startTime).getUTCHours();
-        const targetStartHour = parseInt(targetHourlySlot.start.split(':')[0]);
-        return avStartHour === targetStartHour;
+        const targetHourlySlot = HOURLY_SLOTS[selectedHourlySlotIndex];
+        const targetStart = new Date(convertISTToUTC(selectedDate, targetHourlySlot.start));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, targetHourlySlot.end));
+
+        // Rule 1: Hourly availability matches this exact hourly slot
+        if (av.slotType === 'HOURLY') {
+          return av.date === selectedDate && getISTDate(av.startTime).getUTCHours() === parseInt(targetHourlySlot.start.split(':')[0]);
+        }
+        // Rule 2: Daily availability matches any hourly slot on that day
+        if (av.slotType === 'DAILY') {
+          return av.date === selectedDate;
+        }
+        // Rule 3: Weekly/Monthly availability matches if this hourly slot lies within its window
+        if (av.slotType === 'WEEKLY' || av.slotType === 'MONTHLY') {
+          return targetStart >= avStart && targetEnd <= avEnd;
+        }
       }
-      return true;
+
+      if (selectedSlotType === 'DAILY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, '23:59:59'));
+
+        // Rule 2: Daily availability matches full day
+        if (av.slotType === 'DAILY') {
+          return av.date === selectedDate;
+        }
+        // Rule 3: Weekly/Monthly matches if full day lies within its window
+        if (av.slotType === 'WEEKLY' || av.slotType === 'MONTHLY') {
+          return targetStart >= avStart && targetEnd <= avEnd;
+        }
+      }
+
+      if (selectedSlotType === 'WEEKLY' || selectedSlotType === 'MONTHLY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const daysToAdd = selectedSlotType === 'WEEKLY' ? 7 : 30;
+        const dEnd = new Date(selectedDate);
+        dEnd.setDate(dEnd.getDate() + daysToAdd);
+        const year = dEnd.getFullYear();
+        const month = String(dEnd.getMonth() + 1).padStart(2, '0');
+        const dateVal = String(dEnd.getDate()).padStart(2, '0');
+        const targetEnd = new Date(convertISTToUTC(`${year}-${month}-${dateVal}`, '00:00'));
+
+        if (av.slotType === 'WEEKLY' || av.slotType === 'MONTHLY') {
+          return targetStart >= avStart && targetEnd <= avEnd;
+        }
+      }
+
+      return false;
     });
 
     if (!avail) {
       return { status: 'UNAVAILABLE' as const, avail: null, booking: null };
     }
 
-    // Find if current spot has booking in the active time slot
+    // Find if current spot has booking in the active time slot using overlap checks
     const bk = spot.bookings.find((b) => {
-      if (b.slotType !== selectedSlotType) return false;
-      if (b.date !== selectedDate) return false;
+      const bStart = new Date(b.startTime);
+      const bEnd = new Date(b.endTime);
 
       if (selectedSlotType === 'HOURLY') {
-        const bStartHour = getISTDate(b.startTime).getUTCHours();
-        const targetStartHour = parseInt(targetHourlySlot.start.split(':')[0]);
-        return bStartHour === targetStartHour;
+        const targetHourlySlot = HOURLY_SLOTS[selectedHourlySlotIndex];
+        const targetStart = new Date(convertISTToUTC(selectedDate, targetHourlySlot.start));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, targetHourlySlot.end));
+        return targetStart < bEnd && targetEnd > bStart;
       }
-      return true;
+
+      if (selectedSlotType === 'DAILY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, '23:59:59'));
+        return targetStart < bEnd && targetEnd > bStart;
+      }
+
+      if (selectedSlotType === 'WEEKLY' || selectedSlotType === 'MONTHLY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const daysToAdd = selectedSlotType === 'WEEKLY' ? 7 : 30;
+        const dEnd = new Date(selectedDate);
+        dEnd.setDate(dEnd.getDate() + daysToAdd);
+        const year = dEnd.getFullYear();
+        const month = String(dEnd.getMonth() + 1).padStart(2, '0');
+        const dateVal = String(dEnd.getDate()).padStart(2, '0');
+        const targetEnd = new Date(convertISTToUTC(`${year}-${month}-${dateVal}`, '00:00'));
+        return targetStart < bEnd && targetEnd > bStart;
+      }
+
+      return false;
     });
 
     if (bk) {
@@ -488,6 +745,11 @@ export default function Parking() {
     const spotNameMatch = spot.spotName.toLowerCase().includes(query);
     const textMatch = getProximityText(spot).toLowerCase().includes(query);
     return spotNameMatch || textMatch;
+  }).sort((a, b) => {
+    const typeA = getSpotStatus(a).avail?.slotType || 'HOURLY';
+    const typeB = getSpotStatus(b).avail?.slotType || 'HOURLY';
+    const order = { MONTHLY: 4, WEEKLY: 3, DAILY: 2, HOURLY: 1 };
+    return order[typeB] - order[typeA];
   });
 
   // Ticket QR code rendering logic
@@ -524,19 +786,10 @@ export default function Parking() {
           <Sparkles color={t.primary} size={24} />
           <Text style={[styles.headerTitle, { color: t.textPrimary }]}>GoPool Parking Hub</Text>
         </View>
-        {!isBookingMode && !showTicketView && (
-          <TouchableOpacity style={styles.refreshBtn} onPress={() => { tap(); loadData(); }}>
-            <RefreshCw color={t.textSecondary} size={18} />
-          </TouchableOpacity>
-        )}
+
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={t.primary} />
-          <Text style={{ color: t.textSecondary, marginTop: 12, fontSize: 13 }}>syncing parking state...</Text>
-        </View>
-      ) : showTicketView ? (
+      {showTicketView ? (
         /* --- TICKETS VIEW (PRIORITY FLOW) --- */
         <ScrollView
           contentContainerStyle={styles.ticketsContainer}
@@ -545,10 +798,17 @@ export default function Parking() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.primary]} tintColor={t.primary} />
           }
         >
-          {myBookings.map((bk) => {
+          {loading ? (
+            <View style={{ gap: 16, padding: spacing.md }}>
+              <Shimmer style={{ height: 180, borderRadius: 16 }} />
+              <Shimmer style={{ height: 180, borderRadius: 16 }} />
+            </View>
+          ) : (
+            myBookings.map((bk) => {
             const isAccepted = bk.status === 'ACCEPTED';
             const isRequested = bk.status === 'REQUESTED';
             const isRejected = bk.status === 'REJECTED';
+            const isExpired = bk.status === 'EXPIRED';
 
             let statusColor = t.textSecondary;
             let statusBg = t.muted;
@@ -561,6 +821,9 @@ export default function Parking() {
             } else if (isRejected) {
               statusColor = t.error;
               statusBg = t.errorBg;
+            } else if (isExpired) {
+              statusColor = t.textSecondary;
+              statusBg = t.muted;
             }
 
             return (
@@ -655,6 +918,16 @@ export default function Parking() {
                         You will see a barcode/ticket here once the request is accepted.
                       </Text>
                     </View>
+                  ) : isExpired ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                      <AlertCircle size={20} color={t.textSecondary} style={{ marginBottom: 4 }} />
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: t.textSecondary, textAlign: 'center' }}>
+                        This booking has expired
+                      </Text>
+                      <Text style={{ fontSize: 10, color: t.textTertiary, textAlign: 'center', marginTop: 2 }}>
+                        The slot time has passed. Please select another slot.
+                      </Text>
+                    </View>
                   ) : (
                     <View style={{ alignItems: 'center', paddingVertical: 8 }}>
                       <AlertCircle size={20} color={t.error} style={{ marginBottom: 4 }} />
@@ -669,7 +942,8 @@ export default function Parking() {
                 </View>
               </TouchableOpacity>
             );
-          })}
+          })
+          )}
 
           {/* Book Another Slot CTA */}
           <TouchableOpacity
@@ -691,40 +965,8 @@ export default function Parking() {
         <View style={{ flex: 1 }}>
           {/* Date Filter & Timing filters */}
           <View style={{ backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border, paddingBottom: 10 }}>
-            {/* Horizontal Dates Picker */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.datePickerScroll}
-            >
-              {dateOptions.map((opt) => {
-                const isSel = selectedDate === opt.dateString;
-                return (
-                  <TouchableOpacity
-                    key={opt.dateString}
-                    onPress={() => { tap(); setSelectedDate(opt.dateString); }}
-                    style={[
-                      styles.datePill,
-                      isSel && { backgroundColor: t.primary, borderColor: t.primary },
-                      { borderColor: t.border },
-                    ]}
-                  >
-                    <Text style={[styles.dateDayName, { color: isSel ? t.primaryContrast : t.textSecondary }]}>
-                      {opt.dayName}
-                    </Text>
-                    <Text style={[styles.dateDayVal, { color: isSel ? t.primaryContrast : t.textPrimary }]}>
-                      {opt.dayVal}
-                    </Text>
-                    <Text style={[styles.dateMonth, { color: isSel ? t.primaryContrast : t.textTertiary }]}>
-                      {opt.monthName}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Timing Basis segmented control */}
-            <View style={styles.durationRow}>
+            {/* Timing Basis segmented control - NOW AT TOP */}
+            <View style={[styles.durationRow, { marginTop: 10 }]}>
               {['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY'].map((basis) => {
                 const isSel = selectedSlotType === basis;
                 return (
@@ -745,6 +987,82 @@ export default function Parking() {
               })}
             </View>
 
+            {/* Horizontal Dates Picker for HOURLY and DAILY */}
+            {(selectedSlotType === 'HOURLY' || selectedSlotType === 'DAILY') ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.datePickerScroll}
+              >
+                {dateOptions.map((opt) => {
+                  const isSel = selectedDate === opt.dateString;
+                  return (
+                    <TouchableOpacity
+                      key={opt.dateString}
+                      onPress={() => { tap(); setSelectedDate(opt.dateString); }}
+                      style={[
+                        styles.datePill,
+                        isSel && { backgroundColor: t.primary, borderColor: t.primary },
+                        { borderColor: t.border },
+                      ]}
+                    >
+                      <Text style={[styles.dateDayName, { color: isSel ? t.primaryContrast : t.textSecondary }]}>
+                        {opt.dayName}
+                      </Text>
+                      <Text style={[styles.dateDayVal, { color: isSel ? t.primaryContrast : t.textPrimary }]}>
+                        {opt.dayVal}
+                      </Text>
+                      <Text style={[styles.dateMonth, { color: isSel ? t.primaryContrast : t.textTertiary }]}>
+                        {opt.monthName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              /* Date Range Picker for WEEKLY and MONTHLY */
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: 10, gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => { tap(); setShowDatePicker(true); }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: t.border,
+                    backgroundColor: t.surface,
+                  }}
+                >
+                  <Calendar size={16} color={t.primary} />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: t.textPrimary }}>Select Start Date</Text>
+                </TouchableOpacity>
+
+                <View style={{ flex: 1, flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1, backgroundColor: t.muted, padding: 10, borderRadius: radius.md, justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 9, color: t.textSecondary, fontWeight: '700' }}>START DATE</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: t.textPrimary, marginTop: 2 }}>{selectedDate}</Text>
+                  </View>
+                  <View style={{ flex: 1, backgroundColor: t.muted, padding: 10, borderRadius: radius.md, justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 9, color: t.textSecondary, fontWeight: '700' }}>END DATE</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: t.textPrimary, marginTop: 2 }}>
+                      {(() => {
+                        const d = new Date(selectedDate);
+                        const daysToAdd = selectedSlotType === 'WEEKLY' ? 7 : 30;
+                        d.setDate(d.getDate() + daysToAdd);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const dateVal = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${dateVal}`;
+                      })()}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Hourly 3h slot pills if Hourly is selected */}
             {selectedSlotType === 'HOURLY' && (
               <ScrollView
@@ -754,14 +1072,31 @@ export default function Parking() {
               >
                 {HOURLY_SLOTS.map((slot, index) => {
                   const isSel = selectedHourlySlotIndex === index;
+                  const isPast = (() => {
+                    const todayStr = (() => {
+                      const d = new Date();
+                      const year = d.getFullYear();
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      return `${year}-${month}-${day}`;
+                    })();
+                    if (selectedDate !== todayStr) return false;
+                    const slotEndHour = parseInt(slot.end.split(':')[0]);
+                    const now = new Date();
+                    const istHours = new Date(now.getTime() + 5.5 * 60 * 60 * 1000).getUTCHours();
+                    return slotEndHour <= istHours;
+                  })();
+
                   return (
                     <TouchableOpacity
                       key={slot.label}
+                      disabled={isPast}
                       onPress={() => { tap(); setSelectedHourlySlotIndex(index); }}
                       style={[
                         styles.hourlySlotPill,
                         isSel && { backgroundColor: t.accent, borderColor: t.accent },
                         { borderColor: t.border },
+                        isPast && { opacity: 0.25 },
                       ]}
                     >
                       <Clock size={11} color={isSel ? t.primaryContrast : t.textSecondary} />
@@ -800,7 +1135,14 @@ export default function Parking() {
           <View style={{ flex: 1 }}>
             {/* TAB 1: Visual Map Grid */}
             {activeTab === 'map' && (
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.mapScrollBody}>
+              <View style={{ flex: 1, position: 'relative' }}>
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={styles.mapScrollBody}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.primary]} tintColor={t.primary} />
+                  }
+                >
                 {/* Map Info details */}
                 <View style={[styles.infoBanner, { backgroundColor: t.surfaceElevated, borderColor: t.border }]}>
                   <Info color={t.primary} size={16} />
@@ -876,7 +1218,14 @@ export default function Parking() {
                   </View>
                 </View>
               </ScrollView>
-            )}
+              {loading && (
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: t.isDark ? 'rgba(10, 22, 40, 0.65)' : 'rgba(255, 255, 255, 0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }]}>
+                  <ActivityIndicator size="large" color={t.primary} />
+                  <Text style={{ color: t.textSecondary, marginTop: 12, fontSize: 13, fontWeight: '600' }}>syncing parking state...</Text>
+                </View>
+              )}
+            </View>
+          )}
 
             {/* TAB 2: List View Finder */}
             {activeTab === 'list' && (
@@ -892,8 +1241,20 @@ export default function Parking() {
                   />
                 </View>
 
-                <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
-                  {availableSpotsList.length === 0 ? (
+                <ScrollView
+                  contentContainerStyle={{ paddingBottom: 160 }}
+                  showsVerticalScrollIndicator={false}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.primary]} tintColor={t.primary} />
+                  }
+                >
+                  {loading ? (
+                    <View style={{ gap: 12 }}>
+                      <Shimmer style={{ height: 100, borderRadius: 12 }} />
+                      <Shimmer style={{ height: 100, borderRadius: 12 }} />
+                      <Shimmer style={{ height: 100, borderRadius: 12 }} />
+                    </View>
+                  ) : availableSpotsList.length === 0 ? (
                     <View style={styles.emptyList}>
                       <MapPin size={48} color={t.textTertiary} />
                       <Text style={[styles.emptyListTitle, { color: t.textSecondary }]}>
@@ -1055,6 +1416,24 @@ export default function Parking() {
             )}
           </View>
         </View>
+      )}
+      {showDatePicker && (
+        <DateTimePicker
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          value={(() => {
+            const [y, m, d] = selectedDate.split('-').map(Number);
+            const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+            return new Date(date.getTime() - 5.5 * 60 * 60 * 1000);
+          })()}
+          onChange={(d) => {
+            const istDate = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+            const year = istDate.getUTCFullYear();
+            const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(istDate.getUTCDate()).padStart(2, '0');
+            setSelectedDate(`${year}-${month}-${day}`);
+          }}
+        />
       )}
     </SafeAreaView>
   );
