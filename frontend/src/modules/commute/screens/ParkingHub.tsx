@@ -510,19 +510,30 @@ export default function ParkingHub() {
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: t.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {isBookingMode && hasActiveTicket && (
-            <TouchableOpacity
-              onPress={() => {
-                tap();
+          <TouchableOpacity
+            testID="parking-back-btn"
+            onPress={() => {
+              tap();
+              if (isBookingMode && hasActiveTicket) {
                 setIsBookingMode(false);
                 setActiveTab('tickets');
-              }}
-              style={{ marginRight: 8 }}
-            >
-              <ChevronLeft color={t.textPrimary} size={24} />
-            </TouchableOpacity>
-          )}
-          <Sparkles color={t.primary} size={24} />
+              } else {
+                router.back();
+              }
+            }}
+            style={{ 
+              marginRight: 4, 
+              width: 32, 
+              height: 32, 
+              borderRadius: 16, 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              backgroundColor: t.isDark ? '#142E58' : '#E8FBF9' 
+            }}
+            activeOpacity={0.8}
+          >
+            <ChevronLeft color={t.isDark ? '#00D4BC' : '#0A1628'} size={18} strokeWidth={2.8} />
+          </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: t.textPrimary }]}>GoPool Parking Hub</Text>
         </View>
         {!isBookingMode && !showTicketView && (

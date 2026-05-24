@@ -15,10 +15,12 @@ import { verdexColors as G } from '../../../core/theme/theme';
 import { Toast }             from '../components/primitives';
 import { MarketHome }        from './MarketHome';
 import { ShopDetail }        from './ShopDetail';
+import { useRouter }         from 'expo-router';
 
 type MarketScreen = 'home' | 'detail';
 
 export default function MarketDashboard() {
+  const router = useRouter();
   const [screen,      setScreen]      = useState<MarketScreen>('home');
   const [toast,       setToast]       = useState<string | null>(null);
 
@@ -56,9 +58,7 @@ export default function MarketDashboard() {
         {screen === 'home' ? (
           <MarketHome
             onShopPress={(id, type) => {
-              setSelectedShopId(id);
-              setSelectedShopType(type);
-              goScreen('detail');
+              router.push(`/shop/${id}?type=${type}` as any);
             }}
             showToast={showToast}
           />

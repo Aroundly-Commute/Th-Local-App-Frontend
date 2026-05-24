@@ -8,6 +8,7 @@ type FeatureFlags = {
   enableYourBadges: boolean;
   enableEcoStarter: boolean;
   enablePopularRoutes: boolean;
+  enableInAppLogs: boolean;
 };
 
 type FeatureFlagContextType = FeatureFlags & {
@@ -27,6 +28,7 @@ export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ c
     enableYourBadges: true,
     enableEcoStarter: true,
     enablePopularRoutes: true,
+    enableInAppLogs: true,
   });
   const [loading, setLoading] = useState(true);
 

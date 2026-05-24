@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf } from 'lucide-react-native';
+import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf, Terminal } from 'lucide-react-native';
 import { useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
 import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
 import { tap } from '../src/core/utils/haptics';
@@ -29,11 +29,12 @@ export default function SettingsScreen() {
     enableYourBadges,
     enableEcoStarter,
     enablePopularRoutes,
+    enableInAppLogs,
     loading,
     toggleFeature,
   } = useFeatureFlags();
 
-  const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes') => {
+  const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
     tap();
     await toggleFeature(key);
   };
@@ -191,6 +192,28 @@ export default function SettingsScreen() {
                 value={enablePopularRoutes}
               />
             </View>
+
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+            {/* In-App Log Viewer toggle */}
+            <View style={styles.toggleRow}>
+              <View style={[styles.iconWrap, { backgroundColor: '#F1F5F9' }]}>
+                <Terminal color="#475569" size={18} />
+              </View>
+              <View style={styles.toggleText}>
+                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Floating Debug Logs</Text>
+                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
+                  Display the floating logger terminal icon on the top right of the application views.
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: '#767577', true: '#10B981' }}
+                thumbColor={enableInAppLogs ? '#FFFFFF' : '#f4f3f4'}
+                ios_backgroundColor="#3e3e3e"
+                onValueChange={() => handleToggle('enableInAppLogs')}
+                value={enableInAppLogs}
+              />
+            </View>
           </View>
         )}
 
@@ -215,7 +238,8 @@ export default function SettingsScreen() {
               enableParking && 'Smart Parking',
               enableYourBadges && 'Your Badges',
               enableEcoStarter && 'Eco Starter',
-              enablePopularRoutes && 'Popular Routes'
+              enablePopularRoutes && 'Popular Routes',
+              enableInAppLogs && 'Debug Logs'
             ].filter(Boolean).join(', ') || 'None (All Disabled)'}
           </Text>
         </View>

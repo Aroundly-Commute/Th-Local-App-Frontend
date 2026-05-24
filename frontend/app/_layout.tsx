@@ -12,7 +12,7 @@ import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
 import { Terminal } from 'lucide-react-native';
 import { LogViewerModal } from '../src/core/components/LogViewerModal';
 import '../src/services/logger'; // Boot up console interception immediately
-import { FeatureFlagProvider } from '../src/services/feature-flag/FeatureFlagContext';
+import { FeatureFlagProvider, useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
 import { CustomAlertProvider } from '../src/core/components/CustomAlert';
 
 // Ignore framework-level Expo DevTools fragment style prop warnings to prevent log lag and overlay popups
@@ -24,6 +24,7 @@ function AppNavigationWrapper() {
   const router = useRouter();
   const pathname = usePathname();
   const [logsVisible, setLogsVisible] = useState(false);
+  const { enableInAppLogs } = useFeatureFlags();
 
   useEffect(() => {
     const onBackPress = () => {
@@ -71,13 +72,15 @@ function AppNavigationWrapper() {
       </Stack>
 
       {/* Floating Subtle In-App Log Viewer Trigger */}
-      <TouchableOpacity
-        activeOpacity={0.6}
-        onPress={() => setLogsVisible(true)}
-        style={styles.floatingDebugBtn}
-      >
-        <Terminal color="#FFFFFF" size={14} strokeWidth={2.5} />
-      </TouchableOpacity>
+      {enableInAppLogs && (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={() => setLogsVisible(true)}
+          style={styles.floatingDebugBtn}
+        >
+          <Terminal color="#FFFFFF" size={14} strokeWidth={2.5} />
+        </TouchableOpacity>
+      )}
 
       <LogViewerModal visible={logsVisible} onClose={() => setLogsVisible(false)} />
     </View>

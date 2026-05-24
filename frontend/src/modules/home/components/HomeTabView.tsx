@@ -63,7 +63,12 @@ export default function HomeTabView() {
 
       {/* ── Active Dashboard Render ── */}
       <View style={{ flex: 1 }}>
-        {effectiveTab === 'marketplace' ? <MarketDashboard /> : <CommuteDashboard />}
+        <View style={{ flex: 1, display: effectiveTab === 'marketplace' ? 'flex' : 'none' }}>
+          <MarketDashboard />
+        </View>
+        <View style={{ flex: 1, display: effectiveTab === 'pooling' ? 'flex' : 'none' }}>
+          <CommuteDashboard />
+        </View>
       </View>
     </SafeAreaView>
   );
