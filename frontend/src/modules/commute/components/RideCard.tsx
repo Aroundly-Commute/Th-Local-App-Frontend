@@ -23,8 +23,11 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
   
   const seatsAvailable = ride.seats_available ?? ride.seatsAvailable ?? 0;
   
-  // Price handling: chargeCents (NestJS) vs price_per_seat (Python)
+  // Price handling: check for custom dynamic estimatedFare from our pricing engine
   const price = ride.price_per_seat ?? (ride.chargeCents ? ride.chargeCents / 100 : 0);
+  const estimatedFare = ride.estimatedFare;
+  const finalPrice = estimatedFare ? estimatedFare.finalFare : price;
+  const displayCurrency = '₹';
   const co2 = ride.co2_saved_kg ?? 0;
 
   const time = new Date(departureTime);
@@ -47,8 +50,10 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[s.price, { color: t.textPrimary }]}>${price.toFixed(2)}</Text>
-          <Text style={[s.meta, { color: t.textSecondary }]}>per seat</Text>
+          <Text style={[s.price, { color: t.textPrimary }]}>{displayCurrency}{Math.round(finalPrice)}</Text>
+          <Text style={[s.meta, { color: t.textSecondary }]}>
+            {estimatedFare ? 'pooled fare' : 'per seat'}
+          </Text>
         </View>
       </View>
 

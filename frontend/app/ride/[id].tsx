@@ -17,10 +17,24 @@ export default function RideDetail() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  
+  const params = useLocalSearchParams<{
+    id: string;
+    fromName?: string;
+    toName?: string;
+    fromLat?: string;
+    fromLng?: string;
+    toLat?: string;
+    toLng?: string;
+    estimatedFare?: string;
+  }>();
+
+  const id = params.id;
+  const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : null;
   const { user } = useAuth();
   const [ride, setRide] = useState<any>(null);
   const [booking, setBooking] = useState(false);
+  const [showPricingDetails, setShowPricingDetails] = useState(false);
 
   const load = async () => {
     try {
@@ -35,7 +49,15 @@ export default function RideDetail() {
     tap();
     setBooking(true);
     try {
-      const { data } = await api.post(`/rides/${id}/book`, { seats: 1 });
+      const payload = {
+        seats: 1,
+        riderStartName: params.fromName,
+        riderEndName: params.toName,
+        riderStartCoords: params.fromLng && params.fromLat ? [Number(params.fromLng), Number(params.fromLat)] : undefined,
+        riderEndCoords: params.toLng && params.toLat ? [Number(params.toLng), Number(params.toLat)] : undefined,
+        riderStartTime: ride?.startTime
+      };
+      const { data } = await api.post(`/rides/${id}/book`, payload);
       success();
       Alert.alert('Request Sent!', 'Your booking request has been sent. You will be notified once the driver accepts.');
       load(); // refresh to show updated state
@@ -85,7 +107,9 @@ export default function RideDetail() {
   const origin = ride.startPlaceName || ride.origin || 'Unknown';
   const destination = ride.endPlaceName || ride.destination || 'Unknown';
   const departureTime = ride.startTime || ride.departure_time;
-  const price = ride.chargeCents ? ride.chargeCents / 100 : (ride.price_per_seat ?? 0);
+  
+  const myFare = ride.my_fare_cents ? ride.my_fare_cents / 100 : null;
+  const price = myFare ?? (parsedFare ? parsedFare.finalFare : (ride.chargeCents ? ride.chargeCents / 100 : (ride.price_per_seat ?? 0)));
   
   let origin_lat: number | undefined, origin_lng: number | undefined;
   let dest_lat: number | undefined, dest_lng: number | undefined;
@@ -152,7 +176,7 @@ export default function RideDetail() {
           <>
             <MessageCircle color={t.primaryContrast} size={18} />
             <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>
-              {`Request Seat · $${(price || 0).toFixed(0)}`}
+              {`Request Seat · ₹${Math.round(price || 0)}`}
             </Text>
           </>
         )}
@@ -183,7 +207,7 @@ export default function RideDetail() {
                 <Text style={{ color: t.textSecondary, fontSize: 13 }}>{dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'}</Text>
               </View>
             </View>
-            <Text style={[styles.price, { color: t.primary }]}>${(price || 0).toFixed(0)}</Text>
+            <Text style={[styles.price, { color: t.primary }]}>₹{Math.round(price || 0)}</Text>
           </View>
         </View>
 
@@ -210,6 +234,72 @@ export default function RideDetail() {
             </View>
           </View>
         </View>
+
+        {/* Pricing Breakdown Dropdown */}
+        {parsedFare && (
+          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+            <TouchableOpacity 
+              onPress={() => { tap(); setShowPricingDetails(!showPricingDetails); }}
+              activeOpacity={0.855}
+              style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 16 }}>🏷️</Text>
+                <Text style={[styles.section, { color: t.textPrimary }]}>Fare Breakdown</Text>
+              </View>
+              <Text style={{ color: t.primary, fontWeight: '700', fontSize: 13 }}>
+                {showPricingDetails ? 'Hide details' : 'Show details'}
+              </Text>
+            </TouchableOpacity>
+            
+            {showPricingDetails && (
+              <View style={{ marginTop: 12, gap: 10, borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12 }}>
+                <View style={styles.breakdownRow}>
+                  <Text style={{ color: t.textSecondary, fontSize: 13 }}>Base Fare ({parsedFare.vehicleType})</Text>
+                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>₹{parsedFare.baseFare.toFixed(2)}</Text>
+                </View>
+                {parsedFare.locationPremium > 0 && (
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>📍 Location NCR Premium</Text>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.locationPremium.toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.breakdownRow}>
+                  <Text style={{ color: t.textSecondary, fontSize: 13 }}>🚗 Distance Fare ({parsedFare.distanceKm} km)</Text>
+                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.distanceFare.toFixed(2)}</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Text style={{ color: t.textSecondary, fontSize: 13 }}>⛽ {parsedFare.fuelType} Fuel Surcharge</Text>
+                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.fuelSurcharge.toFixed(2)}</Text>
+                </View>
+                {parsedFare.deviationSurcharge > 0 && (
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>↩️ detours Detour ({parsedFare.deviationKm} km)</Text>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.deviationSurcharge.toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
+                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>Subtotal</Text>
+                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.subtotal.toFixed(2)}</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <Text style={{ color: t.success, fontSize: 13, fontWeight: '600' }}>♻️ Pooling Discount (40% off)</Text>
+                  <Text style={{ color: t.success, fontSize: 13, fontWeight: '700' }}>-₹{parsedFare.poolingDiscount.toFixed(2)}</Text>
+                </View>
+                {parsedFare.poolingFare > parsedFare.cabCapFare && (
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.error, fontSize: 13, fontWeight: '600' }}>🛡️ Private Cab Safety Surcharge Cap</Text>
+                    <Text style={{ color: t.error, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.cabCapFare.toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
+                  <Text style={{ color: t.primary, fontSize: 14, fontWeight: '800' }}>Final Rider Pooling Fare</Text>
+                  <Text style={{ color: t.primary, fontSize: 15, fontWeight: '800' }}>₹{parsedFare.finalFare}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Vehicle */}
         {vehicle && (
@@ -254,7 +344,9 @@ export default function RideDetail() {
                 <View key={p.request_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                   <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>{p.rider_name}</Text>
+                    <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
+                      {p.rider_name} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
+                    </Text>
                     <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
                       {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
                     </Text>
@@ -327,4 +419,5 @@ const styles = StyleSheet.create({
   eco: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md, borderRadius: radius.lg, marginTop: spacing.md },
   fab: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 32 : 16, borderTopWidth: 1 },
   cta: { flex: 1, height: 54, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

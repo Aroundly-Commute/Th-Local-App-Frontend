@@ -827,7 +827,21 @@ export default function Search() {
                 <View style={{ gap: 12 }}>
                   {rides.map((r) => (
                     <RideCard key={r.id} ride={r} t={t} testID={`search-ride-${r.id}`}
-                      onPress={() => { tap(); router.push(`/ride/${r.id}` as any); }} />
+                      onPress={() => {
+                        tap();
+                        router.push({
+                          pathname: `/ride/${r.id}`,
+                          params: {
+                            fromName: from,
+                            toName: to,
+                            fromLat: fromCoords?.lat,
+                            fromLng: fromCoords?.lng,
+                            toLat: toCoords?.lat,
+                            toLng: toCoords?.lng,
+                            estimatedFare: r.estimatedFare ? JSON.stringify(r.estimatedFare) : undefined,
+                          }
+                        } as any);
+                      }} />
                   ))}
                   {rides.length === 0 && (
                     <View style={{ padding: 40, alignItems: 'center' }}>

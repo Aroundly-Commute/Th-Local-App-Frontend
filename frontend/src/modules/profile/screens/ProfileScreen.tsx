@@ -68,7 +68,7 @@ export default function ProfileScreen() {
 
   if (enableRideSharing) {
     menu.push(
-      { icon: Car, label: 'My Vehicles', badge: user.vehicle ? '1' : null },
+      { icon: Car, label: 'My Vehicles', badge: user.vehicle ? 'Registered' : 'Not Set', badgeVariant: user.vehicle ? 'success' : undefined, route: '/commute/vehicles' },
       { icon: Calendar, label: 'Scheduled Rides', badge: '1' }
     );
   }
