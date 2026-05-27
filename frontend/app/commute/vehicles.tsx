@@ -20,6 +20,7 @@ import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/the
 import { Alert } from '../../src/core/components/CustomAlert';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
+import { AnalyticsService } from '../../src/core/services/analytics';
 
 export default function Vehicles() {
   const cs = useColorScheme();
@@ -72,6 +73,7 @@ export default function Vehicles() {
   const handleSave = async () => {
     if (!vehicleNumber.trim()) {
       errorH();
+      AnalyticsService.trackWarning('Vehicle Validation Failed: Missing Plate').catch(() => {});
       Alert.alert('Validation Error', 'Please enter your vehicle license plate number.');
       return;
     }
@@ -88,6 +90,13 @@ export default function Vehicles() {
 
       const { data } = await api.post('/auth/vehicle', payload);
       setExistingVehicle(data);
+
+      AnalyticsService.trackEvent('vehicle_registered', {
+        vehicle_type: type,
+        seats_capacity: capacity,
+        fuel_type: fuelType,
+      }).catch(() => {});
+
       success();
       Alert.alert('Success', 'Your vehicle details have been saved successfully!');
       
@@ -95,6 +104,7 @@ export default function Vehicles() {
       router.back();
     } catch (err: any) {
       errorH();
+      AnalyticsService.trackError(err?.response?.data?.message || 'Save Vehicle Failed', false, { vehicle_type: type }).catch(() => {});
       Alert.alert('Error', err?.response?.data?.message || 'Failed to save vehicle details.');
     } finally {
       setSaving(false);

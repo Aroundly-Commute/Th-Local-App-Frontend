@@ -14,6 +14,7 @@ import { LogViewerModal } from '../src/core/components/LogViewerModal';
 import '../src/services/logger'; // Boot up console interception immediately
 import { FeatureFlagProvider, useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
 import { CustomAlertProvider } from '../src/core/components/CustomAlert';
+import { AnalyticsService } from '../src/core/services/analytics';
 
 // Ignore framework-level Expo DevTools fragment style prop warnings to prevent log lag and overlay popups
 LogBox.ignoreLogs([
@@ -25,6 +26,18 @@ function AppNavigationWrapper() {
   const pathname = usePathname();
   const [logsVisible, setLogsVisible] = useState(false);
   const { enableInAppLogs } = useFeatureFlags();
+
+  useEffect(() => {
+    // Initialize Google Analytics on app boot
+    AnalyticsService.initialize().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Automatically track screen changes in GA4
+    if (pathname) {
+      AnalyticsService.trackScreen(pathname).catch(() => {});
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const onBackPress = () => {

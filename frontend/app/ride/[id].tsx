@@ -12,6 +12,7 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
+import { AnalyticsService } from '../../src/core/services/analytics';
 
 export default function RideDetail() {
   const cs = useColorScheme();
@@ -40,7 +41,16 @@ export default function RideDetail() {
     try {
       const { data } = await api.get(`/rides/${id}`);
       setRide(data);
-    } catch (e) { errorH(); }
+      AnalyticsService.trackEvent('ride_detail_viewed', {
+        ride_id: id,
+        driver_name: data.driverName || data.driver_name,
+        start_place: data.startPlaceName || data.origin,
+        end_place: data.endPlaceName || data.destination,
+      }).catch(() => {});
+    } catch (e: any) { 
+      errorH(); 
+      AnalyticsService.trackError(e?.response?.data?.message || 'Load Ride Details Failed', false, { ride_id: id }).catch(() => {});
+    }
   };
 
   useEffect(() => { load(); }, [id]);
@@ -57,12 +67,20 @@ export default function RideDetail() {
         riderEndCoords: params.toLng && params.toLat ? [Number(params.toLng), Number(params.toLat)] : undefined,
         riderStartTime: ride?.startTime
       };
+
+      AnalyticsService.trackEvent('ride_seat_requested', {
+        ride_id: id,
+        rider_id: user?.id,
+        is_custom_path: !!(params.fromLng && params.fromLat) ? 'true' : 'false',
+      }).catch(() => {});
+
       const { data } = await api.post(`/rides/${id}/book`, payload);
       success();
       Alert.alert('Request Sent!', 'Your booking request has been sent. You will be notified once the driver accepts.');
       load(); // refresh to show updated state
     } catch (e: any) {
       errorH();
+      AnalyticsService.trackError(e?.response?.data?.message || 'Request Seat Failed', false, { ride_id: id }).catch(() => {});
       Alert.alert('Failed', e?.response?.data?.message || e?.response?.data?.detail || 'Try again');
     } finally { setBooking(false); }
   };
@@ -70,12 +88,14 @@ export default function RideDetail() {
   const onAcceptRequest = async (requestId: string) => {
     tap();
     try {
+      AnalyticsService.trackEvent('ride_request_accepted', { request_id: requestId, ride_id: id }).catch(() => {});
       await api.patch(`/matchmaking/requests/${requestId}`, { status: 'ACCEPTED' });
       success();
       Alert.alert('Request Accepted', 'The passenger has been added to your ride.');
       load(); // refresh
     } catch (e: any) {
       errorH();
+      AnalyticsService.trackError(e?.response?.data?.message || 'Accept Request Failed', false, { request_id: requestId }).catch(() => {});
       Alert.alert('Error', e?.response?.data?.message || 'Failed to accept request');
     }
   };
@@ -83,12 +103,14 @@ export default function RideDetail() {
   const onRejectRequest = async (requestId: string) => {
     tap();
     try {
+      AnalyticsService.trackEvent('ride_request_rejected', { request_id: requestId, ride_id: id }).catch(() => {});
       await api.patch(`/matchmaking/requests/${requestId}`, { status: 'REJECTED' });
       success();
       Alert.alert('Request Rejected', 'The request has been declined.');
       load(); // refresh
     } catch (e: any) {
       errorH();
+      AnalyticsService.trackError(e?.response?.data?.message || 'Reject Request Failed', false, { request_id: requestId }).catch(() => {});
       Alert.alert('Error', e?.response?.data?.message || 'Failed to reject request');
     }
   };
@@ -239,7 +261,17 @@ export default function RideDetail() {
         {parsedFare && (
           <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
             <TouchableOpacity 
-              onPress={() => { tap(); setShowPricingDetails(!showPricingDetails); }}
+              onPress={() => { 
+                tap(); 
+                const nextState = !showPricingDetails;
+                setShowPricingDetails(nextState); 
+                if (nextState) {
+                  AnalyticsService.trackEvent('price_breakdown_expanded', {
+                    ride_id: id,
+                    final_fare: parsedFare.finalFare
+                  }).catch(() => {});
+                }
+              }}
               activeOpacity={0.855}
               style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
             >

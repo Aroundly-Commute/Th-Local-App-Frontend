@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
+import { AnalyticsService } from '../../src/core/services/analytics';
 
 const POPULAR = ['Noida → CP', 'Gurgaon → Delhi', 'Faridabad → Delhi', 'Greater Noida → Noida'];
 
@@ -612,6 +613,7 @@ export default function Search() {
 
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
+      AnalyticsService.trackWarning('Location Validation Failed', { from, to }).catch(() => {});
       Alert.alert('Validation Error', 'Please select both source (From) and destination (To) locations.');
       return;
     }
@@ -622,6 +624,12 @@ export default function Search() {
     try {
       saveRecentSearch(from, to);
       if (mode === 'offer') {
+        AnalyticsService.trackEvent('ride_offer_created', {
+          start_place: from,
+          end_place: to,
+          seats_count: seats,
+        }).catch(() => {});
+
         await api.post('/rides/offer', {
           startName: from, endName: to,
           startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
@@ -635,6 +643,11 @@ export default function Search() {
         Alert.alert('Success', 'Ride offered! It is now visible to other users.');
         router.push('/commute/rides');
       } else {
+        AnalyticsService.trackEvent('ride_search_initiated', {
+          start_place: from,
+          end_place: to,
+        }).catch(() => {});
+
         const { data } = await api.post('/matchmaking/search', {
           start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
           end: toCoords ? { lng: toCoords.lng, lat: toCoords.lat } : { lng: 77.4, lat: 28.6 },
@@ -646,6 +659,7 @@ export default function Search() {
       }
     } catch (e: any) {
       errorH();
+      AnalyticsService.trackError(e?.response?.data?.message || 'Submit Action Exception', false, { mode }).catch(() => {});
       Alert.alert('Error', e?.response?.data?.message || 'Action failed. Please check your connection.');
     } finally {
       setLoading(false);
