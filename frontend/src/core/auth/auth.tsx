@@ -26,6 +26,9 @@ type AuthCtx = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, role: string) => Promise<void>;
+  sendOtp: (phoneNumber: string) => Promise<void>;
+  verifyOtp: (phoneNumber: string, code: string) => Promise<void>;
+  loginWithGoogle: (firebaseIdToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -76,12 +79,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log(`[AUTH] Signup successful for ${email}`);
   };
 
+  const sendOtp = async (phoneNumber: string) => {
+    console.log(`[AUTH] Requesting OTP code for phone: ${phoneNumber}...`);
+    await api.post('/auth/otp/send', { phoneNumber });
+    console.log(`[AUTH] OTP requested successfully for ${phoneNumber}`);
+  };
+
+  const verifyOtp = async (phoneNumber: string, code: string) => {
+    console.log(`[AUTH] Verifying OTP code ${code} for phone: ${phoneNumber}...`);
+    const { data } = await api.post('/auth/otp/verify', { phoneNumber, code });
+    await AsyncStorage.setItem('access_token', data.access_token);
+    setUser(data.user);
+    console.log(`[AUTH] Phone OTP login successful! User: ${data.user.name}`);
+  };
+
+  const loginWithGoogle = async (firebaseIdToken: string, email?: string, name?: string, profilePic?: string) => {
+    console.log(`[AUTH] Completing Google Sign-in with backend API...`);
+    const { data } = await api.post('/auth/google', { idToken: firebaseIdToken, email, name, profilePic });
+    await AsyncStorage.setItem('access_token', data.access_token);
+    setUser(data.user);
+    console.log(`[AUTH] Google login sync successful! User: ${data.user.name}`);
+  };
+
   const logout = async () => {
     await AsyncStorage.removeItem('access_token');
     setUser(null);
   };
 
-  return <Ctx.Provider value={{ user, loading, login, signup, logout, refresh }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ user, loading, login, signup, sendOtp, verifyOtp, loginWithGoogle, logout, refresh }}>
+      {children}
+    </Ctx.Provider>
+  );
 };
 
 export const useAuth = () => {

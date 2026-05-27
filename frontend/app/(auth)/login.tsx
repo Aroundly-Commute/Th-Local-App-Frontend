@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
 
 import { useRouter } from 'expo-router';
-import { Mail, Lock, Car } from 'lucide-react-native';
+import { Mail, Lock, Car, Phone } from 'lucide-react-native';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
@@ -12,7 +12,7 @@ export default function Login() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('sarah.driver@ecoride.app');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,23 @@ export default function Login() {
     } catch (e: any) {
       errorH();
       setErr(e?.response?.data?.detail || 'Login failed');
+    } finally { setLoading(false); }
+  };
+
+  const onGoogleLogin = async () => {
+    tap();
+    setLoading(true); setErr('');
+    try {
+      console.log('[AUTH] Simulating Google Sign-In with Mock Firebase ID token...');
+      const mockFirebaseIdToken = "local_google_mock_id_token_123456";
+      
+      // Calls standard auth context sync action with mock credentials
+      await loginWithGoogle(mockFirebaseIdToken, 'sarah.google@gmail.com', 'Sarah Google');
+      success();
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      errorH();
+      setErr(e?.response?.data?.message || 'Google Login failed');
     } finally { setLoading(false); }
   };
 
@@ -89,8 +106,39 @@ export default function Login() {
                 : <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Sign In</Text>}
             </TouchableOpacity>
 
+            {/* Divider Line */}
+            <View style={styles.dividerContainer}>
+              <View style={[styles.dividerLine, { backgroundColor: t.border }]} />
+              <Text style={[styles.dividerText, { color: t.textSecondary }]}>OR</Text>
+              <View style={[styles.dividerLine, { backgroundColor: t.border }]} />
+            </View>
+
+            {/* Premium Social Button: Google Sign-in */}
+            <TouchableOpacity
+              testID="login-google"
+              onPress={onGoogleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+              style={[styles.socialBtn, { borderColor: t.border, borderWidth: 1 }]}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#EA4335' }}>G</Text>
+              <Text style={[styles.socialBtnText, { color: t.textPrimary }]}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            {/* Premium Social Button: Phone OTP Login */}
+            <TouchableOpacity
+              testID="login-phone"
+              onPress={() => { tap(); router.push('/(auth)/phone-login'); }}
+              disabled={loading}
+              activeOpacity={0.85}
+              style={[styles.socialBtn, { borderColor: t.border, borderWidth: 1 }]}
+            >
+              <Phone size={15} color={t.textPrimary} />
+              <Text style={[styles.socialBtnText, { color: t.textPrimary }]}>Continue with Phone Number</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity testID="goto-signup" onPress={() => { tap(); router.push('/(auth)/signup'); }}
-              style={{ marginTop: spacing.sm }}>
+              style={{ marginTop: spacing.md }}>
               <Text style={[styles.link, { color: t.textSecondary }]}>
                 New here? <Text style={{ color: t.textPrimary, fontWeight: '700' }}>Create an account</Text>
               </Text>
@@ -118,4 +166,31 @@ const styles = StyleSheet.create({
   ctaText: { fontSize: 15, fontWeight: '700' },
   link: { textAlign: 'center', fontSize: 13 },
   err: { fontSize: 12, fontWeight: '600' },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.md,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  socialBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    height: 50,
+    borderRadius: radius.md,
+    marginTop: 8,
+  },
+  socialBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });

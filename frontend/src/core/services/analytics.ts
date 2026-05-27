@@ -2,6 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// Safe check for Native Firebase Crashlytics (to ensure it operates safely on Expo Go)
+let crashlyticsInstance: any = null;
+try {
+  crashlyticsInstance = require('@react-native-firebase/crashlytics').default;
+} catch (e) {
+  // Gracefully falls back in standard Expo Go or unlinked dev environments
+}
+
 const GA_MEASUREMENT_ID = process.env.EXPO_PUBLIC_GA_MEASUREMENT_ID || 'G-DUMMY4TRACK';
 const GA_API_SECRET = process.env.EXPO_PUBLIC_GA_API_SECRET || 'dummy_api_secret_key';
 
@@ -107,11 +115,57 @@ export class AnalyticsService {
    * Captures exceptions and error states.
    */
   public static async trackError(message: string, fatal: boolean = false, extra: Record<string, any> = {}): Promise<void> {
+    // 1. Log to Google Analytics Event Streams
     await this.trackEvent('exception', {
       description: message,
       fatal: fatal ? 'true' : 'false',
       ...extra,
     });
+
+    // 2. Report natively to Firebase Crashlytics if the client is compiled with native SDKs
+    try {
+      if (crashlyticsInstance) {
+        const crash = crashlyticsInstance();
+        
+        crash.setAttributes({
+          fatal: fatal ? 'true' : 'false',
+          platform: Platform.OS,
+          os_version: String(Platform.Version),
+          app_version: Constants.expoConfig?.version || '1.0.0',
+          ...extra,
+        });
+
+        if (this.clientId) {
+          crash.setUserId(this.clientId);
+        }
+
+        // Record custom crash/error stack trace
+        crash.recordError(new Error(message));
+        
+        if (fatal) {
+          console.warn('[Analytics] Uncaught Fatal Exception recorded in Firebase Crashlytics.');
+        }
+      }
+    } catch (err) {
+      console.warn('[Analytics] Failed to report error to Firebase Crashlytics:', err);
+    }
+  }
+
+  /**
+   * Intentionally triggers a native crash to test Firebase Crashlytics.
+   * CALL THIS ONLY IN DEVELOPMENT / NATIVE DEV BUILDS TO VERIFY FIREBASE.
+   */
+  public static triggerMockCrash(): void {
+    try {
+      if (crashlyticsInstance) {
+        console.log('[Analytics] Invoking intentional native crash inside Crashlytics...');
+        crashlyticsInstance().crash();
+      } else {
+        console.warn('[Analytics] Crashlytics native module is not active. (Are you running in Expo Go?)');
+      }
+    } catch (e) {
+      console.error('[Analytics] Failed to trigger intentional crashlytics crash:', e);
+    }
   }
 
   /**

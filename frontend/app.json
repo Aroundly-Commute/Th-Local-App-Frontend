@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bpandey690.frontend",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "GoPool needs access to your location to find rides and parking spots nearby."
@@ -18,6 +19,7 @@
     },
     "android": {
       "package": "com.bpandey690.frontend",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
@@ -49,7 +51,9 @@
           "backgroundColor": "#000"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
     ],
     "experiments": {
       "typedRoutes": true
