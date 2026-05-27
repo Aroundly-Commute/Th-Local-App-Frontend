@@ -2124,6 +2124,13 @@
   dependencies:
     merge-options "^3.0.4"
 
+"@react-native-firebase/analytics@^24.0.0":
+  version "24.0.0"
+  resolved "https://registry.yarnpkg.com/@react-native-firebase/analytics/-/analytics-24.0.0.tgz#bb1143478ffa0e1a85c8371247d9f3b961834f3a"
+  integrity sha512-Hg8xbnpjn56L7uwYKZ9QIffx5YTsqtPUS5C7Y207MSwi+qVFp0GHWJ/onAk5JOvPPPtM3pVm3Nn+b/EQomFOcA==
+  dependencies:
+    superstruct "^2.0.2"
+
 "@react-native-firebase/app@^24.0.0":
   version "24.0.0"
   resolved "https://registry.yarnpkg.com/@react-native-firebase/app/-/app-24.0.0.tgz#b9400ac3c13617811b0375d1335d24edeec986bf"
@@ -7646,6 +7653,11 @@ sucrase@~3.35.1:
     pirates "^4.0.1"
     tinyglobby "^0.2.11"
     ts-interface-checker "^0.1.9"
+
+superstruct@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/superstruct/-/superstruct-2.0.2.tgz#3f6d32fbdc11c357deff127d591a39b996300c54"
+  integrity sha512-uV+TFRZdXsqXTL2pRvujROjdZQ4RAlBUS5BTh9IGm+jTqQntYThciG/qu57Gs69yjnVUSqdxF9YLmSnpupBW9A==
 
 supports-color@^5.3.0:
   version "5.5.0"

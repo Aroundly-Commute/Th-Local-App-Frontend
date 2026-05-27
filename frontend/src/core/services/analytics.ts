@@ -2,7 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Safe check for Native Firebase Crashlytics (to ensure it operates safely on Expo Go)
+// Safe check for Native Firebase Analytics (ensures safe fallback operation on Expo Go)
+let firebaseAnalyticsInstance: any = null;
+try {
+  firebaseAnalyticsInstance = require('@react-native-firebase/analytics').default;
+} catch (e) {
+  // Gracefully falls back in standard Expo Go or unlinked dev environments
+}
+
+// Safe check for Native Firebase Crashlytics
 let crashlyticsInstance: any = null;
 try {
   crashlyticsInstance = require('@react-native-firebase/crashlytics').default;
@@ -10,95 +18,76 @@ try {
   // Gracefully falls back in standard Expo Go or unlinked dev environments
 }
 
-const GA_MEASUREMENT_ID = process.env.EXPO_PUBLIC_GA_MEASUREMENT_ID || 'G-DUMMY4TRACK';
-const GA_API_SECRET = process.env.EXPO_PUBLIC_GA_API_SECRET || 'dummy_api_secret_key';
-
 export class AnalyticsService {
   private static clientId: string | null = null;
 
   /**
-   * Initializes the analytics engine. Retrieves or generates a unique Client ID.
+   * Initializes the native Firebase Analytics engine.
    */
   public static async initialize(): Promise<string> {
     try {
-      if (this.clientId) return this.clientId;
-
-      // 1. Check persistent AsyncStorage cache
+      if (firebaseAnalyticsInstance) {
+        console.log('[Analytics] Initializing native Firebase Analytics...');
+        await firebaseAnalyticsInstance().setAnalyticsCollectionEnabled(true);
+      }
+      
+      // Keep unique ClientID generation for session consistency
       let cachedId = await AsyncStorage.getItem('@ga_client_id');
       if (!cachedId) {
-        // 2. Generate a new pseudo-random UUID
         cachedId = this.generateUUID();
         await AsyncStorage.setItem('@ga_client_id', cachedId);
       }
-      
       this.clientId = cachedId;
-      console.log(`[Analytics] Initialized GA4 client. Client ID: ${this.clientId}`);
       return this.clientId;
     } catch (err) {
-      console.warn('[Analytics] Failed to initialize persistent client ID:', err);
-      this.clientId = 'temp_anonymous_client_id';
-      return this.clientId;
+      console.warn('[Analytics] Failed to initialize native Firebase Analytics:', err);
+      return 'native_firebase_analytics_fallback';
     }
   }
 
   /**
-   * Dispatches a custom event to Google Analytics 4.
+   * Dispatches a custom event natively to Firebase Analytics.
    */
   public static async trackEvent(eventName: string, params: Record<string, any> = {}): Promise<void> {
     try {
-      const cid = this.clientId || (await this.initialize());
-
+      // Sanitize event name to comply with Firebase requirements (lowercase, alpha-numeric, underscores)
+      const sanitizedName = eventName.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      
       // Enrich payload with platform metadata
       const enrichedParams = {
         ...params,
         platform: Platform.OS,
-        os_version: Platform.Version,
+        os_version: String(Platform.Version),
         device_name: Constants.deviceName || 'Unknown Device',
         app_version: Constants.expoConfig?.version || '1.0.0',
-        engagement_time_msec: Date.now(),
       };
 
-      console.log(`[Analytics] Track Event: "${eventName}"`, enrichedParams);
+      console.log(`[Analytics] Log Firebase Event: "${sanitizedName}"`, enrichedParams);
 
-      // Bypasses endpoint dispatch if dummy key is present in local dev to save requests
-      if (GA_MEASUREMENT_ID === 'G-DUMMY4TRACK') {
-        return;
-      }
-
-      const url = `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`;
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          client_id: cid,
-          events: [
-            {
-              name: eventName,
-              params: enrichedParams,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        console.warn(`[Analytics] GA4 dispatch failed with status: ${response.status}`);
+      if (firebaseAnalyticsInstance) {
+        await firebaseAnalyticsInstance().logEvent(sanitizedName, enrichedParams);
       }
     } catch (err) {
-      console.error('[Analytics] Event dispatch exception error:', err);
+      console.warn('[Analytics] Failed to log native Firebase Event:', err);
     }
   }
 
   /**
-   * Tracks user screen navigations.
+   * Tracks user screen navigations natively in Firebase.
    */
   public static async trackScreen(screenName: string): Promise<void> {
-    await this.trackEvent('screen_view', {
-      screen_name: screenName,
-      page_title: screenName,
-    });
+    try {
+      console.log(`[Analytics] Log Screen View: "${screenName}"`);
+      
+      if (firebaseAnalyticsInstance) {
+        await firebaseAnalyticsInstance().logScreenView({
+          screen_name: screenName,
+          screen_class: screenName,
+        });
+      }
+    } catch (err) {
+      console.warn('[Analytics] Failed to log native Screen View:', err);
+    }
   }
 
   /**
@@ -112,17 +101,17 @@ export class AnalyticsService {
   }
 
   /**
-   * Captures exceptions and error states.
+   * Captures exceptions and error states, sending them to Firebase Analytics & Crashlytics.
    */
   public static async trackError(message: string, fatal: boolean = false, extra: Record<string, any> = {}): Promise<void> {
-    // 1. Log to Google Analytics Event Streams
-    await this.trackEvent('exception', {
+    // 1. Log native Firebase Analytics Event
+    await this.trackEvent('app_exception', {
       description: message,
       fatal: fatal ? 'true' : 'false',
       ...extra,
     });
 
-    // 2. Report natively to Firebase Crashlytics if the client is compiled with native SDKs
+    // 2. Report natively to Firebase Crashlytics
     try {
       if (crashlyticsInstance) {
         const crash = crashlyticsInstance();
@@ -139,7 +128,7 @@ export class AnalyticsService {
           crash.setUserId(this.clientId);
         }
 
-        // Record custom crash/error stack trace
+        // Record custom exception stack trace
         crash.recordError(new Error(message));
         
         if (fatal) {
@@ -153,7 +142,6 @@ export class AnalyticsService {
 
   /**
    * Intentionally triggers a native crash to test Firebase Crashlytics.
-   * CALL THIS ONLY IN DEVELOPMENT / NATIVE DEV BUILDS TO VERIFY FIREBASE.
    */
   public static triggerMockCrash(): void {
     try {
