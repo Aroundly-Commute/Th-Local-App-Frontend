@@ -1,6 +1,17 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView, 
+  useColorScheme, 
+  ActivityIndicator 
+} from 'react-native';
 
 import { useRouter } from 'expo-router';
 import { Mail, Lock, Car, Phone } from 'lucide-react-native';
@@ -8,49 +19,104 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 
+import auth from '@react-native-firebase/auth';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
 export default function Login() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { login, loginWithGoogle } = useAuth();
+  
   const [email, setEmail] = useState('sarah.driver@ecoride.app');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
+  // Configure native Google Sign-in credentials on boot
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6.apps.googleusercontent.com',
+    });
+  }, []);
+
   const onLogin = async () => {
+    if (!email || !password) {
+      setErr('Please enter both email and password');
+      errorH();
+      return;
+    }
+
     tap();
-    setLoading(true); setErr('');
+    setLoading(true); 
+    setErr('');
+    
     try {
       await login(email.trim(), password);
       success();
       router.replace('/(tabs)');
     } catch (e: any) {
       errorH();
-      setErr(e?.response?.data?.detail || 'Login failed');
-    } finally { setLoading(false); }
+      console.warn('[AUTH] Firebase login failed:', e);
+      setErr(e?.message || 'Invalid email or password');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const onGoogleLogin = async () => {
     tap();
-    setLoading(true); setErr('');
+    setLoading(true); 
+    setErr('');
+    
     try {
-      console.log('[AUTH] Simulating Google Sign-In with Mock Firebase ID token...');
-      const mockFirebaseIdToken = "local_google_mock_id_token_123456";
+      console.log('[AUTH] Triggering native Google Sign-in...');
       
-      // Calls standard auth context sync action with mock credentials
-      await loginWithGoogle(mockFirebaseIdToken, 'sarah.google@gmail.com', 'Sarah Google');
+      // 1. Check for Play Services on Android
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      
+      // 2. Open Google Accounts overlay
+      const signInResult = await GoogleSignin.signIn();
+      const idToken = signInResult.data?.idToken;
+      
+      if (!idToken) {
+        throw new Error('Google Sign-in failed to return an ID Token');
+      }
+
+      console.log('[AUTH] Firebase authenticating Google credential...');
+      
+      // 3. Build credential and log into Firebase client SDK
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const userCredential = await auth().signInWithCredential(googleCredential);
+      
+      // 4. Extract secure JWT token
+      const firebaseIdToken = await userCredential.user.getIdToken();
+      const name = userCredential.user.displayName || 'Google User';
+      const userEmail = userCredential.user.email || 'google.user@gmail.com';
+
+      console.log('[AUTH] Syncing Google session with PostgreSQL...');
+      
+      // 5. Synchronize with our Postgres database
+      await loginWithGoogle(firebaseIdToken, name, userEmail);
+      
       success();
       router.replace('/(tabs)');
     } catch (e: any) {
       errorH();
-      setErr(e?.response?.data?.message || 'Google Login failed');
-    } finally { setLoading(false); }
+      console.error('[AUTH] Native Google Sign-in failed:', e);
+      setErr(e?.message || 'Google Sign-in was cancelled or failed.');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={{ flex: 1 }}>
             <View style={[styles.brand, { backgroundColor: t.textPrimary }]}>

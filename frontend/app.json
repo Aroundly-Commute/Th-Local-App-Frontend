@@ -53,7 +53,14 @@
       ],
       "expo-web-browser",
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics"
+      "@react-native-firebase/auth",
+      "@react-native-firebase/crashlytics",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

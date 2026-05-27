@@ -22,7 +22,8 @@ export default function PhoneLogin() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { sendOtp, verifyOtp } = useAuth();
+  
+  const { sendPhoneOtp, verifyPhoneOtp } = useAuth();
 
   // Screen UI Modes: 'phone' (input phone) or 'otp' (input code)
   const [mode, setMode] = useState<'phone' | 'otp'>('phone');
@@ -30,6 +31,9 @@ export default function PhoneLogin() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Stores the native Firebase Confirmation transaction object
+  const [confirmResult, setConfirmResult] = useState<any>(null);
 
   // 6-digit OTP code array
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
@@ -48,7 +52,7 @@ export default function PhoneLogin() {
     return () => clearInterval(interval);
   }, [mode, timer]);
 
-  // Handles requesting the OTP SMS
+  // Handles requesting the Firebase SMS OTP
   const onRequestOtp = async () => {
     if (!phoneNumber || phoneNumber.trim().length < 10) {
       setErr('Please enter a valid phone number');
@@ -61,27 +65,33 @@ export default function PhoneLogin() {
     setErr('');
     setSuccessMsg('');
 
-    // Ensure format has country code. Default to +91 (India) if user doesn't type code
+    // Format to E.164 country code format. Defaults to +91 (India)
     let formattedPhone = phoneNumber.trim();
     if (!formattedPhone.startsWith('+')) {
       formattedPhone = `+91${formattedPhone}`;
     }
 
     try {
-      await sendOtp(formattedPhone);
+      console.log(`[AUTH] Initiating native Firebase Phone SMS to: ${formattedPhone}...`);
+      
+      // Call Firebase Client Phone SDK
+      const confirmation = await sendPhoneOtp(formattedPhone);
+      setConfirmResult(confirmation);
+      
       setMode('otp');
       setTimer(59);
-      setSuccessMsg('Verification code sent successfully!');
+      setSuccessMsg('SMS verification code successfully sent via Firebase!');
       success();
     } catch (e: any) {
       errorH();
-      setErr(e?.response?.data?.message || 'Failed to send verification code. Try again.');
+      console.error('[AUTH] Firebase Phone Auth dispatch failed:', e);
+      setErr(e?.message || 'Failed to trigger verification. Check console and SHA-1 settings.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handles verifying the OTP code
+  // Handles confirming the OTP digits
   const onVerifyOtp = async () => {
     const code = otp.join('');
     if (code.length < 6) {
@@ -90,41 +100,47 @@ export default function PhoneLogin() {
       return;
     }
 
+    if (!confirmResult) {
+      setErr('No active verification transaction found. Please restart.');
+      errorH();
+      return;
+    }
+
     tap();
     setLoading(true);
     setErr('');
 
-    let formattedPhone = phoneNumber.trim();
-    if (!formattedPhone.startsWith('+')) {
-      formattedPhone = `+91${formattedPhone}`;
-    }
-
     try {
-      await verifyOtp(formattedPhone, code);
+      console.log(`[AUTH] Verifying code: ${code} with Firebase...`);
+      
+      // Verify OTP code natively via Firebase Client SDK
+      await verifyPhoneOtp(confirmResult, code);
       success();
+      
+      console.log('[AUTH] Phone login and database sync complete!');
       router.replace('/(tabs)');
     } catch (e: any) {
       errorH();
-      setErr(e?.response?.data?.message || 'Invalid or expired verification code');
+      console.error('[AUTH] Firebase verification check failed:', e);
+      setErr(e?.message || 'Invalid or expired OTP code entered.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Automatically shifts input cursor focus as user types individual OTP digits
+  // Auto focus shift as user types digit character
   const handleOtpChange = (text: string, index: number) => {
     const numericVal = text.replace(/[^0-9]/g, '');
     const newOtp = [...otp];
     newOtp[index] = numericVal;
     setOtp(newOtp);
 
-    // If typed a digit, auto focus next box
     if (numericVal.length > 0 && index < 5) {
       otpInputsRef.current[index + 1]?.focus();
     }
   };
 
-  // Auto focus back to previous input on backspace press
+  // Auto backspace shift cursor focus
   const handleOtpKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       otpInputsRef.current[index - 1]?.focus();
@@ -148,10 +164,10 @@ export default function PhoneLogin() {
             <ArrowLeft color={t.textPrimary} size={20} />
           </TouchableOpacity>
 
-          {/* Development Sandbox Help Notification */}
+          {/* Sandbox Helper Alert */}
           <View style={[styles.sandboxAlert, { backgroundColor: t.muted, borderColor: t.border }]}>
             <Text style={[styles.sandboxAlertText, { color: t.textSecondary }]}>
-              💡 <Text style={{ fontWeight: '700', color: t.textPrimary }}>Sandbox Mode Active:</Text> If Twilio is not configured, find your OTP printed inside your backend console terminal!
+              🔐 <Text style={{ fontWeight: '700', color: t.textPrimary }}>Firebase Free Tier OTP:</Text> Firebase authenticates SMS verification for free! Ensure your SHA-1 key is added in your Firebase Console.
             </Text>
           </View>
 

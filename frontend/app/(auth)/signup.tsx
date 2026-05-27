@@ -1,105 +1,309 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, useColorScheme, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView, 
+  useColorScheme, 
+  ActivityIndicator 
+} from 'react-native';
 
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User as UserIcon, ChevronLeft, Car, UserCheck } from 'lucide-react-native';
+import { Mail, Lock, User as UserIcon, ChevronLeft, Car, UserCheck, ShieldAlert, MailCheck } from 'lucide-react-native';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
+
+import auth from '@react-native-firebase/auth';
 
 export default function Signup() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { signup } = useAuth();
+  
+  // Details Entry State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'passenger' | 'driver'>('passenger');
+  
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
+  // Email Verification UI State
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  // Phase 1: Submit email/password registration to Firebase
   const onSignup = async () => {
-    tap();
     setErr('');
-    if (!email || !password || !name) { setErr('Please fill all fields'); return; }
+    if (!email || !password || !name) { 
+      setErr('Please fill in all the details'); 
+      errorH();
+      return; 
+    }
+
+    if (password.length < 6) {
+      setErr('Password must be at least 6 characters long');
+      errorH();
+      return;
+    }
+
+    tap();
     setLoading(true);
+
     try {
-      await signup(email.trim(), password, name, role);
+      console.log(`[AUTH] Dispatching email registration to Firebase: ${email}...`);
+      
+      // Calls our upgraded auth context which creates Firebase account & sends email verification
+      await signup(email.trim(), password, name.trim(), role);
+      
       success();
-      router.replace('/(tabs)');
+      setIsVerifyingEmail(true);
+      setResendTimer(59);
     } catch (e: any) {
       errorH();
-      setErr(e?.response?.data?.detail || 'Signup failed');
-    } finally { setLoading(false); }
+      console.error('[AUTH] Email signup exception:', e);
+      setErr(e?.message || 'Failed to create user account. Try again.');
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  // Phase 2: Check if user completed email inbox verification
+  const checkEmailVerificationStatus = async () => {
+    tap();
+    setLoading(true);
+    setErr('');
+
+    try {
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        // Reload Firebase user profile to fetch fresh verification state
+        await currentUser.reload();
+        
+        const isVerified = currentUser.emailVerified;
+        console.log(`[AUTH] Email verification status check: ${isVerified}`);
+
+        if (isVerified) {
+          success();
+          console.log('[AUTH] Email verified successfully! Syncing session...');
+          
+          // Get secure session ID token
+          const token = await currentUser.getIdToken();
+          
+          // Use context Google sync pipeline to update Postgres state cleanly
+          const { loginWithGoogle } = useAuth();
+          // Sync profile details into Postgres
+          await loginWithGoogle(token, name, email);
+          
+          router.replace('/(tabs)');
+        } else {
+          errorH();
+          setErr('Your email is not verified yet. Please check your inbox and tap the link.');
+        }
+      } else {
+        setErr('No active authentication session found. Please try logging in.');
+      }
+    } catch (e: any) {
+      errorH();
+      console.error('[AUTH] Email status check exception:', e);
+      setErr(e?.message || 'Verification check failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Action: Resend verification link
+  const onResendLink = async () => {
+    tap();
+    setLoading(true);
+    setErr('');
+
+    try {
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        await currentUser.sendEmailVerification();
+        setResendTimer(59);
+        success();
+        console.log('[AUTH] Resent Firebase email verification link.');
+      } else {
+        setErr('Authentication session expired. Please restart registration.');
+      }
+    } catch (e: any) {
+      errorH();
+      setErr(e?.message || 'Failed to resend verification link.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity testID="signup-back" onPress={() => { tap(); router.back(); }} style={styles.back}>
+          
+          {/* Header Back Button */}
+          <TouchableOpacity 
+            testID="signup-back" 
+            onPress={() => { tap(); router.back(); }} 
+            style={styles.back}
+          >
             <ChevronLeft color={t.textPrimary} size={24} />
           </TouchableOpacity>
 
-          <Text style={[styles.h1, { color: t.textPrimary }]}>Join the green movement</Text>
-          <Text style={[styles.sub, { color: t.textSecondary }]}>
-            Save money. Cut emissions. Meet your community.
-          </Text>
+          {!isVerifyingEmail ? (
+            // REGISTRATION DETAILS UI LAYOUT
+            <View style={{ gap: spacing.sm }}>
+              <Text style={[styles.h1, { color: t.textPrimary }]}>Join the green movement</Text>
+              <Text style={[styles.sub, { color: t.textSecondary }]}>
+                Save money. Cut emissions. Meet your community.
+              </Text>
 
-          <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
-            <UserIcon color={t.textSecondary} size={18} />
-            <TextInput testID="signup-name" value={name} onChangeText={setName}
-              placeholder="Full name" placeholderTextColor={t.textSecondary}
-              style={[styles.field, { color: t.textPrimary }]} />
-          </View>
-          <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
-            <Mail color={t.textSecondary} size={18} />
-            <TextInput testID="signup-email" value={email} onChangeText={setEmail}
-              placeholder="Email" placeholderTextColor={t.textSecondary} autoCapitalize="none"
-              keyboardType="email-address"
-              style={[styles.field, { color: t.textPrimary }]} />
-          </View>
-          <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
-            <Lock color={t.textSecondary} size={18} />
-            <TextInput testID="signup-password" value={password} onChangeText={setPassword}
-              placeholder="Password (min 6)" placeholderTextColor={t.textSecondary} secureTextEntry
-              style={[styles.field, { color: t.textPrimary }]} />
-          </View>
+              <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <UserIcon color={t.textSecondary} size={18} />
+                <TextInput 
+                  testID="signup-name" 
+                  value={name} 
+                  onChangeText={setName}
+                  placeholder="Full name" 
+                  placeholderTextColor={t.textSecondary}
+                  style={[styles.field, { color: t.textPrimary }]} 
+                />
+              </View>
+              <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <Mail color={t.textSecondary} size={18} />
+                <TextInput 
+                  testID="signup-email" 
+                  value={email} 
+                  onChangeText={setEmail}
+                  placeholder="Email" 
+                  placeholderTextColor={t.textSecondary} 
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={[styles.field, { color: t.textPrimary }]} 
+                />
+              </View>
+              <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <Lock color={t.textSecondary} size={18} />
+                <TextInput 
+                  testID="signup-password" 
+                  value={password} 
+                  onChangeText={setPassword}
+                  placeholder="Password (min 6)" 
+                  placeholderTextColor={t.textSecondary} 
+                  secureTextEntry
+                  style={[styles.field, { color: t.textPrimary }]} 
+                />
+              </View>
 
-          <Text style={[styles.label, { color: t.textSecondary }]}>I want to</Text>
-          <View style={styles.roleRow}>
-            <RoleCard
-              testID="role-passenger"
-              active={role === 'passenger'}
-              onPress={() => { tap(); setRole('passenger'); }}
-              theme={t}
-              icon={<UserCheck color={role === 'passenger' ? t.primaryContrast : t.primary} size={22} />}
-              label="Find rides"
-              hint="Save money, save the planet"
-            />
-            <RoleCard
-              testID="role-driver"
-              active={role === 'driver'}
-              onPress={() => { tap(); setRole('driver'); }}
-              theme={t}
-              icon={<Car color={role === 'driver' ? t.primaryContrast : t.primary} size={22} />}
-              label="Offer rides"
-              hint="Earn, share, reduce traffic"
-            />
-          </View>
+              <Text style={[styles.label, { color: t.textSecondary }]}>I want to</Text>
+              <View style={styles.roleRow}>
+                <RoleCard
+                  testID="role-passenger"
+                  active={role === 'passenger'}
+                  onPress={() => { tap(); setRole('passenger'); }}
+                  theme={t}
+                  icon={<UserCheck color={role === 'passenger' ? t.primaryContrast : t.primary} size={22} />}
+                  label="Find rides"
+                  hint="Save money, save the planet"
+                />
+                <RoleCard
+                  testID="role-driver"
+                  active={role === 'driver'}
+                  onPress={() => { tap(); setRole('driver'); }}
+                  theme={t}
+                  icon={<Car color={role === 'driver' ? t.primaryContrast : t.primary} size={22} />}
+                  label="Offer rides"
+                  hint="Earn, share, reduce traffic"
+                />
+              </View>
 
-          {err ? <Text style={[styles.err, { color: t.error }]} testID="signup-error">{err}</Text> : null}
+              {err ? <Text style={[styles.err, { color: t.error }]} testID="signup-error">{err}</Text> : null}
 
-          <TouchableOpacity testID="signup-submit" onPress={onSignup}
-            disabled={loading}
-            style={[styles.cta, { backgroundColor: t.primary }]}
-            activeOpacity={0.85}>
-            {loading
-              ? <ActivityIndicator color={t.primaryContrast} />
-              : <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Create account</Text>}
-          </TouchableOpacity>
+              <TouchableOpacity 
+                testID="signup-submit" 
+                onPress={onSignup}
+                disabled={loading}
+                style={[styles.cta, { backgroundColor: t.primary }]}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color={t.primaryContrast} />
+                ) : (
+                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Create account</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // EMAIL VERIFICATION OTP PENDING UI LAYOUT
+            <View style={styles.verifyContainer}>
+              <View style={[styles.verifyIconWrapper, { backgroundColor: t.muted }]}>
+                <MailCheck color={t.primary} size={48} />
+              </View>
+              
+              <Text style={[styles.verifyTitle, { color: t.textPrimary }]}>Verify Your Email</Text>
+              <Text style={[styles.verifyDescription, { color: t.textSecondary }]}>
+                A secure activation link has been sent to your email inbox:{'\n'}
+                <Text style={{ fontWeight: '700', color: t.textPrimary }}>{email.trim()}</Text>
+              </Text>
+              
+              <View style={[styles.alertCard, { backgroundColor: t.muted, borderColor: t.border }]}>
+                <ShieldAlert color={t.textPrimary} size={18} />
+                <Text style={[styles.alertCardText, { color: t.textSecondary }]}>
+                  Please click the link inside the verification email before pressing the button below to activate your account.
+                </Text>
+              </View>
+
+              {err ? <Text style={[styles.err, { color: t.error, textAlign: 'center' }]}>{err}</Text> : null}
+
+              <TouchableOpacity 
+                onPress={checkEmailVerificationStatus}
+                disabled={loading}
+                style={[styles.cta, { backgroundColor: t.primary, width: '100%', marginTop: spacing.md }]}
+                activeOpacity={0.85}
+              >
+                {loading ? (
+                  <ActivityIndicator color={t.primaryContrast} />
+                ) : (
+                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>I've Verified My Email</Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.resendWrapper}>
+                {resendTimer > 0 ? (
+                  <Text style={[styles.timerText, { color: t.textSecondary }]}>
+                    Resend link in <Text style={{ fontWeight: '700', color: t.textPrimary }}>{resendTimer}s</Text>
+                  </Text>
+                ) : (
+                  <TouchableOpacity onPress={onResendLink} disabled={loading} style={styles.resendBtn}>
+                    <Text style={{ color: t.primary, fontWeight: '700', fontSize: 14 }}>Resend Verification Email</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -108,14 +312,23 @@ export default function Signup() {
 
 function RoleCard({ active, onPress, theme: t, icon, label, hint, testID }: any) {
   return (
-    <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.85}
-      style={[styles.role, {
-        backgroundColor: active ? t.primary : t.surface,
-        borderColor: active ? t.primary : t.border,
-      }]}>
+    <TouchableOpacity 
+      testID={testID} 
+      onPress={onPress} 
+      activeOpacity={0.85}
+      style={[
+        styles.role, 
+        {
+          backgroundColor: active ? t.primary : t.surface,
+          borderColor: active ? t.primary : t.border,
+        }
+      ]}
+    >
       {icon}
       <Text style={[styles.roleTitle, { color: active ? t.primaryContrast : t.textPrimary }]}>{label}</Text>
-      <Text style={[styles.roleHint, { color: active ? t.primaryContrast : t.textSecondary, opacity: active ? 0.85 : 1 }]}>{hint}</Text>
+      <Text style={[styles.roleHint, { color: active ? t.primaryContrast : t.textSecondary, opacity: active ? 0.85 : 1 }]}>
+        {hint}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -125,8 +338,14 @@ const styles = StyleSheet.create({
   h1: { fontSize: 30, fontWeight: '800', letterSpacing: -1, marginBottom: 6 },
   sub: { fontSize: 15, marginBottom: spacing.lg },
   input: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, height: 52, marginBottom: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    height: 52,
+    marginBottom: spacing.md,
   },
   field: { flex: 1, fontSize: 16 },
   label: { fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: '700', marginVertical: spacing.sm },
@@ -137,4 +356,53 @@ const styles = StyleSheet.create({
   cta: { height: 54, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
   ctaText: { fontSize: 16, fontWeight: '700' },
   err: { fontSize: 13, fontWeight: '600', marginTop: spacing.md },
+  verifyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+    gap: spacing.md,
+  },
+  verifyIconWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  verifyTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  verifyDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  alertCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+  },
+  alertCardText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  resendWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
+  timerText: {
+    fontSize: 13,
+  },
+  resendBtn: {
+    padding: 8,
+  },
 });
