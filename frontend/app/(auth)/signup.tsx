@@ -25,7 +25,7 @@ export default function Signup() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { signup } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   
   // Details Entry State
   const [email, setEmail] = useState('');
@@ -108,9 +108,7 @@ export default function Signup() {
           // Get secure session ID token
           const token = await currentUser.getIdToken();
           
-          // Use context Google sync pipeline to update Postgres state cleanly
-          const { loginWithGoogle } = useAuth();
-          // Sync profile details into Postgres
+          // Sync profile details into Postgres cleanly
           await loginWithGoogle(token, name, email);
           
           router.replace('/(tabs)');
