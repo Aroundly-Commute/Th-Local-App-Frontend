@@ -26,6 +26,10 @@ type Spot = {
   level: number;
   section: string;
   approved: boolean;
+  priceHourly: number;
+  priceDaily: number;
+  priceWeekly: number;
+  priceMonthly: number;
   availabilities: Array<{
     id: string;
     date: string;
@@ -275,6 +279,14 @@ export default function ManageParking() {
   const [customPrice, setCustomPrice] = useState('50');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Edit Rates Modal State
+  const [isRatesModalOpen, setIsRatesModalOpen] = useState(false);
+  const [ratesSpotId, setRatesSpotId] = useState<string | null>(null);
+  const [ratesHourly, setRatesHourly] = useState('50');
+  const [ratesDaily, setRatesDaily] = useState('100');
+  const [ratesWeekly, setRatesWeekly] = useState('500');
+  const [ratesMonthly, setRatesMonthly] = useState('1000');
+
   // Automatically select first valid slot if current one is past
   useEffect(() => {
     if (slotType === 'HOURLY') {
@@ -330,18 +342,30 @@ export default function ManageParking() {
     tap();
     setSelectedSpotId(spotId);
     setSlotType('HOURLY');
-    setCustomPrice('50'); // Default price for HOURLY
+    const spot = spots.find(s => s.id === spotId);
+    if (spot) {
+      setCustomPrice(String(spot.priceHourly ?? 50));
+    } else {
+      setCustomPrice('50');
+    }
     setIsModalOpen(true);
   };
 
-  // Adjust price when slotType changes
   const handleSlotTypeChange = (type: 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY') => {
     tap();
     setSlotType(type);
-    if (type === 'HOURLY') setCustomPrice('50');
-    else if (type === 'DAILY') setCustomPrice('100');
-    else if (type === 'WEEKLY') setCustomPrice('500');
-    else if (type === 'MONTHLY') setCustomPrice('2000');
+    const spot = spots.find(s => s.id === selectedSpotId);
+    if (spot) {
+      if (type === 'HOURLY') setCustomPrice(String(spot.priceHourly ?? 50));
+      else if (type === 'DAILY') setCustomPrice(String(spot.priceDaily ?? 100));
+      else if (type === 'WEEKLY') setCustomPrice(String(spot.priceWeekly ?? 500));
+      else if (type === 'MONTHLY') setCustomPrice(String(spot.priceMonthly ?? 1000));
+    } else {
+      if (type === 'HOURLY') setCustomPrice('50');
+      else if (type === 'DAILY') setCustomPrice('100');
+      else if (type === 'WEEKLY') setCustomPrice('500');
+      else if (type === 'MONTHLY') setCustomPrice('1000');
+    }
   };
 
     const handleSaveAvailability = async () => {
@@ -394,15 +418,51 @@ export default function ManageParking() {
     }
   };
 
+  const handleOpenEditRates = (spot: Spot) => {
+    tap();
+    setRatesSpotId(spot.id);
+    setRatesHourly(String(spot.priceHourly ?? 50));
+    setRatesDaily(String(spot.priceDaily ?? 100));
+    setRatesWeekly(String(spot.priceWeekly ?? 500));
+    setRatesMonthly(String(spot.priceMonthly ?? 1000));
+    setIsRatesModalOpen(true);
+  };
+
+  const handleSaveRates = async () => {
+    if (!ratesSpotId) return;
+    try {
+      tap();
+      await api.patch(`/parking/my-spots/${ratesSpotId}/prices`, {
+        priceHourly: parseFloat(ratesHourly) || 50,
+        priceDaily: parseFloat(ratesDaily) || 100,
+        priceWeekly: parseFloat(ratesWeekly) || 500,
+        priceMonthly: parseFloat(ratesMonthly) || 1000,
+      });
+      success();
+      setIsRatesModalOpen(false);
+      Alert.alert('Success', 'Spot default rates persisted successfully!');
+      fetchData();
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update rates.');
+    }
+  };
+
   const handleRequestAction = async (requestId: string, status: 'ACCEPTED' | 'REJECTED') => {
+    // 1. Optimistic Update: Instantly update requests state array so UI changes immediately
+    setRequests(prevRequests =>
+      prevRequests.map(req => (req.id === requestId ? { ...req, status } : req))
+    );
+
     try {
       tap();
       await api.patch(`/parking/bookings/${requestId}/status`, { status });
       success();
-      Alert.alert('Success', `Booking request has been ${status.toLowerCase()}!`);
-      fetchData();
+      // No need to show blocking Alert dialog, use a quiet success log or toast style for instant premium feel
+      console.log(`[PARKING] Successfully marked request ${requestId} as ${status}`);
     } catch (err: any) {
-      Alert.alert('Error', 'Failed to update request.');
+      // Rollback state in case API call fails
+      fetchData();
+      Alert.alert('Error', 'Failed to update request status on the server.');
     }
   };
 
@@ -510,6 +570,38 @@ export default function ManageParking() {
                     )}
                   </View>
 
+                  {/* Default Rates List */}
+                  <View style={{ marginTop: 12, padding: 10, borderRadius: radius.md, backgroundColor: t.background, borderWidth: 1, borderColor: t.border }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: t.textSecondary }}>
+                        Default Pricing Rates
+                      </Text>
+                      <TouchableOpacity activeOpacity={0.7} onPress={() => handleOpenEditRates(spot)}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: t.primary }}>
+                          Edit Rates
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Text style={{ fontSize: 10, color: t.textSecondary }}>3-Hour</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: t.textPrimary }}>₹{spot.priceHourly ?? 50}</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Text style={{ fontSize: 10, color: t.textSecondary }}>Daily</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: t.textPrimary }}>₹{spot.priceDaily ?? 100}</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Text style={{ fontSize: 10, color: t.textSecondary }}>Weekly</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: t.textPrimary }}>₹{spot.priceWeekly ?? 500}</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Text style={{ fontSize: 10, color: t.textSecondary }}>Monthly</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: t.textPrimary }}>₹{spot.priceMonthly ?? 1000}</Text>
+                      </View>
+                    </View>
+                  </View>
+
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => handleOpenAddAvailability(spot.id)}
@@ -610,7 +702,34 @@ export default function ManageParking() {
             <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Mark Spot Available</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Date Selector */}
+              {/* Timing Duration Segment (First) */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Duration Basis</Text>
+                <View style={styles.segContainer}>
+                  {['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => handleSlotTypeChange(type as any)}
+                      style={[
+                        styles.segButton,
+                        slotType === type && { backgroundColor: t.primary },
+                        { borderColor: t.border },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.segText,
+                          { color: slotType === type ? t.primaryContrast : t.textSecondary },
+                        ]}
+                      >
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Date Selector (Second) */}
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: t.textSecondary }]}>
                   {slotType === 'WEEKLY' || slotType === 'MONTHLY' ? 'Start Date' : 'Date'}
@@ -665,34 +784,7 @@ export default function ManageParking() {
                 </View>
               </View>
 
-              {/* Timing Duration Segment */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Duration Basis</Text>
-                <View style={styles.segContainer}>
-                  {['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY'].map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      onPress={() => handleSlotTypeChange(type as any)}
-                      style={[
-                        styles.segButton,
-                        slotType === type && { backgroundColor: t.primary },
-                        { borderColor: t.border },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.segText,
-                          { color: slotType === type ? t.primaryContrast : t.textSecondary },
-                        ]}
-                      >
-                        {type}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* 3-Hour Slot picker for Hourly */}
+              {/* 3-Hour Slot picker for Hourly (Third) */}
               {slotType === 'HOURLY' && (
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Select 3-Hour Slot</Text>
@@ -769,6 +861,79 @@ export default function ManageParking() {
                 style={[styles.modalCta, { backgroundColor: t.primary }]}
               >
                 <Text style={[styles.modalCtaText, { color: t.primaryContrast }]}>Save Slot</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Default Rates Modal */}
+      <Modal animationType="slide" transparent visible={isRatesModalOpen}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: t.background }]}>
+            <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Edit Spot Default Rates</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Hourly Price */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>3-Hourly Price (Rupees)</Text>
+                <TextInput
+                  style={[styles.inputField, { color: t.textPrimary, borderColor: t.border, backgroundColor: t.surface }]}
+                  value={ratesHourly}
+                  onChangeText={setRatesHourly}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Daily Price */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Daily Price (Rupees)</Text>
+                <TextInput
+                  style={[styles.inputField, { color: t.textPrimary, borderColor: t.border, backgroundColor: t.surface }]}
+                  value={ratesDaily}
+                  onChangeText={setRatesDaily}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Weekly Price */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Weekly Price (Rupees)</Text>
+                <TextInput
+                  style={[styles.inputField, { color: t.textPrimary, borderColor: t.border, backgroundColor: t.surface }]}
+                  value={ratesWeekly}
+                  onChangeText={setRatesWeekly}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Monthly Price */}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Monthly Price (Rupees)</Text>
+                <TextInput
+                  style={[styles.inputField, { color: t.textPrimary, borderColor: t.border, backgroundColor: t.surface }]}
+                  value={ratesMonthly}
+                  onChangeText={setRatesMonthly}
+                  keyboardType="numeric"
+                />
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => { tap(); setIsRatesModalOpen(false); }}
+                style={[styles.modalCta, { borderColor: t.border, borderWidth: 1 }]}
+              >
+                <Text style={[styles.modalCtaText, { color: t.textPrimary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleSaveRates}
+                style={[styles.modalCta, { backgroundColor: t.primary }]}
+              >
+                <Text style={[styles.modalCtaText, { color: t.primaryContrast }]}>Save Rates</Text>
               </TouchableOpacity>
             </View>
           </View>

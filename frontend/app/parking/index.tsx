@@ -592,6 +592,10 @@ export default function Parking() {
         endStr = convertISTToUTC(`${year}-${month}-${dateVal}`, '00:00');
       }
 
+      // Calculate final pricing based on booking request:
+      // Directly charge the full availability rate (e.g. monthly charge if available on monthly basis)
+      let finalPrice = avail.price;
+
       await api.post('/parking/bookings', {
         spotId: selectedSpot.id,
         availabilityId: avail.id,
@@ -599,7 +603,7 @@ export default function Parking() {
         slotType: selectedSlotType,
         startTime: startStr,
         endTime: endStr,
-        price: avail.price,
+        price: finalPrice,
       });
 
       success();

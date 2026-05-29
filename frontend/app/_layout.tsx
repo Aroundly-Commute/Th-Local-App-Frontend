@@ -48,7 +48,10 @@ function AppNavigationWrapper() {
         pathname === '/(tabs)' || 
         pathname === '/(tabs)/home' || 
         pathname === '/(market)' || 
-        pathname === '/home';
+        pathname === '/home' ||
+        pathname === '/onboarding' ||
+        pathname === '/login' ||
+        pathname === '/(auth)/login';
 
       if (isDashboard) {
         return false;

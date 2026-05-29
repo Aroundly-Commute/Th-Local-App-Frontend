@@ -104,9 +104,14 @@ function LocationSearchPageModal({
       const { latitude, longitude } = loc.coords;
       let placeName = 'Current Location';
       try {
-        const resp = await api.get(`/locations/reverse?lat=${latitude}&lng=${longitude}`);
-        if (resp.data && resp.data.place_name) {
-          placeName = resp.data.place_name;
+        const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (addresses && addresses.length > 0) {
+          const addr = addresses[0];
+          const namePart = addr.name || addr.street || '';
+          const districtPart = addr.district || addr.subregion || '';
+          const cityPart = addr.city || addr.region || '';
+          const parts = [namePart, districtPart, cityPart].filter(Boolean);
+          placeName = parts.join(', ') || 'Current Location';
         }
       } catch (e) {
         // Fallback
@@ -537,7 +542,12 @@ export default function Search() {
       const saved = await AsyncStorage.getItem('@commute_recent_searches');
       let list = saved ? JSON.parse(saved) : [];
       list = list.filter((r: any) => !(r.from === fromVal && r.to === toVal));
-      list.unshift({ from: fromVal, to: toVal });
+      list.unshift({
+        from: fromVal,
+        to: toVal,
+        fromCoords,
+        toCoords
+      });
       list = list.slice(0, 3);
       await AsyncStorage.setItem('@commute_recent_searches', JSON.stringify(list));
       setRecentSearches(list);
@@ -561,18 +571,24 @@ export default function Search() {
       });
 
       const { latitude, longitude } = loc.coords;
-      setFrom('Current Location');
+      let placeName = 'Current Location';
       setFromCoords({ lat: latitude, lng: longitude });
       success();
 
       try {
-        const resp = await api.get(`/locations/reverse?lat=${latitude}&lng=${longitude}`);
-        if (resp.data && resp.data.place_name) {
-          setFrom(resp.data.place_name);
+        const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (addresses && addresses.length > 0) {
+          const addr = addresses[0];
+          const namePart = addr.name || addr.street || '';
+          const districtPart = addr.district || addr.subregion || '';
+          const cityPart = addr.city || addr.region || '';
+          const parts = [namePart, districtPart, cityPart].filter(Boolean);
+          placeName = parts.join(', ') || 'Current Location';
         }
       } catch (e) {
         // Fallback is already handled
       }
+      setFrom(placeName);
     } catch (err: any) {
       errorH();
       Alert.alert('Error', 'Failed to get current location: ' + err.message);
@@ -666,9 +682,12 @@ export default function Search() {
     }
   }, [mode, from, to, fromCoords, toCoords, datetime, seats, router]);
 
-  const quickSearch = (f: string, dest: string) => {
+  const quickSearch = (r: any) => {
     tap();
-    setFrom(f); setTo(dest);
+    setFrom(r.from);
+    setTo(r.to);
+    setFromCoords(r.fromCoords || null);
+    setToCoords(r.toCoords || null);
   };
 
   return (
@@ -782,7 +801,7 @@ export default function Search() {
                       <TouchableOpacity
                         key={i}
                         testID={`recent-${i}`}
-                        onPress={() => quickSearch(r.from, r.to)}
+                        onPress={() => quickSearch(r)}
                         activeOpacity={0.7}
                         style={[styles.recentRow, { backgroundColor: t.surface, borderColor: t.border }]}
                       >
