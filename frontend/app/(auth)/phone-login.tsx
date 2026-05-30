@@ -17,6 +17,7 @@ import { ArrowLeft, Phone, ShieldCheck, RefreshCw } from 'lucide-react-native';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
+import { translateFirebaseError } from '../../src/core/utils/firebaseErrorHandler';
 
 export default function PhoneLogin() {
   const cs = useColorScheme();
@@ -85,7 +86,7 @@ export default function PhoneLogin() {
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Firebase Phone Auth dispatch failed:', e);
-      setErr(e?.message || 'Failed to trigger verification. Check console and SHA-1 settings.');
+      setErr(translateFirebaseError(e));
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export default function PhoneLogin() {
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Firebase verification check failed:', e);
-      setErr(e?.message || 'Invalid or expired OTP code entered.');
+      setErr(translateFirebaseError(e));
     } finally {
       setLoading(false);
     }
@@ -187,6 +188,7 @@ export default function PhoneLogin() {
                 <View style={[styles.verticalDivider, { backgroundColor: t.border }]} />
                 <TextInput
                   testID="phone-input"
+                  editable={!loading}
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                   placeholder="Mobile Number"
@@ -231,6 +233,7 @@ export default function PhoneLogin() {
                   <TextInput
                     key={idx}
                     ref={(ref) => { otpInputsRef.current[idx] = ref; }}
+                    editable={!loading}
                     value={digit}
                     onChangeText={(text) => handleOtpChange(text, idx)}
                     onKeyPress={(e) => handleOtpKeyPress(e, idx)}

@@ -20,6 +20,7 @@ import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/the
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 
 import auth from '../../src/core/auth/firebaseAdapter';
+import { translateFirebaseError } from '../../src/core/utils/firebaseErrorHandler';
 
 export default function Signup() {
   const cs = useColorScheme();
@@ -80,7 +81,7 @@ export default function Signup() {
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Email signup exception:', e);
-      setErr(e?.message || 'Failed to create user account. Try again.');
+      setErr(translateFirebaseError(e));
     } finally { 
       setLoading(false); 
     }
@@ -122,7 +123,7 @@ export default function Signup() {
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Email status check exception:', e);
-      setErr(e?.message || 'Verification check failed. Please try again.');
+      setErr(translateFirebaseError(e));
     } finally {
       setLoading(false);
     }
@@ -146,7 +147,7 @@ export default function Signup() {
       }
     } catch (e: any) {
       errorH();
-      setErr(e?.message || 'Failed to resend verification link.');
+      setErr(translateFirebaseError(e));
     } finally {
       setLoading(false);
     }
@@ -182,6 +183,7 @@ export default function Signup() {
                 <UserIcon color={t.textSecondary} size={18} />
                 <TextInput 
                   testID="signup-name" 
+                  editable={!loading}
                   value={name} 
                   onChangeText={setName}
                   placeholder="Full name" 
@@ -193,6 +195,7 @@ export default function Signup() {
                 <Mail color={t.textSecondary} size={18} />
                 <TextInput 
                   testID="signup-email" 
+                  editable={!loading}
                   value={email} 
                   onChangeText={setEmail}
                   placeholder="Email" 
@@ -206,6 +209,7 @@ export default function Signup() {
                 <Lock color={t.textSecondary} size={18} />
                 <TextInput 
                   testID="signup-password" 
+                  editable={!loading}
                   value={password} 
                   onChangeText={setPassword}
                   placeholder="Password (min 6)" 

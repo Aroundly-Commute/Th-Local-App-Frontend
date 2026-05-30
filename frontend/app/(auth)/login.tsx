@@ -20,6 +20,7 @@ import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/the
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 
 import auth from '../../src/core/auth/firebaseAdapter';
+import { translateFirebaseError } from '../../src/core/utils/firebaseErrorHandler';
 
 let GoogleSignin: any = null;
 if (Platform.OS !== 'web') {
@@ -68,7 +69,7 @@ export default function Login() {
     } catch (e: any) {
       errorH();
       console.warn('[AUTH] Firebase login failed:', e);
-      setErr(e?.message || 'Invalid email or password');
+      setErr(translateFirebaseError(e));
     } finally { 
       setLoading(false); 
     }
@@ -133,7 +134,7 @@ export default function Login() {
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Google Sign-in failed:', e);
-      setErr(e?.message || 'Google Sign-in was cancelled or failed.');
+      setErr(translateFirebaseError(e));
     } finally { 
       setLoading(false); 
     }
@@ -164,6 +165,7 @@ export default function Login() {
                 <Mail color={t.textSecondary} size={16} />
                 <TextInput
                   testID="login-email"
+                  editable={!loading}
                   value={email}
                   onChangeText={setEmail}
                   placeholder="Email"
@@ -177,6 +179,7 @@ export default function Login() {
                 <Lock color={t.textSecondary} size={16} />
                 <TextInput
                   testID="login-password"
+                  editable={!loading}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Password"

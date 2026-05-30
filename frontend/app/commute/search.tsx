@@ -9,7 +9,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   MapPin, Search as SearchIcon, Calendar, Clock, Users,
-  ArrowDownUp, SlidersHorizontal, ChevronLeft, ChevronRight,
+  ArrowDownUp, SlidersHorizontal, ChevronLeft, ChevronRight, X,
 } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
@@ -104,14 +104,26 @@ function LocationSearchPageModal({
       const { latitude, longitude } = loc.coords;
       let placeName = 'Current Location';
       try {
-        const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
-        if (addresses && addresses.length > 0) {
-          const addr = addresses[0];
-          const namePart = addr.name || addr.street || '';
-          const districtPart = addr.district || addr.subregion || '';
-          const cityPart = addr.city || addr.region || '';
-          const parts = [namePart, districtPart, cityPart].filter(Boolean);
-          placeName = parts.join(', ') || 'Current Location';
+        if (Platform.OS === 'web') {
+          const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+          if (apiKey) {
+            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+              placeName = data.results[0].formatted_address;
+            }
+          }
+        } else {
+          const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (addresses && addresses.length > 0) {
+            const addr = addresses[0];
+            const namePart = addr.name || addr.street || '';
+            const districtPart = addr.district || addr.subregion || '';
+            const cityPart = addr.city || addr.region || '';
+            const parts = [namePart, districtPart, cityPart].filter(Boolean);
+            placeName = parts.join(', ') || 'Current Location';
+          }
         }
       } catch (e) {
         // Fallback
@@ -147,7 +159,7 @@ function LocationSearchPageModal({
             />
             {query ? (
               <TouchableOpacity onPress={() => { setQuery(''); setPredictions([]); }}>
-                <Text style={{ color: t.textSecondary, fontSize: 13, fontWeight: '700' }}>Clear</Text>
+                <X color={t.textSecondary} size={16} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -478,7 +490,28 @@ function DateTimePicker({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={onClose} />
-      <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+      <View style={{
+        backgroundColor: t.surface,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: 40,
+        position: 'absolute',
+        bottom: 0,
+        ...(Platform.OS === 'web' ? {
+          left: '50%',
+          transform: [{ translateX: -250 }],
+          width: 500,
+          borderBottomLeftRadius: 24,
+          borderBottomRightRadius: 24,
+          bottom: '10%',
+          borderRadius: 24,
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+        } : {
+          left: 0,
+          right: 0,
+        })
+      }}>
         <Text style={{ color: t.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 20, textAlign: 'center' }}>
           {mode === 'date' ? 'Select Date' : 'Select Time'}
         </Text>
@@ -576,14 +609,26 @@ export default function Search() {
       success();
 
       try {
-        const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
-        if (addresses && addresses.length > 0) {
-          const addr = addresses[0];
-          const namePart = addr.name || addr.street || '';
-          const districtPart = addr.district || addr.subregion || '';
-          const cityPart = addr.city || addr.region || '';
-          const parts = [namePart, districtPart, cityPart].filter(Boolean);
-          placeName = parts.join(', ') || 'Current Location';
+        if (Platform.OS === 'web') {
+          const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+          if (apiKey) {
+            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+              placeName = data.results[0].formatted_address;
+            }
+          }
+        } else {
+          const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (addresses && addresses.length > 0) {
+            const addr = addresses[0];
+            const namePart = addr.name || addr.street || '';
+            const districtPart = addr.district || addr.subregion || '';
+            const cityPart = addr.city || addr.region || '';
+            const parts = [namePart, districtPart, cityPart].filter(Boolean);
+            placeName = parts.join(', ') || 'Current Location';
+          }
         }
       } catch (e) {
         // Fallback is already handled
@@ -698,16 +743,17 @@ export default function Search() {
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
           {/* Tabs */}
           <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-            <TabBtn testID="tab-find" label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
-            <TabBtn testID="tab-offer" label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
+            <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
+            <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
           </View>
 
           {/* From / To inputs */}
           <View style={{ gap: 8, marginTop: spacing.md, zIndex: 10 }}>
             <TouchableOpacity
+              disabled={loading || locLoading}
               onPress={() => { tap(); setSearchTarget('from'); }}
               activeOpacity={0.8}
-              style={[styles.fakeInputRow, { backgroundColor: t.muted }]}
+              style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
             >
               <View style={[styles.dot, { backgroundColor: t.textPrimary }]} />
               <Text
@@ -722,9 +768,10 @@ export default function Search() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              disabled={loading || locLoading}
               onPress={() => { tap(); setSearchTarget('to'); }}
               activeOpacity={0.8}
-              style={[styles.fakeInputRow, { backgroundColor: t.muted }]}
+              style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
             >
               <View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />
               <Text
@@ -744,8 +791,9 @@ export default function Search() {
             {/* Date picker trigger */}
             <TouchableOpacity
               testID="date-picker-btn"
+              disabled={loading || locLoading}
               onPress={() => { tap(); setShowDatePicker(true); }}
-              style={[styles.filterChip, { borderColor: t.border, flex: 1 }]}
+              style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
             >
               <Calendar color={t.textSecondary} size={13} />
               <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{dateLabel}</Text>
@@ -754,18 +802,20 @@ export default function Search() {
             {/* Time picker trigger */}
             <TouchableOpacity
               testID="time-picker-btn"
+              disabled={loading || locLoading}
               onPress={() => { tap(); setShowTimePicker(true); }}
-              style={[styles.filterChip, { borderColor: t.border, flex: 1 }]}
+              style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
             >
               <Clock color={t.textSecondary} size={13} />
               <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{timeLabel}</Text>
             </TouchableOpacity>
 
             {/* Seats manual input */}
-            <View style={[styles.filterChip, { borderColor: t.border, width: 72 }]}>
+            <View style={[styles.filterChip, { borderColor: t.border, width: 72, opacity: (loading || locLoading) ? 0.6 : 1 }]}>
               <Users color={t.textSecondary} size={13} />
               <TextInput
                 testID="seats-input"
+                editable={!loading && !locLoading}
                 value={seats}
                 onChangeText={setSeats}
                 keyboardType="numeric"
@@ -779,9 +829,10 @@ export default function Search() {
 
           <TouchableOpacity
             testID="search-submit"
+            disabled={loading || locLoading}
             onPress={() => { tap(); submitAction(); }}
             activeOpacity={0.8}
-            style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0 }]}
+            style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0, opacity: (loading || locLoading) ? 0.6 : 1 }]}
           >
             <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
               {mode === 'find' ? 'Search Rides' : 'Create Offer'}
@@ -933,10 +984,10 @@ export default function Search() {
   );
 }
 
-const TabBtn: React.FC<{ label: string; active: boolean; t: Theme; onPress: () => void; testID?: string }>
-  = ({ label, active, t, onPress, testID }) => (
-    <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.8}
-      style={[styles.tabBtn, active && { backgroundColor: t.background }]}>
+const TabBtn: React.FC<{ label: string; active: boolean; t: Theme; onPress: () => void; testID?: string; disabled?: boolean }>
+  = ({ label, active, t, onPress, testID, disabled }) => (
+    <TouchableOpacity testID={testID} disabled={disabled} onPress={onPress} activeOpacity={0.8}
+      style={[styles.tabBtn, active && { backgroundColor: t.background }, disabled && { opacity: 0.6 }]}>
       <Text style={[styles.tabBtnText, { color: active ? t.textPrimary : t.textSecondary, fontWeight: active ? '700' : '500' }]}>{label}</Text>
     </TouchableOpacity>
   );

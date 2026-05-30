@@ -191,8 +191,8 @@ export default function TicketDetails() {
     statusColor = t.error;
     statusBg = t.errorBg;
   } else if (isExpired) {
-    statusColor = t.textSecondary;
-    statusBg = t.muted;
+    statusColor = t.error;
+    statusBg = t.errorBg;
   }
 
   const qrPayload = `gopool://parking/ticket/${booking.id}?spot=${booking.spot.spotName}`;
@@ -206,7 +206,7 @@ export default function TicketDetails() {
         <ViewShot
           ref={viewShotRef}
           options={{ format: 'png', quality: 1.0 }}
-          style={[styles.ticketPassCard, { backgroundColor: t.surface, borderColor: t.border }]}
+          style={[styles.ticketPassCard, { backgroundColor: t.surface, borderColor: isExpired ? t.error : t.border }]}
         >
           {/* Left Cutout Circle overlay */}
           <View style={[styles.ticketCutoutLeft, { backgroundColor: t.background, borderColor: t.border }]} />
