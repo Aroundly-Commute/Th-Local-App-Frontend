@@ -19,7 +19,7 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 
-import auth from '@react-native-firebase/auth';
+import auth from '../../src/core/auth/firebaseAdapter';
 
 export default function Signup() {
   const cs = useColorScheme();

@@ -24,8 +24,20 @@ import {
   AlertCircle,
   QrCode,
 } from 'lucide-react-native';
-import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+
+let ViewShot: any = View;
+let captureRef: any = () => Promise.resolve('');
+
+if (Platform.OS !== 'web') {
+  try {
+    const ViewShotModule = require('react-native-view-shot');
+    ViewShot = ViewShotModule.default;
+    captureRef = ViewShotModule.captureRef;
+  } catch (e) {
+    // Graceful fallback
+  }
+}
 import { api } from '../../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius } from '../../../src/core/theme/theme';
 import { tap, success } from '../../../src/core/utils/haptics';
@@ -104,6 +116,11 @@ export default function TicketDetails() {
   const handleShareTicket = async () => {
     try {
       tap();
+      if (Platform.OS === 'web') {
+        Alert.alert('Info', 'To share your digital parking pass on the web, please take a screenshot or print this page.');
+        return;
+      }
+
       if (!viewShotRef.current) {
         Alert.alert('Error', 'Pass view is not fully rendered yet.');
         return;

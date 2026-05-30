@@ -19,8 +19,16 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 
-import auth from '@react-native-firebase/auth';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import auth from '../../src/core/auth/firebaseAdapter';
+
+let GoogleSignin: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+  } catch (e) {
+    // Gracefully handle dynamic loading fallback
+  }
+}
 
 export default function Login() {
   const cs = useColorScheme();
@@ -35,9 +43,11 @@ export default function Login() {
 
   // Configure native Google Sign-in credentials on boot
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6.apps.googleusercontent.com',
-    });
+    if (Platform.OS !== 'web' && GoogleSignin) {
+      GoogleSignin.configure({
+        webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6.apps.googleusercontent.com',
+      });
+    }
   }, []);
 
   const onLogin = async () => {
@@ -70,29 +80,48 @@ export default function Login() {
     setErr('');
     
     try {
-      console.log('[AUTH] Triggering native Google Sign-in...');
-      
-      // 1. Check for Play Services on Android
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      
-      // 2. Open Google Accounts overlay
-      const signInResult = await GoogleSignin.signIn();
-      const idToken = signInResult.data?.idToken;
-      
-      if (!idToken) {
-        throw new Error('Google Sign-in failed to return an ID Token');
-      }
+      let firebaseIdToken = '';
+      let name = 'Google User';
+      let userEmail = 'google.user@gmail.com';
 
-      console.log('[AUTH] Firebase authenticating Google credential...');
-      
-      // 3. Build credential and log into Firebase client SDK
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(googleCredential);
-      
-      // 4. Extract secure JWT token
-      const firebaseIdToken = await userCredential.user.getIdToken();
-      const name = userCredential.user.displayName || 'Google User';
-      const userEmail = userCredential.user.email || 'google.user@gmail.com';
+      if (Platform.OS === 'web') {
+        console.log('[AUTH] Triggering web Google Sign-in popup...');
+        const { signInWithPopup, GoogleAuthProvider } = require('firebase/auth');
+        const { webAuth } = require('../../src/core/auth/firebaseAdapter.web');
+        const provider = new GoogleAuthProvider();
+        const userCredential = await signInWithPopup(webAuth, provider);
+        
+        firebaseIdToken = await userCredential.user.getIdToken();
+        name = userCredential.user.displayName || 'Google User';
+        userEmail = userCredential.user.email || 'google.user@gmail.com';
+      } else {
+        if (!GoogleSignin) {
+          throw new Error('Native Google Sign-in module is not loaded');
+        }
+        console.log('[AUTH] Triggering native Google Sign-in...');
+        
+        // 1. Check for Play Services on Android
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        
+        // 2. Open Google Accounts overlay
+        const signInResult = await GoogleSignin.signIn();
+        const idToken = signInResult.data?.idToken;
+        
+        if (!idToken) {
+          throw new Error('Google Sign-in failed to return an ID Token');
+        }
+
+        console.log('[AUTH] Firebase authenticating Google credential...');
+        
+        // 3. Build credential and log into Firebase client SDK
+        const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+        const userCredential = await auth().signInWithCredential(googleCredential);
+        
+        // 4. Extract secure JWT token
+        firebaseIdToken = await userCredential.user.getIdToken();
+        name = userCredential.user.displayName || 'Google User';
+        userEmail = userCredential.user.email || 'google.user@gmail.com';
+      }
 
       console.log('[AUTH] Syncing Google session with PostgreSQL...');
       
@@ -103,7 +132,7 @@ export default function Login() {
       router.replace('/(tabs)');
     } catch (e: any) {
       errorH();
-      console.error('[AUTH] Native Google Sign-in failed:', e);
+      console.error('[AUTH] Google Sign-in failed:', e);
       setErr(e?.message || 'Google Sign-in was cancelled or failed.');
     } finally { 
       setLoading(false); 
