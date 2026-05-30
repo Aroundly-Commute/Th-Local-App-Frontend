@@ -235,8 +235,12 @@ export default function Login() {
               <Text style={[styles.socialBtnText, { color: t.textPrimary }]}>Continue with Phone Number</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity testID="goto-signup" onPress={() => { tap(); router.push('/(auth)/signup'); }}
-              style={{ marginTop: spacing.md }}>
+            <TouchableOpacity 
+              testID="goto-signup" 
+              disabled={loading}
+              onPress={() => { tap(); router.push('/(auth)/signup'); }}
+              style={{ marginTop: spacing.md, opacity: loading ? 0.6 : 1 }}
+            >
               <Text style={[styles.link, { color: t.textSecondary }]}>
                 New here? <Text style={{ color: t.textPrimary, fontWeight: '700' }}>Create an account</Text>
               </Text>

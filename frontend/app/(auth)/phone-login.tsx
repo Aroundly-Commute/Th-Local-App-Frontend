@@ -354,6 +354,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
     marginTop: spacing.md,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 360,
   },
   otpBox: {
     flex: 1,
