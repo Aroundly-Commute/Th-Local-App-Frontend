@@ -5,7 +5,6 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  signInWithPhoneNumber,
   updateProfile,
   sendEmailVerification,
   GoogleAuthProvider,
@@ -25,6 +24,58 @@ const firebaseConfig = {
 // Initialize Firebase App for Web if not already initialized
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const webAuth = getAuth(app);
+
+// Keep a cached instance of the invisible reCAPTCHA verifier
+let recaptchaVerifier: any = null;
+
+/**
+ * Dynamically creates a hidden DOM container and instantiates an invisible reCAPTCHA verifier for Web.
+ */
+const getRecaptchaVerifier = () => {
+  if (typeof window === 'undefined') return null;
+
+  if (recaptchaVerifier) return recaptchaVerifier;
+
+  try {
+    // 1. Check/create a hidden recaptcha container on document body
+    let container = document.getElementById('recaptcha-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'recaptcha-container';
+      
+      // Hide the container offscreen invisibly
+      container.style.position = 'fixed';
+      container.style.bottom = '0';
+      container.style.right = '0';
+      container.style.opacity = '0';
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '-99999';
+      
+      document.body.appendChild(container);
+    }
+
+    // 2. Initialize invisible RecaptchaVerifier
+    const { RecaptchaVerifier } = require('firebase/auth');
+    recaptchaVerifier = new RecaptchaVerifier(webAuth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {
+        // reCAPTCHA solved silently
+      },
+      'expired-callback': () => {
+        // reCAPTCHA expired, reset it
+        if (recaptchaVerifier) {
+          recaptchaVerifier.clear();
+          recaptchaVerifier = null;
+        }
+      }
+    });
+
+    return recaptchaVerifier;
+  } catch (error) {
+    console.error('[Firebase Web Auth] Failed to initialize invisible reCAPTCHA:', error);
+    return null;
+  }
+};
 
 // Mirror the Firebase React Native SDK interface structure
 const authWeb = () => {
@@ -125,8 +176,16 @@ const authWeb = () => {
     signOut: async () => {
       await signOut(webAuth);
     },
-    signInWithPhoneNumber: async (phoneNumber: string, applicationVerifier: any) => {
-      const confirmationResult = await signInWithPhoneNumber(webAuth, phoneNumber, applicationVerifier);
+    signInWithPhoneNumber: async (phoneNumber: string) => {
+      // Automatically pull or create the invisible Web reCAPTCHA verifier
+      const verifier = getRecaptchaVerifier();
+      if (!verifier) {
+        throw new Error('Google reCAPTCHA verification is required but failed to initialize.');
+      }
+
+      const { signInWithPhoneNumber: fbSignIn } = require('firebase/auth');
+      const confirmationResult = await fbSignIn(webAuth, phoneNumber, verifier);
+      
       return {
         confirm: async (code: string) => {
           const res = await confirmationResult.confirm(code);
