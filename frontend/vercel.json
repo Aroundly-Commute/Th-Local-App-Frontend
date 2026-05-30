@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/((?!assets/|_expo/|favicon.png|manifest.json|+html.tsx|.*\\..*).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
