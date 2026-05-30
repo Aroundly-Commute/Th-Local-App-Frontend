@@ -40,6 +40,14 @@ export function translateFirebaseError(error: any): string {
   if (code.includes('auth/wrong-password') || message.includes('wrong-password')) {
     return 'Incorrect password entered. Please try again.';
   }
+  if (
+    code.includes('auth/invalid-credential') || 
+    message.includes('invalid-credential') ||
+    code.includes('auth/invalid-credentials') ||
+    message.includes('invalid-credentials')
+  ) {
+    return 'Invalid email or password entered. Please try again.';
+  }
   if (code.includes('auth/email-already-in-use') || message.includes('email-already-in-use')) {
     return 'This email is already registered. Please log in instead.';
   }

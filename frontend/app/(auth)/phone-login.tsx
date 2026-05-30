@@ -165,12 +165,7 @@ export default function PhoneLogin() {
             <ArrowLeft color={t.textPrimary} size={20} />
           </TouchableOpacity>
 
-          {/* Sandbox Helper Alert */}
-          <View style={[styles.sandboxAlert, { backgroundColor: t.muted, borderColor: t.border }]}>
-            <Text style={[styles.sandboxAlertText, { color: t.textSecondary }]}>
-              🔐 <Text style={{ fontWeight: '700', color: t.textPrimary }}>Firebase Free Tier OTP:</Text> Firebase authenticates SMS verification for free! Ensure your SHA-1 key is added in your Firebase Console.
-            </Text>
-          </View>
+
 
           {mode === 'phone' ? (
             // PHONE INPUT LAYOUT

@@ -255,6 +255,12 @@ function DateTimePicker({
   const [tempHour, setTempHour] = useState(() => getISTComponents(value).hour);
   const [tempMin, setTempMin] = useState(() => getISTComponents(value).minute);
 
+  const hourScrollRef = React.useRef<ScrollView>(null);
+  const minScrollRef = React.useRef<ScrollView>(null);
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
+
   useEffect(() => {
     const comps = getISTComponents(value);
     setTempYear(comps.year);
@@ -263,6 +269,22 @@ function DateTimePicker({
     setTempHour(comps.hour);
     setTempMin(comps.minute);
   }, [visible, value]);
+
+  useEffect(() => {
+    if (visible && mode === 'time') {
+      setTimeout(() => {
+        const hourIndex = tempHour; // 0 to 23
+        const minIndex = minutes.indexOf(tempMin); // 0 to 11
+        
+        if (hourScrollRef.current) {
+          hourScrollRef.current.scrollTo({ y: hourIndex * 40, animated: false });
+        }
+        if (minScrollRef.current) {
+          minScrollRef.current.scrollTo({ y: minIndex * 40, animated: false });
+        }
+      }, 150);
+    }
+  }, [visible, mode, tempHour, tempMin]);
 
   const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -402,15 +424,13 @@ function DateTimePicker({
   };
 
   const renderTimeScrollPicker = () => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
-
     return (
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 32, height: 160, marginVertical: 12 }}>
         {/* Hours Scroll */}
         <View style={{ width: 80, alignItems: 'center' }}>
           <Text style={{ color: t.textSecondary, fontSize: 10, fontWeight: '700', marginBottom: 6 }}>HOUR</Text>
           <ScrollView
+            ref={hourScrollRef}
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled
             contentContainerStyle={{ paddingVertical: 40 }}
@@ -451,6 +471,7 @@ function DateTimePicker({
         <View style={{ width: 80, alignItems: 'center' }}>
           <Text style={{ color: t.textSecondary, fontSize: 10, fontWeight: '700', marginBottom: 6 }}>MIN</Text>
           <ScrollView
+            ref={minScrollRef}
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled
             contentContainerStyle={{ paddingVertical: 40 }}
@@ -490,28 +511,7 @@ function DateTimePicker({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={onClose} />
-      <View style={{
-        backgroundColor: t.surface,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        paddingBottom: 40,
-        position: 'absolute',
-        bottom: 0,
-        ...(Platform.OS === 'web' ? {
-          left: '50%',
-          transform: [{ translateX: -250 }],
-          width: 500,
-          borderBottomLeftRadius: 24,
-          borderBottomRightRadius: 24,
-          bottom: '10%',
-          borderRadius: 24,
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
-        } : {
-          left: 0,
-          right: 0,
-        })
-      }}>
+      <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <Text style={{ color: t.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 20, textAlign: 'center' }}>
           {mode === 'date' ? 'Select Date' : 'Select Time'}
         </Text>

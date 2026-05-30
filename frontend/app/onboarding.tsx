@@ -94,6 +94,7 @@ export default function OnboardingScreen() {
               <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <User color={t.textSecondary} size={18} />
                 <TextInput
+                  editable={!loading}
                   placeholder="Enter your name"
                   placeholderTextColor={t.textSecondary}
                   value={name}
@@ -109,6 +110,7 @@ export default function OnboardingScreen() {
               <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <Phone color={t.textSecondary} size={18} />
                 <TextInput
+                  editable={!loading}
                   placeholder="Enter mobile number"
                   placeholderTextColor={t.textSecondary}
                   value={phoneNumber}
@@ -128,6 +130,7 @@ export default function OnboardingScreen() {
                   return (
                     <TouchableOpacity
                       key={g}
+                      disabled={loading}
                       activeOpacity={0.8}
                       onPress={() => {
                         tap();
@@ -138,6 +141,7 @@ export default function OnboardingScreen() {
                         active
                           ? { backgroundColor: t.primary, borderColor: t.primary }
                           : { backgroundColor: t.surface, borderColor: t.border },
+                        loading && { opacity: 0.6 }
                       ]}
                     >
                       <Text
@@ -161,7 +165,7 @@ export default function OnboardingScreen() {
               activeOpacity={0.85}
               onPress={handleSave}
               disabled={loading}
-              style={[styles.cta, { backgroundColor: t.primary }]}
+              style={[styles.cta, { backgroundColor: t.primary, opacity: loading ? 0.6 : 1 }]}
             >
               {loading ? (
                 <ActivityIndicator color={t.primaryContrast} />

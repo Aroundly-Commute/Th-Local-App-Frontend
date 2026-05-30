@@ -192,28 +192,7 @@ function DateTimePicker({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={onClose} />
-      <View style={{
-        backgroundColor: t.surface,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        paddingBottom: 40,
-        position: 'absolute',
-        bottom: 0,
-        ...(Platform.OS === 'web' ? {
-          left: '50%',
-          transform: [{ translateX: -250 }],
-          width: 500,
-          borderBottomLeftRadius: 24,
-          borderBottomRightRadius: 24,
-          bottom: '10%',
-          borderRadius: 24,
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
-        } : {
-          left: 0,
-          right: 0,
-        })
-      }}>
+      <View style={{ backgroundColor: t.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <Text style={{ color: t.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 20, textAlign: 'center' }}>
           Select Date
         </Text>
