@@ -4,29 +4,46 @@ import { Platform } from 'react-native';
 
 // Safe check for Native Firebase Analytics (ensures safe fallback operation on Expo Go)
 let firebaseAnalyticsInstance: any = null;
-try {
-  firebaseAnalyticsInstance = require('@react-native-firebase/analytics').default;
-} catch (e) {
-  // Gracefully falls back in standard Expo Go or unlinked dev environments
+if (Platform.OS !== 'web') {
+  try {
+    firebaseAnalyticsInstance = require('@react-native-firebase/analytics').default;
+  } catch (e) {
+    // Gracefully falls back in standard Expo Go or unlinked dev environments
+  }
 }
 
 // Safe check for Native Firebase Crashlytics
 let crashlyticsInstance: any = null;
-try {
-  crashlyticsInstance = require('@react-native-firebase/crashlytics').default;
-} catch (e) {
-  // Gracefully falls back in standard Expo Go or unlinked dev environments
+if (Platform.OS !== 'web') {
+  try {
+    crashlyticsInstance = require('@react-native-firebase/crashlytics').default;
+  } catch (e) {
+    // Gracefully falls back in standard Expo Go or unlinked dev environments
+  }
+}
+
+// Safe check for Web Firebase Analytics
+let webAnalyticsInstance: any = null;
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  try {
+    const { getAnalytics } = require('firebase/analytics');
+    // Firebase app is already initialized in firebaseAdapter.web.ts, so getAnalytics() will automatically hook in
+    webAnalyticsInstance = getAnalytics();
+  } catch (e) {
+    // Ad-blockers or failed initialization fallback
+    console.warn('[Analytics] Web Firebase Analytics is blocked or not configured:', e);
+  }
 }
 
 export class AnalyticsService {
   private static clientId: string | null = null;
 
   /**
-   * Initializes the native Firebase Analytics engine.
+   * Initializes the appropriate Firebase Analytics engine.
    */
   public static async initialize(): Promise<string> {
     try {
-      if (firebaseAnalyticsInstance) {
+      if (Platform.OS !== 'web' && firebaseAnalyticsInstance) {
         console.log('[Analytics] Initializing native Firebase Analytics...');
         await firebaseAnalyticsInstance().setAnalyticsCollectionEnabled(true);
       }
@@ -40,13 +57,13 @@ export class AnalyticsService {
       this.clientId = cachedId;
       return this.clientId;
     } catch (err) {
-      console.warn('[Analytics] Failed to initialize native Firebase Analytics:', err);
-      return 'native_firebase_analytics_fallback';
+      console.warn('[Analytics] Failed to initialize Firebase Analytics:', err);
+      return 'firebase_analytics_fallback';
     }
   }
 
   /**
-   * Dispatches a custom event natively to Firebase Analytics.
+   * Dispatches a custom event to Firebase Analytics.
    */
   public static async trackEvent(eventName: string, params: Record<string, any> = {}): Promise<void> {
     try {
@@ -62,31 +79,48 @@ export class AnalyticsService {
         app_version: Constants.expoConfig?.version || '1.0.0',
       };
 
-      console.log(`[Analytics] Log Firebase Event: "${sanitizedName}"`, enrichedParams);
+      console.log(`[Analytics] Log Event: "${sanitizedName}"`, enrichedParams);
 
-      if (firebaseAnalyticsInstance) {
-        await firebaseAnalyticsInstance().logEvent(sanitizedName, enrichedParams);
+      if (Platform.OS === 'web') {
+        if (webAnalyticsInstance) {
+          const { logEvent } = require('firebase/analytics');
+          logEvent(webAnalyticsInstance, sanitizedName, enrichedParams);
+        }
+      } else {
+        if (firebaseAnalyticsInstance) {
+          await firebaseAnalyticsInstance().logEvent(sanitizedName, enrichedParams);
+        }
       }
     } catch (err) {
-      console.warn('[Analytics] Failed to log native Firebase Event:', err);
+      console.warn('[Analytics] Failed to log Firebase Event:', err);
     }
   }
 
   /**
-   * Tracks user screen navigations natively in Firebase.
+   * Tracks user screen navigations.
    */
   public static async trackScreen(screenName: string): Promise<void> {
     try {
       console.log(`[Analytics] Log Screen View: "${screenName}"`);
       
-      if (firebaseAnalyticsInstance) {
-        await firebaseAnalyticsInstance().logScreenView({
-          screen_name: screenName,
-          screen_class: screenName,
-        });
+      if (Platform.OS === 'web') {
+        if (webAnalyticsInstance) {
+          const { logEvent } = require('firebase/analytics');
+          logEvent(webAnalyticsInstance, 'screen_view', {
+            screen_name: screenName,
+            screen_class: screenName,
+          });
+        }
+      } else {
+        if (firebaseAnalyticsInstance) {
+          await firebaseAnalyticsInstance().logScreenView({
+            screen_name: screenName,
+            screen_class: screenName,
+          });
+        }
       }
     } catch (err) {
-      console.warn('[Analytics] Failed to log native Screen View:', err);
+      console.warn('[Analytics] Failed to log Screen View:', err);
     }
   }
 
@@ -104,7 +138,7 @@ export class AnalyticsService {
    * Captures exceptions and error states, sending them to Firebase Analytics & Crashlytics.
    */
   public static async trackError(message: string, fatal: boolean = false, extra: Record<string, any> = {}): Promise<void> {
-    // 1. Log native Firebase Analytics Event
+    // 1. Log Google Analytics Event (both Web and Native)
     await this.trackEvent('app_exception', {
       description: message,
       fatal: fatal ? 'true' : 'false',
@@ -112,31 +146,40 @@ export class AnalyticsService {
     });
 
     // 2. Report natively to Firebase Crashlytics
-    try {
-      if (crashlyticsInstance) {
-        const crash = crashlyticsInstance();
-        
-        crash.setAttributes({
-          fatal: fatal ? 'true' : 'false',
-          platform: Platform.OS,
-          os_version: String(Platform.Version),
-          app_version: Constants.expoConfig?.version || '1.0.0',
-          ...extra,
-        });
+    if (Platform.OS !== 'web') {
+      try {
+        if (crashlyticsInstance) {
+          const crash = crashlyticsInstance();
+          
+          crash.setAttributes({
+            fatal: fatal ? 'true' : 'false',
+            platform: Platform.OS,
+            os_version: String(Platform.Version),
+            app_version: Constants.expoConfig?.version || '1.0.0',
+            ...extra,
+          });
 
-        if (this.clientId) {
-          crash.setUserId(this.clientId);
-        }
+          if (this.clientId) {
+            crash.setUserId(this.clientId);
+          }
 
-        // Record custom exception stack trace
-        crash.recordError(new Error(message));
-        
-        if (fatal) {
-          console.warn('[Analytics] Uncaught Fatal Exception recorded in Firebase Crashlytics.');
+          // Record custom exception stack trace
+          crash.recordError(new Error(message));
+          
+          if (fatal) {
+            console.warn('[Analytics] Uncaught Fatal Exception recorded in Firebase Crashlytics.');
+          }
         }
+      } catch (err) {
+        console.warn('[Analytics] Failed to report error to Firebase Crashlytics:', err);
       }
-    } catch (err) {
-      console.warn('[Analytics] Failed to report error to Firebase Crashlytics:', err);
+    } else {
+      // For Web: We leave a console breadcrumb showing the captured exception state
+      console.error(`[Analytics Web Breadcrumb] Non-Fatal Error Captured: "${message}"`, {
+        fatal,
+        client_id: this.clientId,
+        ...extra
+      });
     }
   }
 
@@ -145,11 +188,11 @@ export class AnalyticsService {
    */
   public static triggerMockCrash(): void {
     try {
-      if (crashlyticsInstance) {
+      if (Platform.OS !== 'web' && crashlyticsInstance) {
         console.log('[Analytics] Invoking intentional native crash inside Crashlytics...');
         crashlyticsInstance().crash();
       } else {
-        console.warn('[Analytics] Crashlytics native module is not active. (Are you running in Expo Go?)');
+        console.warn('[Analytics] Crashlytics native module is not active. (Are you running in Web or Expo Go?)');
       }
     } catch (e) {
       console.error('[Analytics] Failed to trigger intentional crashlytics crash:', e);
