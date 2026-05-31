@@ -10,7 +10,8 @@ import {
   Platform, 
   ScrollView, 
   useColorScheme, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Image
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
@@ -173,9 +174,13 @@ export default function Signup() {
 
           {!isVerifyingEmail ? (
             // REGISTRATION DETAILS UI LAYOUT
-            <View style={{ gap: spacing.sm }}>
-              <Text style={[styles.h1, { color: t.textPrimary }]}>Join the green movement</Text>
-              <Text style={[styles.sub, { color: t.textSecondary }]}>
+            <View style={{ gap: spacing.sm, alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={{ width: 180, height: 80, resizeMode: 'contain', marginBottom: 8 }}
+              />
+              <Text style={[styles.h1, { color: t.textPrimary, textAlign: 'center' }]}>Join the green movement</Text>
+              <Text style={[styles.sub, { color: t.textSecondary, textAlign: 'center', marginBottom: spacing.md }]}>
                 Save money. Cut emissions. Meet your community.
               </Text>
 

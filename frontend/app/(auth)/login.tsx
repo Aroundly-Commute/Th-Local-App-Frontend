@@ -10,7 +10,8 @@ import {
   Platform, 
   ScrollView, 
   useColorScheme, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Image
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
@@ -148,12 +149,12 @@ export default function Login() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={{ flex: 1 }}>
-            <View style={[styles.brand, { backgroundColor: t.textPrimary }]}>
-              <Car color={t.background} size={22} strokeWidth={2.2} />
-            </View>
-            <Text style={[styles.brandName, { color: t.textPrimary }]}>Aroundly</Text>
-            <Text style={[styles.tagline, { color: t.textSecondary }]}>Smart carpooling for the modern commuter.</Text>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={{ width: 220, height: 100, resizeMode: 'contain' }}
+            />
+            <Text style={[styles.tagline, { color: t.textSecondary, textAlign: 'center', marginTop: 12 }]}>Smart carpooling for the modern commuter.</Text>
           </View>
 
           <View style={{ gap: 12 }}>
