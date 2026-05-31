@@ -22,13 +22,13 @@ const STORAGE_KEY = '@app_feature_flags';
 
 export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [flags, setFlags] = useState<FeatureFlags>({
-    enableMarketplace: true,
+    enableMarketplace: false,
     enableRideSharing: true,
     enableParking: true,
-    enableYourBadges: true,
-    enableEcoStarter: true,
-    enablePopularRoutes: true,
-    enableInAppLogs: true,
+    enableYourBadges: false,
+    enableEcoStarter: false,
+    enablePopularRoutes: false,
+    enableInAppLogs: false,
   });
   const [loading, setLoading] = useState(true);
 

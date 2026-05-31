@@ -25,6 +25,8 @@ export default function ProfileScreen() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+  const settingsTapCountRef = React.useRef<number>(0);
+  const lastTapRef = React.useRef<number>(0);
   const { user, logout } = useAuth();
   const { registeredRole } = useMarketData();
 
@@ -192,7 +194,21 @@ export default function ProfileScreen() {
                 <TouchableOpacity testID={`menu-${m.label}`} activeOpacity={0.6} onPress={() => {
                   tap();
                   if ((m as any).route) {
-                    router.push((m as any).route);
+                    if ((m as any).route === '/settings') {
+                      const now = Date.now();
+                      if (now - lastTapRef.current > 2000) {
+                        settingsTapCountRef.current = 1;
+                      } else {
+                        settingsTapCountRef.current += 1;
+                      }
+                      lastTapRef.current = now;
+                      if (settingsTapCountRef.current >= 5) {
+                        settingsTapCountRef.current = 0;
+                        router.push('/settings');
+                      }
+                    } else {
+                      router.push((m as any).route);
+                    }
                   }
                 }}
                   style={styles.menuRow}>
