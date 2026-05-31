@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  RefreshControl, Image,
+  RefreshControl,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   MapPin, Users, Calendar, Leaf, Search as SearchIcon,
-  ChevronRight, Star, Clock, Car, Key, Bus, Menu, User
+  ChevronRight, Star, Clock,
 } from 'lucide-react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { useAuth } from '../../../core/auth/auth';
 import { api } from '../../../core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
@@ -17,26 +18,28 @@ import { RideCard } from '../components/RideCard';
 import { tap } from '../../../core/utils/haptics';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
 
-const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuCvOV1jObrq5oK5d_aSWk_-gP08TXZGKy2FQfQTkQOj0b9mZZwD3wAzwAVjoaQTqkoAIOzVgev_y_tWS2PVARwC56wJ2gYaXqwiItduC8hpSxEAN6-zH7ZdPvgSSHSz2MlBEQXovbeP8WK5vYC--cHnTw8sqU7tfqiTtT4st9jWMedWQv18afXKW85OwYm_Dtd4eQ_jUPfEFcqJnevBOq6s-9dkNjB9mx6kUC3swb2Pa9epFywK7yl1hafYTSb_RkCmwwb2g_oOqbLT';
+const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z" fill={color} />
+  </Svg>
+);
 
 const ParkingIcon = ({ color, size }: { color: string; size: number }) => (
-  <View style={{
-    width: size,
-    height: size,
-    borderWidth: 2.5,
-    borderColor: color,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  }}>
-    <Text style={{
-      color: color,
-      fontSize: size * 0.65,
-      fontWeight: '900',
-      lineHeight: size * 0.75,
-      textAlign: 'center',
-    }}>P</Text>
-  </View>
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12.5 3H7v18h3v-6h2.5c3.58 0 6.5-2.92 6.5-6.5S16.08 3 12.5 3zm0 10H10V6h2.5c1.93 0 3.5 1.57 3.5 3.5S14.43 13 12.5 13z" fill={color} />
+  </Svg>
+);
+
+const CarRentalIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v3h3v-3h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill={color} />
+  </Svg>
+);
+
+const PublicTransportIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z" fill={color} />
+  </Svg>
 );
 
 export default function CommuteDashboard() {
@@ -78,103 +81,78 @@ export default function CommuteDashboard() {
   const services = [
     {
       label: 'Car Pooling',
-      icon: Car,
+      icon: CarPoolingIcon,
       onPress: () => router.push('/commute/search'),
     },
     {
       label: 'Parking',
-      icon: null,
+      icon: ParkingIcon,
       onPress: () => router.push('/parking'),
     },
     {
       label: 'Car Rental',
-      icon: Key,
+      icon: CarRentalIcon,
       onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Car Rental' } }),
     },
     {
-      label: 'Transport',
-      icon: Bus,
-      onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Transport' } }),
+      label: 'Public Transport',
+      icon: PublicTransportIcon,
+      onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Public Transport' } }),
     },
   ];
 
   const isDark = cs === 'dark';
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.background }}>
-      {/* Top App Bar Header */}
-      <View style={[styles.header, { backgroundColor: t.background, borderBottomWidth: 1, borderBottomColor: t.border }]}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Menu color={t.textPrimary} size={24} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: t.textPrimary }]}>Aroundly</Text>
-        </View>
+    <ScrollView
+      contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 24 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
+      showsVerticalScrollIndicator={false}
+      stickyHeaderIndices={[2]}
+    >
+      {/* Greeting */}
+      <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
+      <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>
+
+      {/* Quick search */}
+      <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg }}>
         <TouchableOpacity
-          onPress={() => router.push('/settings')}
+          testID="home-search-bar"
+          onPress={() => { tap(); router.push('/commute/search'); }}
           activeOpacity={0.7}
-          style={[styles.profileButton, { borderColor: isDark ? t.border : '#61f8f8' }]}
+          style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
         >
-          <Image
-            source={{ uri: user?.avatar_url || DEFAULT_AVATAR }}
-            style={styles.profileImage}
-          />
+          <SearchIcon color={t.textSecondary} size={18} />
+          <Text style={[styles.searchText, { color: t.textSecondary }]}>Search destination…</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[2]}
-      >
-        {/* Greeting */}
-        <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
-        <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>
-
-        {/* Quick search */}
-        <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg }}>
-          <TouchableOpacity
-            testID="home-search-bar"
-            onPress={() => { tap(); router.push('/commute/search'); }}
-            activeOpacity={0.7}
-            style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
-          >
-            <SearchIcon color={t.textSecondary} size={18} />
-            <Text style={[styles.searchText, { color: t.textSecondary }]}>Search destination…</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Services Grid */}
-        <View style={styles.actions}>
-          {services.map((s) => {
-            const Icon = s.icon;
-            return (
-              <TouchableOpacity
-                key={s.label}
-                testID={`action-${s.label}`}
-                onPress={() => { tap(); s.onPress(); }}
-                activeOpacity={0.75}
-                style={[
-                  styles.actionCard,
-                  {
-                    backgroundColor: isDark ? t.surface : '#FFFFFF',
-                    borderColor: isDark ? t.border : '#61f8f8',
-                  }
-                ]}
-              >
-                <View style={[styles.actionIconContainer, { backgroundColor: isDark ? t.muted : '#eff4ff' }]}>
-                  {Icon ? (
-                    <Icon color={isDark ? t.primary : '#006a6a'} size={24} strokeWidth={2} />
-                  ) : (
-                    <ParkingIcon color={isDark ? t.primary : '#006a6a'} size={24} />
-                  )}
-                </View>
-                <Text style={[styles.actionLabel, { color: t.textPrimary }]}>{s.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      {/* Services Grid */}
+      <View style={styles.actions}>
+        {services.map((s) => {
+          const Icon = s.icon;
+          return (
+            <TouchableOpacity
+              key={s.label}
+              testID={`action-${s.label}`}
+              onPress={() => { tap(); s.onPress(); }}
+              activeOpacity={0.75}
+              style={[
+                styles.actionCard,
+                {
+                  backgroundColor: isDark ? t.surface : '#FFFFFF',
+                  borderColor: isDark ? t.border : '#61f8f8',
+                }
+              ]}
+            >
+              <View style={[styles.actionIconContainer, { backgroundColor: isDark ? t.muted : '#eff4ff' }]}>
+                <Icon color={isDark ? t.primary : '#006a6a'} size={24} />
+              </View>
+              <Text style={[styles.actionLabel, { color: t.textPrimary }]}>{s.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {/* Upcoming ride */}
       {upcoming && (
@@ -256,7 +234,6 @@ export default function CommuteDashboard() {
         </View>
       </View>
     </ScrollView>
-    </View>
   );
 }
 

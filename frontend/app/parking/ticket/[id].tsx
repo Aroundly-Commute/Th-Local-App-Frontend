@@ -136,7 +136,7 @@ export default function TicketDetails() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: 'Share GoPool Digital Parking Pass',
+          dialogTitle: 'Share Aroundly Digital Parking Pass',
           UTI: 'public.png',
         });
       } else {
@@ -195,7 +195,7 @@ export default function TicketDetails() {
     statusBg = t.errorBg;
   }
 
-  const qrPayload = `gopool://parking/ticket/${booking.id}?spot=${booking.spot.spotName}`;
+  const qrPayload = `aroundly://parking/ticket/${booking.id}?spot=${booking.spot.spotName}`;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>

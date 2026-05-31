@@ -152,7 +152,7 @@ export default function Login() {
             <View style={[styles.brand, { backgroundColor: t.textPrimary }]}>
               <Car color={t.background} size={22} strokeWidth={2.2} />
             </View>
-            <Text style={[styles.brandName, { color: t.textPrimary }]}>GoPool</Text>
+            <Text style={[styles.brandName, { color: t.textPrimary }]}>Aroundly</Text>
             <Text style={[styles.tagline, { color: t.textSecondary }]}>Smart carpooling for the modern commuter.</Text>
           </View>
 

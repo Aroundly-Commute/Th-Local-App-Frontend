@@ -14,7 +14,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "GoPool needs access to your location to find rides and parking spots nearby."
+        "NSLocationWhenInUseUsageDescription": "Aroundly needs access to your location to find rides and parking spots nearby."
       }
     },
     "android": {

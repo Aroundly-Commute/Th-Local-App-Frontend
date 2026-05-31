@@ -534,7 +534,7 @@ export default function ParkingHub() {
           >
             <ChevronLeft color={t.isDark ? '#00D4BC' : '#0A1628'} size={18} strokeWidth={2.8} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: t.textPrimary }]}>GoPool Parking Hub</Text>
+          <Text style={[styles.headerTitle, { color: t.textPrimary }]}>Aroundly Parking Hub</Text>
         </View>
         {!isBookingMode && !showTicketView && (
           <TouchableOpacity style={styles.refreshBtn} onPress={() => { tap(); loadData(); }}>
@@ -653,7 +653,7 @@ export default function ParkingHub() {
                       <Text style={{ fontSize: 11, fontWeight: '700', color: t.success, marginBottom: 4 }}>
                         ✓ RESERVATION CONFIRMED PASS
                       </Text>
-                      {renderQRCode("gopool://parking/ticket/" + bk.id + "?spot=" + bk.spot.spotName)}
+                      {renderQRCode("aroundly://parking/ticket/" + bk.id + "?spot=" + bk.spot.spotName)}
                       <Text style={{ fontSize: 8, color: t.textTertiary, letterSpacing: 2, marginTop: 4 }}>
                         ID: {bk.id.substring(0, 18).toUpperCase()}
                       </Text>

@@ -225,7 +225,7 @@ export default function ProfileScreen() {
           <Text style={[styles.logoutText, { color: t.error }]}>Log Out</Text>
         </TouchableOpacity>
 
-        <Text style={[styles.version, { color: t.textTertiary }]}>GoPool v1.0.0</Text>
+        <Text style={[styles.version, { color: t.textTertiary }]}>Aroundly v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

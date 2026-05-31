@@ -17,7 +17,7 @@ export default function Index() {
     if (user) {
       // Check if user has completed onboarding process, or already has both name and phone configured (so they aren't brand-new)
       AsyncStorage.getItem(`onboarded_${user.id}`).then((val) => {
-        const isAlreadyConfigured = user.name && !user.name.startsWith('GoPooler') && user.phoneNumber;
+        const isAlreadyConfigured = user.name && !user.name.startsWith('Aroundler') && user.phoneNumber;
         if (val === 'true' || isAlreadyConfigured) {
           if (isAlreadyConfigured) {
             AsyncStorage.setItem(`onboarded_${user.id}`, 'true').catch(() => {});

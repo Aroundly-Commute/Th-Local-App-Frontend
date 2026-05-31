@@ -81,7 +81,7 @@ export default function OnboardingScreen() {
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={[styles.title, { color: t.textPrimary }]}>Welcome to GoPool!</Text>
+            <Text style={[styles.title, { color: t.textPrimary }]}>Welcome to Aroundly!</Text>
             <Text style={[styles.subtitle, { color: t.textSecondary }]}>
               Let's complete your profile settings so you can start pooling with your community.
             </Text>
