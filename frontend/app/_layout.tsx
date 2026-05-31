@@ -9,6 +9,7 @@ import { MarketDataProvider } from '../src/modules/marketplace/contexts/MarketDa
 import { useColorScheme, BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
+export { ErrorBoundary };
 import { Terminal } from 'lucide-react-native';
 import { LogViewerModal } from '../src/core/components/LogViewerModal';
 import '../src/services/logger'; // Boot up console interception immediately
