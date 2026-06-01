@@ -6,7 +6,7 @@ import { AuthProvider } from '../src/core/auth/auth';
 import { CartProvider } from '../src/modules/marketplace/contexts/CartContext';
 import { OrderProvider } from '../src/modules/marketplace/contexts/OrderContext';
 import { MarketDataProvider } from '../src/modules/marketplace/contexts/MarketDataContext';
-import { useColorScheme, BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
 export { ErrorBoundary };
@@ -105,7 +105,6 @@ function AppNavigationWrapper() {
 }
 
 export default function RootLayout() {
-  const cs = useColorScheme();
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
@@ -115,7 +114,7 @@ export default function RootLayout() {
               <MarketDataProvider>
                 <CartProvider>
                   <OrderProvider>
-                    <StatusBar style={cs === 'dark' ? 'light' : 'dark'} />
+                    <StatusBar style="dark" />
                     <AppNavigationWrapper />
                     <CustomAlertProvider />
                   </OrderProvider>
