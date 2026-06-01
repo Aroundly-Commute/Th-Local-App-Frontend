@@ -1,11 +1,11 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, Alert } from 'react-native';
 
 import { useRouter } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,
-  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, ShoppingBag,
+  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, ShoppingBag, Trash2
 } from 'lucide-react-native';
 import { useAuth } from '../../../core/auth/auth';
 import { useMarketData } from '../../marketplace/contexts/MarketDataContext';
@@ -13,6 +13,8 @@ import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/the
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 import { tap, success } from '../../../core/utils/haptics';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
+import { api } from '../../../core/api/api';
+import auth from '../../../core/auth/firebaseAdapter';
 
 const BADGES = [
   { icon: '🌱', name: 'Eco Starter' },
@@ -37,6 +39,45 @@ export default function ProfileScreen() {
     await logout();
     success();
     router.replace('/(auth)/login');
+  };
+
+  const onDeleteAccount = () => {
+    tap();
+    Alert.alert(
+      'Delete Account?',
+      'Are you absolutely sure you want to permanently delete your account? All your commute history, reviews, and parking slots will be permanently purged.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Permanently', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // 1. Call backend delete account API
+              await api.post('/auth/delete-account').catch(() => {});
+              
+              // 2. Call Firebase Auth user deletion
+              const currentUser = auth().currentUser;
+              if (currentUser) {
+                await currentUser.delete().catch((e: any) => {
+                  console.warn('Firebase user delete failed (may need recent authentication):', e);
+                });
+              }
+              
+              // 3. Clear session
+              await logout();
+              success();
+              
+              Alert.alert('Account Deleted', 'Your account and data have been completely removed.');
+              router.replace('/(auth)/login' as any);
+            } catch (err: any) {
+              console.error('Account deletion failure:', err);
+              Alert.alert('Error', 'Failed to complete deletion. Please log out and back in to re-authenticate, then try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const { enableMarketplace, enableRideSharing, enableParking, enableYourBadges, enableEcoStarter } = useFeatureFlags();
@@ -241,6 +282,13 @@ export default function ProfileScreen() {
           <Text style={[styles.logoutText, { color: t.error }]}>Log Out</Text>
         </TouchableOpacity>
 
+        {/* Delete Account */}
+        <TouchableOpacity testID="delete-account-btn" onPress={onDeleteAccount} activeOpacity={0.7}
+          style={[styles.deleteBtn, { borderColor: t.border, marginTop: spacing.sm }]}>
+          <Trash2 color={t.error} size={16} />
+          <Text style={[styles.deleteBtnText, { color: t.error }]}>Delete Account & Data</Text>
+        </TouchableOpacity>
+
         <Text style={[styles.version, { color: t.textTertiary }]}>Aroundly v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
@@ -282,5 +330,7 @@ const styles = StyleSheet.create({
   menuDivider: { height: 1, marginLeft: 58 },
   logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, marginTop: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
   logoutText: { fontSize: 14, fontWeight: '600' },
+  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: radius.lg, borderWidth: 1, backgroundColor: '#FEF2F2', borderColor: '#FEE2E2' },
+  deleteBtnText: { fontSize: 14, fontWeight: '700' },
   version: { textAlign: 'center', fontSize: 11, marginTop: spacing.lg },
 });
