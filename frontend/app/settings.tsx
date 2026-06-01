@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf, Terminal } from 'lucide-react-native';
+import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf, Terminal, Shield } from 'lucide-react-native';
 import { useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
 import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
 import { tap } from '../src/core/utils/haptics';
@@ -216,9 +216,23 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+        {/* Legal & Privacy Section */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => { tap(); router.push('/privacy' as any); }}
+          style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}
+        >
+          <Shield color={t.primary} size={20} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.infoTitle, { color: t.textPrimary }]}>Privacy Policy</Text>
+            <Text style={[styles.infoDesc, { color: t.textSecondary }]}>
+              Read our official Privacy Notice to understand how we collect, store, and protect your data.
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Warning info card */}
-        <View style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.lg }]}>
+        <View style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
           <ShieldAlert color="#EF4444" size={20} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.infoTitle, { color: t.textPrimary }]}>Dynamic Real-time Refresh</Text>

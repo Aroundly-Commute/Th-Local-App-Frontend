@@ -261,6 +261,17 @@ export default function Signup() {
                   <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Create account</Text>
                 )}
               </TouchableOpacity>
+
+              <Text style={{ fontSize: 12, color: t.textSecondary, textAlign: 'center', marginTop: 16, lineHeight: 18 }}>
+                By signing up, you agree to our{' '}
+                <Text 
+                  style={{ color: t.primary, fontWeight: '700', textDecorationLine: 'underline' }}
+                  onPress={() => { tap(); router.push('/privacy' as any); }}
+                >
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
             </View>
           ) : (
             // EMAIL VERIFICATION OTP PENDING UI LAYOUT
