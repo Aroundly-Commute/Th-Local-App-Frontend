@@ -1,9 +1,9 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users } from 'lucide-react-native';
+import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users, RefreshCw } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
@@ -18,18 +18,26 @@ export default function Rides() {
   const router = useRouter();
   const [tab, setTab] = useState<'upcoming' | 'requested' | 'past'>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
+  const [limit, setLimit] = useState(10);
 
+  // Dynamic cache key that depends on the pagination limit
   const { data: res, loading: cacheLoading, refresh } = useCachedData(
-    'my_rides',
+    `my_rides_${limit}`,
     useCallback(async () => {
-      const { data } = await api.get('/rides/my');
+      const { data } = await api.get(`/rides/my?page=1&limit=${limit}`);
       return data;
-    }, [])
+    }, [limit])
   );
 
   const upcomingList = res?.upcoming || [];
   const requestedList = res?.requested || [];
   const pastList = res?.past || [];
+
+  const totalUpcomingCount = res?.totalUpcomingCount ?? upcomingList.length;
+  const totalRequestedCount = res?.totalRequestedCount ?? requestedList.length;
+  const totalPastCount = res?.totalPastCount ?? pastList.length;
+
+  const hasMore = tab === 'upcoming' ? res?.hasMoreUpcoming : tab === 'requested' ? res?.hasMoreRequested : res?.hasMorePast;
 
   const loading = cacheLoading && !res;
 
@@ -52,21 +60,43 @@ export default function Rides() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title="My Rides" />
+      <ScreenHeader 
+        title="My Rides" 
+        rightComponent={Platform.OS === 'web' ? (
+          <TouchableOpacity 
+            onPress={handleRefresh} 
+            disabled={refreshing}
+            activeOpacity={0.7} 
+            style={{ 
+              padding: 6, 
+              borderRadius: 18, 
+              backgroundColor: t.muted,
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color={t.primary} />
+            ) : (
+              <RefreshCw color={t.textPrimary} size={14} />
+            )}
+          </TouchableOpacity>
+        ) : undefined}
+      />
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12 }}>
         <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-          <TabBtn testID="tab-upcoming" label="Upcoming" count={upcomingList.length}
+          <TabBtn testID="tab-upcoming" label="Upcoming" count={totalUpcomingCount}
             active={tab === 'upcoming'} t={t} onPress={() => { tap(); setTab('upcoming'); }} />
-          <TabBtn testID="tab-requested" label="Requested" count={requestedList.length}
+          <TabBtn testID="tab-requested" label="Requested" count={totalRequestedCount}
             active={tab === 'requested'} t={t} onPress={() => { tap(); setTab('requested'); }} />
-          <TabBtn testID="tab-past" label="Past" count={pastList.length}
+          <TabBtn testID="tab-past" label="Past" count={totalPastCount}
             active={tab === 'past'} t={t} onPress={() => { tap(); setTab('past'); }} />
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140, gap: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} />}
+        refreshControl={Platform.OS !== 'web' ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} /> : undefined}
       >
         {loading ? (
           <>
@@ -93,9 +123,22 @@ export default function Rides() {
               </TouchableOpacity>
             )}
           </View>
-        ) : list.map((r) => (
-          <RideCardExt key={`${r.id}-${r.role}-${r.request_id || ''}`} r={r} t={t} isPast={tab === 'past'} isRequested={tab === 'requested'} router={router} />
-        ))}
+        ) : (
+          <>
+            {list.map((r: any) => (
+              <RideCardExt key={`${r.id}-${r.role}-${r.request_id || ''}`} r={r} t={t} isPast={tab === 'past'} isRequested={tab === 'requested'} router={router} />
+            ))}
+            {hasMore && (
+              <TouchableOpacity
+                onPress={() => { tap(); setLimit(prev => prev + 10); }}
+                activeOpacity={0.8}
+                style={[styles.showMoreBtn, { backgroundColor: t.surface, borderColor: t.border }]}
+              >
+                <Text style={[styles.showMoreText, { color: t.textPrimary }]}>Show More</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -274,4 +317,17 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: '700', marginTop: 8 },
   emptyHint: { fontSize: 13, textAlign: 'center' },
   emptyCta: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md },
+  showMoreBtn: {
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  RefreshControl, Dimensions,
+  RefreshControl, Dimensions, Platform, ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   MapPin, Users, Calendar, Leaf, Search as SearchIcon,
-  ChevronRight, Star, Clock,
+  ChevronRight, Star, Clock, RefreshCw,
 } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { useAuth } from '../../../core/auth/auth';
@@ -143,13 +143,41 @@ export default function CommuteDashboard() {
   return (
     <ScrollView
       contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} />}
+      refreshControl={Platform.OS !== 'web' ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} /> : undefined}
       showsVerticalScrollIndicator={false}
       stickyHeaderIndices={[2]}
     >
-      {/* Greeting */}
-      <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
-      <Text style={[styles.title, { color: t.textPrimary }]}>Where to today?</Text>
+      {/* Greeting & Header Sync for Web */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
+          <Text style={[styles.title, { color: t.textPrimary, marginBottom: 0 }]}>Where to today?</Text>
+        </View>
+        {Platform.OS === 'web' && (
+          <TouchableOpacity
+            onPress={handleRefresh}
+            disabled={refreshing}
+            activeOpacity={0.7}
+            style={{
+              padding: 10,
+              borderRadius: 20,
+              backgroundColor: t.muted,
+              borderColor: t.border,
+              borderWidth: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: 40,
+              height: 40,
+            }}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color={t.primary} />
+            ) : (
+              <RefreshCw color={t.textPrimary} size={16} />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Quick search */}
       <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg }}>
@@ -204,7 +232,7 @@ export default function CommuteDashboard() {
             style={{ marginHorizontal: -spacing.lg }}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
           >
-            {upcomingRides.map((rideItem) => (
+            {upcomingRides.map((rideItem: any) => (
               <TouchableOpacity
                 key={rideItem.id}
                 testID={`home-upcoming-${rideItem.id}`}
@@ -294,7 +322,7 @@ export default function CommuteDashboard() {
               style={{ marginHorizontal: -spacing.lg }}
               contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
             >
-              {nearbyRides.map((r) => (
+              {nearbyRides.map((r: any) => (
                 <RideCard
                   key={r.id}
                   ride={r}
