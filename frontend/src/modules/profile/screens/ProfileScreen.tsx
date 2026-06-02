@@ -2,7 +2,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, Alert } from 'react-native';
 
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,
   ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, ShoppingBag, Trash2
@@ -29,8 +29,14 @@ export default function ProfileScreen() {
   const router = useRouter();
   const settingsTapCountRef = React.useRef<number>(0);
   const lastTapRef = React.useRef<number>(0);
-  const { user, logout } = useAuth();
+  const { user, logout, refresh } = useAuth();
   const { registeredRole } = useMarketData();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refresh().catch(() => {});
+    }, [refresh])
+  );
 
   if (!user) return null;
 
