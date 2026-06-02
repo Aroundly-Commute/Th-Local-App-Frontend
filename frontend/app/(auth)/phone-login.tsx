@@ -18,6 +18,7 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { translateFirebaseError } from '../../src/core/utils/firebaseErrorHandler';
+import { validatePhoneNumber } from '../../src/core/utils/validation';
 
 export default function PhoneLogin() {
   const cs = useColorScheme();
@@ -55,7 +56,18 @@ export default function PhoneLogin() {
 
   // Handles requesting the Firebase SMS OTP
   const onRequestOtp = async () => {
-    if (!phoneNumber || phoneNumber.trim().length < 10) {
+    let formattedPhone = phoneNumber.trim();
+    if (!formattedPhone && formattedPhone.length === 0) {
+      setErr('Please enter a phone number');
+      errorH();
+      return;
+    }
+
+    if (!formattedPhone.startsWith('+')) {
+      formattedPhone = `+91${formattedPhone}`;
+    }
+
+    if (!validatePhoneNumber(formattedPhone)) {
       setErr('Please enter a valid phone number');
       errorH();
       return;
@@ -65,12 +77,6 @@ export default function PhoneLogin() {
     setLoading(true);
     setErr('');
     setSuccessMsg('');
-
-    // Format to E.164 country code format. Defaults to +91 (India)
-    let formattedPhone = phoneNumber.trim();
-    if (!formattedPhone.startsWith('+')) {
-      formattedPhone = `+91${formattedPhone}`;
-    }
 
     try {
       console.log(`[AUTH] Initiating native Firebase Phone SMS to: ${formattedPhone}...`);

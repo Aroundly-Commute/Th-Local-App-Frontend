@@ -22,6 +22,7 @@ import { api } from '../src/core/api/api';
 import { ScreenHeader } from '../src/core/components/ScreenHeader';
 import { VerifiedAvatar } from '../src/core/components/VerifiedAvatar';
 import { Alert } from '../src/core/components/CustomAlert';
+import { validatePhoneNumber } from '../src/core/utils/validation';
 
 export default function EditProfileScreen() {
   const cs = useColorScheme();
@@ -60,6 +61,16 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     if (!name.trim()) {
       setErrorMsg('Please enter your name');
+      errorH();
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      setErrorMsg('Please enter your mobile number');
+      errorH();
+      return;
+    }
+    if (!validatePhoneNumber(phoneNumber)) {
+      setErrorMsg('Please enter a valid mobile number');
       errorH();
       return;
     }

@@ -20,6 +20,7 @@ import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme'
 import { tap, success, errorH } from '../src/core/utils/haptics';
 import { api } from '../src/core/api/api';
 import { Alert } from '../src/core/components/CustomAlert';
+import { validatePhoneNumber } from '../src/core/utils/validation';
 
 export default function OnboardingScreen() {
   const cs = useColorScheme();
@@ -41,6 +42,11 @@ export default function OnboardingScreen() {
     }
     if (!phoneNumber.trim()) {
       setErrorMsg('Please enter your mobile number');
+      errorH();
+      return;
+    }
+    if (!validatePhoneNumber(phoneNumber)) {
+      setErrorMsg('Please enter a valid mobile number');
       errorH();
       return;
     }

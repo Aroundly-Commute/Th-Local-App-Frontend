@@ -4,12 +4,13 @@ import { Star, Leaf, Clock } from 'lucide-react-native';
 import { Theme, radius, spacing } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 
-export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; testID?: string; compact?: boolean }> = ({
+export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; testID?: string; compact?: boolean; style?: any }> = ({
   ride,
   t,
   onPress,
   testID,
   compact,
+  style,
 }) => {
   // Map fields from both Python and NestJS backends
   const driverName = ride.driver_name || ride.driverName || 'Unknown';
@@ -29,15 +30,15 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
   const finalPrice = estimatedFare ? estimatedFare.finalFare : price;
   const displayCurrency = '₹';
   const co2 = ride.co2_saved_kg ?? 0;
-
+ 
   const time = new Date(departureTime);
   const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
   
   const vehicle = ride.driver_vehicle || ride.vehicle;
-
+ 
   return (
     <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.7}
-      style={[s.card, { backgroundColor: t.surface, borderColor: t.border }]}>
+      style={[s.card, { backgroundColor: t.surface, borderColor: t.border }, style]}>
       <View style={s.row}>
         <VerifiedAvatar uri={driverAvatar} name={driverName} verified={driverVerified} t={t} size={44} />
         <View style={{ flex: 1, marginLeft: 12 }}>

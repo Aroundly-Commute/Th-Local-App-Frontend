@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  RefreshControl,
+  RefreshControl, Dimensions,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -69,14 +69,24 @@ export default function CommuteDashboard() {
         api.get('/rides/my'),
       ]);
       setStats(s.data);
-      setRides(r.data.slice(0, 3));
+      setRides(r.data.slice(0, 5));
       setMyRides(m.data);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const upcoming = myRides.upcoming?.[0];
+  const upcomingRides = (myRides.upcoming || []).slice(0, 5);
+  const nearbyRides = (rides || []).slice(0, 5);
+
+  const { width: screenWidth } = Dimensions.get('window');
+  const containerWidth = screenWidth - spacing.lg * 2;
+
+  const hasMultipleUpcoming = upcomingRides.length > 1;
+  const upcomingCardWidth = hasMultipleUpcoming ? containerWidth * 0.85 : containerWidth;
+
+  const hasMultipleNearby = nearbyRides.length > 1;
+  const nearbyCardWidth = hasMultipleNearby ? containerWidth * 0.85 : containerWidth;
 
   const services = [
     {
@@ -155,67 +165,121 @@ export default function CommuteDashboard() {
       </View>
 
       {/* Upcoming ride */}
-      {upcoming && (
+      {upcomingRides.length > 0 && (
         <>
           <SectionHeader t={t} title="Upcoming Ride" actionLabel="View all" onAction={() => router.push('/commute/rides')} />
-          <TouchableOpacity
-            testID="home-upcoming"
-            activeOpacity={0.8}
-            onPress={() => { tap(); router.push(`/ride/${upcoming.id}` as any); }}
-            style={[styles.upcomingCard, { backgroundColor: t.textPrimary }]}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={upcomingCardWidth + 12}
+            snapToAlignment="start"
+            style={{ marginHorizontal: -spacing.lg }}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <VerifiedAvatar uri={upcoming.driver_avatar} name={upcoming.driver_name} verified={upcoming.driver_verified} t={{ ...t, background: '#333' } as Theme} size={44} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.upcomingName, { color: t.background }]}>{upcoming.driver_name}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                  <Star color={t.warning} size={12} fill={t.warning} />
-                  <Text style={[styles.upcomingMeta, { color: t.background, opacity: 0.7 }]}>
-                    {upcoming.driver_rating?.toFixed(1)}
-                  </Text>
+            {upcomingRides.map((rideItem) => (
+              <TouchableOpacity
+                key={rideItem.id}
+                testID={`home-upcoming-${rideItem.id}`}
+                activeOpacity={0.8}
+                onPress={() => { tap(); router.push(`/ride/${rideItem.id}` as any); }}
+                style={[
+                  styles.upcomingCard,
+                  {
+                    backgroundColor: t.textPrimary,
+                    width: upcomingCardWidth,
+                  },
+                ]}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <VerifiedAvatar
+                    uri={rideItem.driver_avatar}
+                    name={rideItem.driver_name}
+                    verified={rideItem.driver_verified}
+                    t={{ ...t, background: '#333' } as Theme}
+                    size={44}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.upcomingName, { color: t.background }]} numberOfLines={1}>
+                      {rideItem.driver_name}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Star color={t.warning} size={12} fill={t.warning} />
+                      <Text style={[styles.upcomingMeta, { color: t.background, opacity: 0.7 }]}>
+                        {rideItem.driver_rating?.toFixed(1) ?? '5.0'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.todayPill, { backgroundColor: t.background }]}>
+                    <Text style={[styles.todayText, { color: t.textPrimary }]}>
+                      {new Date(rideItem.departure_time).toLocaleDateString([], { weekday: 'short' })}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <View style={[styles.todayPill, { backgroundColor: t.background }]}>
-                <Text style={[styles.todayText, { color: t.textPrimary }]}>
-                  {new Date(upcoming.departure_time).toLocaleDateString([], { weekday: 'short' })}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.upcomingRoute}>
-              <View style={{ flex: 1, gap: 6 }}>
-                <Text style={[styles.upcomingLoc, { color: t.background }]} numberOfLines={1}>{upcoming.origin}</Text>
-                <Text style={[styles.upcomingLoc, { color: t.background, opacity: 0.6 }]} numberOfLines={1}>
-                  → {upcoming.destination}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Clock color={t.background} size={12} />
-                  <Text style={[styles.upcomingMeta, { color: t.background }]}>
-                    {new Date(upcoming.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
+                <View style={styles.upcomingRoute}>
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <Text style={[styles.upcomingLoc, { color: t.background }]} numberOfLines={1}>
+                      {rideItem.origin}
+                    </Text>
+                    <Text style={[styles.upcomingLoc, { color: t.background, opacity: 0.6 }]} numberOfLines={1}>
+                      → {rideItem.destination}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Clock color={t.background} size={12} />
+                      <Text style={[styles.upcomingMeta, { color: t.background }]}>
+                        {new Date(rideItem.departure_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                    <Text style={[styles.upcomingPrice, { color: t.background }]}>
+                      ${rideItem.price_per_seat.toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={[styles.upcomingPrice, { color: t.background }]}>${upcoming.price_per_seat.toFixed(2)}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </>
       )}
 
       {/* Nearby rides */}
-      <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push('/commute/search')} />
-      {loading ? (
-        <View style={{ gap: 12 }}>
-          <Shimmer style={{ height: 150, borderRadius: radius.lg }} />
-          <Shimmer style={{ height: 150, borderRadius: radius.lg }} />
-        </View>
-      ) : (
-        <View style={{ gap: 12 }}>
-          {rides.map((r) => (
-            <RideCard key={r.id} ride={r} t={t} testID={`home-ride-${r.id}`}
-              onPress={() => { tap(); router.push(`/ride/${r.id}` as any); }} />
-          ))}
-        </View>
+      {(loading || (nearbyRides && nearbyRides.length > 0)) && (
+        <>
+          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push('/commute/search')} />
+          {loading ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginHorizontal: -spacing.lg }}
+              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
+            >
+              <Shimmer style={{ width: nearbyCardWidth, height: 150, borderRadius: radius.lg }} />
+              <Shimmer style={{ width: nearbyCardWidth, height: 150, borderRadius: radius.lg }} />
+            </ScrollView>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={nearbyCardWidth + 12}
+              snapToAlignment="start"
+              style={{ marginHorizontal: -spacing.lg }}
+              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
+            >
+              {nearbyRides.map((r) => (
+                <RideCard
+                  key={r.id}
+                  ride={r}
+                  t={t}
+                  testID={`home-ride-${r.id}`}
+                  onPress={() => { tap(); router.push(`/ride/${r.id}` as any); }}
+                  style={{ width: nearbyCardWidth }}
+                />
+              ))}
+            </ScrollView>
+          )}
+        </>
       )}
 
       {/* Impact stats */}

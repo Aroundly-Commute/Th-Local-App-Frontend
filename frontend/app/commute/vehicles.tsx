@@ -21,6 +21,7 @@ import { Alert } from '../../src/core/components/CustomAlert';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { AnalyticsService } from '../../src/core/services/analytics';
+import { validateVehicleNumber } from '../../src/core/utils/validation';
 
 export default function Vehicles() {
   const cs = useColorScheme();
@@ -75,6 +76,13 @@ export default function Vehicles() {
       errorH();
       AnalyticsService.trackWarning('Vehicle Validation Failed: Missing Plate').catch(() => {});
       Alert.alert('Validation Error', 'Please enter your vehicle license plate number.');
+      return;
+    }
+
+    if (!validateVehicleNumber(vehicleNumber)) {
+      errorH();
+      AnalyticsService.trackWarning('Vehicle Validation Failed: Invalid Plate Format').catch(() => {});
+      Alert.alert('Validation Error', 'Please enter a valid vehicle license plate number (e.g. DL 3C AY 9876 or 22BH5015A).');
       return;
     }
 

@@ -306,7 +306,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: '#0F172A',
-    outlineStyle: 'none',
   },
   textArea: {
     height: 80,
