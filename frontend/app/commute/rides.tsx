@@ -10,48 +10,63 @@ import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { Shimmer } from '../../src/core/components/Shimmer';
 import { tap } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
+import { useCachedData } from '../../src/core/services/cache';
 
 export default function Rides() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const [tab, setTab] = useState<'upcoming' | 'requested' | 'past'>('upcoming');
-  const [data, setData] = useState<{ upcoming: any[]; past: any[]; requested: any[] }>({ upcoming: [], past: [], requested: [] });
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const { data: res, loading: cacheLoading, refresh } = useCachedData(
+    'my_rides',
+    useCallback(async () => {
+      const { data } = await api.get('/rides/my');
+      return data;
+    }, [])
+  );
+
+  const upcomingList = res?.upcoming || [];
+  const requestedList = res?.requested || [];
+  const pastList = res?.past || [];
+
+  const loading = cacheLoading && !res;
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const { data: res } = await api.get('/rides/my');
-      setData({
-        upcoming: res.upcoming || [],
-        past: res.past || [],
-        requested: res.requested || [],
-      });
-    } catch {} finally { setLoading(false); setRefreshing(false); }
-  }, []);
+      await refresh();
+    } catch {} finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      refresh().catch(() => {});
+    }, [refresh])
+  );
 
-  const list = tab === 'upcoming' ? data.upcoming : tab === 'requested' ? data.requested : data.past;
+  const list = tab === 'upcoming' ? upcomingList : tab === 'requested' ? requestedList : pastList;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <ScreenHeader title="My Rides" />
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12 }}>
         <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-          <TabBtn testID="tab-upcoming" label="Upcoming" count={data.upcoming.length}
+          <TabBtn testID="tab-upcoming" label="Upcoming" count={upcomingList.length}
             active={tab === 'upcoming'} t={t} onPress={() => { tap(); setTab('upcoming'); }} />
-          <TabBtn testID="tab-requested" label="Requested" count={data.requested.length}
+          <TabBtn testID="tab-requested" label="Requested" count={requestedList.length}
             active={tab === 'requested'} t={t} onPress={() => { tap(); setTab('requested'); }} />
-          <TabBtn testID="tab-past" label="Past" count={data.past.length}
+          <TabBtn testID="tab-past" label="Past" count={pastList.length}
             active={tab === 'past'} t={t} onPress={() => { tap(); setTab('past'); }} />
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140, gap: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} />}
       >
         {loading ? (
           <>

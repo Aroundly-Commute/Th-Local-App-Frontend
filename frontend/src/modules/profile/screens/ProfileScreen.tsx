@@ -144,8 +144,8 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>
           <VerifiedAvatar uri={user.avatar_url} name={user.name} verified={user.is_verified} t={t} size={88} />
-          <Text style={[styles.name, { color: t.textPrimary }]}>{user.name}</Text>
-          <Text style={[styles.email, { color: t.textSecondary }]}>{user.email}</Text>
+          <Text numberOfLines={1} style={[styles.name, { color: t.textPrimary }]}>{user.name}</Text>
+          <Text numberOfLines={1} style={[styles.email, { color: t.textSecondary }]}>{user.email}</Text>
 
           <View style={styles.metaRow}>
             <Star color={t.warning} size={13} fill={t.warning} />
@@ -297,8 +297,8 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   header: { alignItems: 'center', padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, gap: 6 },
-  name: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5, marginTop: 12 },
-  email: { fontSize: 13 },
+  name: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5, marginTop: 12, textAlign: 'center', width: '100%' },
+  email: { fontSize: 13, textAlign: 'center', width: '100%' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   metaText: { fontSize: 12 },
   metaDot: { fontSize: 14 },

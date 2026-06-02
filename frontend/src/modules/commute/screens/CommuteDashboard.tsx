@@ -17,6 +17,7 @@ import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 import { RideCard } from '../components/RideCard';
 import { tap } from '../../../core/utils/haptics';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
+import { useCachedData } from '../../../core/services/cache';
 
 const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -48,11 +49,35 @@ export default function CommuteDashboard() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
-  const [rides, setRides] = useState<any[]>([]);
-  const [myRides, setMyRides] = useState<any>({ upcoming: [] });
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const { data: stats, loading: statsLoading, refresh: refreshStats } = useCachedData(
+    'sustainability_stats',
+    useCallback(async () => {
+      const { data } = await api.get('/sustainability/me');
+      return data;
+    }, [])
+  );
+
+  const { data: ridesData, loading: ridesLoading, refresh: refreshRides } = useCachedData(
+    'nearby_rides',
+    useCallback(async () => {
+      const { data } = await api.get('/rides?page=1&limit=5');
+      return data;
+    }, [])
+  );
+
+  const { data: myRidesData, loading: myRidesLoading, refresh: refreshMyRides } = useCachedData(
+    'my_rides',
+    useCallback(async () => {
+      const { data } = await api.get('/rides/my');
+      return data;
+    }, [])
+  );
+
+  const rides = ridesData || [];
+  const myRides = myRidesData || { upcoming: [] };
+  const loading = statsLoading && ridesLoading && myRidesLoading && !stats && !ridesData && !myRidesData;
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -61,20 +86,22 @@ export default function CommuteDashboard() {
     return 'Good evening';
   })();
 
-  const load = useCallback(async () => {
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const [s, r, m] = await Promise.all([
-        api.get('/sustainability/me'),
-        api.get('/rides'),
-        api.get('/rides/my'),
-      ]);
-      setStats(s.data);
-      setRides(r.data.slice(0, 5));
-      setMyRides(m.data);
-    } catch {} finally { setLoading(false); setRefreshing(false); }
-  }, []);
+      await Promise.all([refreshStats(), refreshRides(), refreshMyRides()]);
+    } catch {} finally {
+      setRefreshing(false);
+    }
+  }, [refreshStats, refreshRides, refreshMyRides]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      refreshStats().catch(() => {});
+      refreshRides().catch(() => {});
+      refreshMyRides().catch(() => {});
+    }, [refreshStats, refreshRides, refreshMyRides])
+  );
 
   const upcomingRides = (myRides.upcoming || []).slice(0, 5);
   const nearbyRides = (rides || []).slice(0, 5);
@@ -116,7 +143,7 @@ export default function CommuteDashboard() {
   return (
     <ScrollView
       contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.textPrimary} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} />}
       showsVerticalScrollIndicator={false}
       stickyHeaderIndices={[2]}
     >
