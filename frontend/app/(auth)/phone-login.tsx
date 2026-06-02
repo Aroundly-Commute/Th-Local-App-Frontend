@@ -44,6 +44,13 @@ export default function PhoneLogin() {
   // Countdown timer for OTP resend
   const [timer, setTimer] = useState(59);
 
+  const handlePhoneChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9]/g, '');
+    if (cleaned.length <= 10) {
+      setPhoneNumber(cleaned);
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (mode === 'otp' && timer > 0) {
@@ -191,11 +198,11 @@ export default function PhoneLogin() {
                   testID="phone-input"
                   editable={!loading}
                   value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  onChangeText={handlePhoneChange}
                   placeholder="Mobile Number"
                   placeholderTextColor={t.textSecondary}
                   keyboardType="phone-pad"
-                  maxLength={15}
+                  maxLength={10}
                   style={[styles.field, { color: t.textPrimary }]}
                   autoFocus
                 />

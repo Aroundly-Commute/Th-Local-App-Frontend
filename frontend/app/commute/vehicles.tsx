@@ -40,6 +40,14 @@ export default function Vehicles() {
 
   const [existingVehicle, setExistingVehicle] = useState<any>(null);
 
+  const handleVehicleNumberChange = (text: string) => {
+    const cleaned = text.replace(/[^A-Za-z0-9\s\-]/g, '');
+    const alphaNumCount = cleaned.replace(/[\s\-]/g, '').length;
+    if (alphaNumCount <= 10) {
+      setVehicleNumber(cleaned.toUpperCase());
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -272,7 +280,7 @@ export default function Vehicles() {
           <View style={[styles.inputContainer, { backgroundColor: t.muted, borderColor: t.border }]}>
             <TextInput
               value={vehicleNumber}
-              onChangeText={setVehicleNumber}
+              onChangeText={handleVehicleNumberChange}
               placeholder="e.g. DL 3C AY 9876"
               placeholderTextColor={t.textSecondary}
               autoCapitalize="characters"

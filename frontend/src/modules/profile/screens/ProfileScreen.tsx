@@ -204,7 +204,7 @@ export default function ProfileScreen() {
               <Text style={[styles.statValue, { color: t.success }]}>{user.co2_saved_kg.toFixed(0)}kg</Text>
             </View>
             <Text style={[styles.statLabel, { color: t.success }]}>CO₂ Saved</Text>
-            <Text style={[styles.statHint, { color: t.success, opacity: 0.75 }]}>${user.money_saved.toFixed(0)} saved too</Text>
+            <Text style={[styles.statHint, { color: t.success, opacity: 0.75 }]}>₹{user.money_saved.toFixed(0)} saved too</Text>
           </View>
         </View>
 

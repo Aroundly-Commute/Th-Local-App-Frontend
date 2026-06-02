@@ -34,6 +34,21 @@ export default function OnboardingScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const handleNameChange = (text: string) => {
+    const cleaned = text.replace(/[^A-Za-z\s]/g, '');
+    if (cleaned.length <= 50) {
+      setName(cleaned);
+    }
+  };
+
+  const handlePhoneChange = (text: string) => {
+    const cleaned = text.replace(/(?!^\+)[^\d]/g, '');
+    const maxLength = cleaned.startsWith('+') ? 13 : 10;
+    if (cleaned.length <= maxLength) {
+      setPhoneNumber(cleaned);
+    }
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       setErrorMsg('Please enter your name');
@@ -104,7 +119,7 @@ export default function OnboardingScreen() {
                   placeholder="Enter your name"
                   placeholderTextColor={t.textSecondary}
                   value={name}
-                  onChangeText={setName}
+                  onChangeText={handleNameChange}
                   style={[styles.inputField, { color: t.textPrimary }]}
                 />
               </View>
@@ -120,7 +135,7 @@ export default function OnboardingScreen() {
                   placeholder="Enter mobile number"
                   placeholderTextColor={t.textSecondary}
                   value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  onChangeText={handlePhoneChange}
                   keyboardType="phone-pad"
                   style={[styles.inputField, { color: t.textPrimary }]}
                 />

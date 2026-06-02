@@ -233,7 +233,7 @@ export default function CommuteDashboard() {
                       </Text>
                     </View>
                     <Text style={[styles.upcomingPrice, { color: t.background }]}>
-                      ${rideItem.price_per_seat.toFixed(2)}
+                      ₹{Math.round(rideItem.price_per_seat)}
                     </Text>
                   </View>
                 </View>
@@ -294,7 +294,7 @@ export default function CommuteDashboard() {
           <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
           <ImpactStat label="CO₂ Saved" value={`${stats?.co2_saved_kg?.toFixed(1) ?? '0.0'}kg`} t={t} />
           <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
-          <ImpactStat label="Money Saved" value={`$${stats?.money_saved?.toFixed(0) ?? '0'}`} t={t} testID="money-saved" />
+          <ImpactStat label="Money Saved" value={`₹${stats?.money_saved?.toFixed(0) ?? '0'}`} t={t} testID="money-saved" />
         </View>
       </View>
     </ScrollView>
