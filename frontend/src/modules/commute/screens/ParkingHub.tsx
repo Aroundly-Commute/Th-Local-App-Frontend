@@ -816,12 +816,28 @@ export default function ParkingHub() {
             {activeTab === 'map' && (
               <View style={{ flex: 1, position: 'relative' }}>
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.mapScrollBody}>
-                {/* Map Info details */}
-                <View style={[styles.infoBanner, { backgroundColor: t.surfaceElevated, borderColor: t.border }]}>
-                  <Info color={t.primary} size={16} />
-                  <Text style={{ fontSize: 12, color: t.textSecondary, flex: 1 }}>
-                    Visual blueprint of campus parking: Vibrant green spots are available to book. Blue outlines denote selected.
-                  </Text>
+                {/* Legends color code */}
+                <View style={[styles.legendContainer, { marginTop: 0, marginBottom: spacing.md }]}>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendBox, { backgroundColor: '#10B981' }]} />
+                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Available</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendBox, { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1 }]} />
+                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Unavailable</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendBox, { backgroundColor: t.successBg, borderColor: t.success, borderWidth: 1 }]} />
+                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Your Booking</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendBox, { backgroundColor: t.warningBg, borderColor: t.warning, borderWidth: 1 }]} />
+                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Your Request</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendBox, { backgroundColor: t.errorBg, borderColor: t.error, borderWidth: 1 }]} />
+                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Occupied</Text>
+                  </View>
                 </View>
 
                 {/* Master 90 spot physical visual layout grid */}
@@ -866,29 +882,7 @@ export default function ParkingHub() {
                     ))}
                   </View>
                 </ScrollView>
-                {/* Legends color code */}
-                <View style={styles.legendContainer}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: '#10B981' }]} />
-                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Available</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1 }]} />
-                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Unavailable</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: t.successBg, borderColor: t.success, borderWidth: 1 }]} />
-                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Your Booking</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: t.warningBg, borderColor: t.warning, borderWidth: 1 }]} />
-                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Your Request</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendBox, { backgroundColor: t.errorBg, borderColor: t.error, borderWidth: 1 }]} />
-                    <Text style={[styles.legendLabel, { color: t.textSecondary }]}>Occupied</Text>
-                  </View>
-                </View>
+
               </ScrollView>
               {loading && (
                 <View style={[StyleSheet.absoluteFillObject, { backgroundColor: t.isDark ? 'rgba(10, 22, 40, 0.65)' : 'rgba(255, 255, 255, 0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }]}>
