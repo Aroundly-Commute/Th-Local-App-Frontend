@@ -774,7 +774,7 @@ export default function ParkingHub() {
                       onPress={() => { tap(); setSelectedHourlySlotIndex(index); }}
                       style={[
                         styles.hourlySlotPill,
-                        isSel && { backgroundColor: t.accent, borderColor: t.accent },
+                        isSel && { backgroundColor: t.primary, borderColor: t.primary },
                         { borderColor: t.border },
                       ]}
                     >

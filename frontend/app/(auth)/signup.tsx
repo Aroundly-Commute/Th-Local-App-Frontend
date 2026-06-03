@@ -1,15 +1,15 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
-  useColorScheme, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  useColorScheme,
   ActivityIndicator,
   Image
 } from 'react-native';
@@ -28,13 +28,13 @@ export default function Signup() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { signup, loginWithGoogle } = useAuth();
-  
+
   // Details Entry State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'passenger' | 'driver'>('passenger');
-  
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -55,10 +55,10 @@ export default function Signup() {
   // Phase 1: Submit email/password registration to Firebase
   const onSignup = async () => {
     setErr('');
-    if (!email || !password || !name) { 
-      setErr('Please fill in all the details'); 
+    if (!email || !password || !name) {
+      setErr('Please fill in all the details');
       errorH();
-      return; 
+      return;
     }
 
     if (password.length < 6) {
@@ -72,10 +72,10 @@ export default function Signup() {
 
     try {
       console.log(`[AUTH] Dispatching email registration to Firebase: ${email}...`);
-      
+
       // Calls our upgraded auth context which creates Firebase account & sends email verification
       await signup(email.trim(), password, name.trim(), role);
-      
+
       success();
       setIsVerifyingEmail(true);
       setResendTimer(59);
@@ -83,8 +83,8 @@ export default function Signup() {
       errorH();
       console.error('[AUTH] Email signup exception:', e);
       setErr(translateFirebaseError(e));
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,20 +99,20 @@ export default function Signup() {
       if (currentUser) {
         // Reload Firebase user profile to fetch fresh verification state
         await currentUser.reload();
-        
+
         const isVerified = currentUser.emailVerified;
         console.log(`[AUTH] Email verification status check: ${isVerified}`);
 
         if (isVerified) {
           success();
           console.log('[AUTH] Email verified successfully! Syncing session...');
-          
+
           // Get secure session ID token
           const token = await currentUser.getIdToken();
-          
+
           // Sync profile details into Postgres cleanly
           await loginWithGoogle(token, name, email);
-          
+
           router.replace('/(tabs)');
         } else {
           errorH();
@@ -156,17 +156,17 @@ export default function Signup() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
-          
+
           {/* Header Back Button */}
-          <TouchableOpacity 
-            testID="signup-back" 
-            onPress={() => { tap(); router.back(); }} 
+          <TouchableOpacity
+            testID="signup-back"
+            onPress={() => { tap(); router.back(); }}
             style={styles.back}
           >
             <ChevronLeft color={t.textPrimary} size={24} />
@@ -186,41 +186,41 @@ export default function Signup() {
 
               <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <UserIcon color={t.textSecondary} size={18} />
-                <TextInput 
-                  testID="signup-name" 
+                <TextInput
+                  testID="signup-name"
                   editable={!loading}
-                  value={name} 
+                  value={name}
                   onChangeText={setName}
-                  placeholder="Full name" 
+                  placeholder="Full name"
                   placeholderTextColor={t.textSecondary}
-                  style={[styles.field, { color: t.textPrimary }]} 
+                  style={[styles.field, { color: t.textPrimary }]}
                 />
               </View>
               <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <Mail color={t.textSecondary} size={18} />
-                <TextInput 
-                  testID="signup-email" 
+                <TextInput
+                  testID="signup-email"
                   editable={!loading}
-                  value={email} 
+                  value={email}
                   onChangeText={setEmail}
-                  placeholder="Email" 
-                  placeholderTextColor={t.textSecondary} 
+                  placeholder="Email"
+                  placeholderTextColor={t.textSecondary}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  style={[styles.field, { color: t.textPrimary }]} 
+                  style={[styles.field, { color: t.textPrimary }]}
                 />
               </View>
               <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <Lock color={t.textSecondary} size={18} />
-                <TextInput 
-                  testID="signup-password" 
+                <TextInput
+                  testID="signup-password"
                   editable={!loading}
-                  value={password} 
+                  value={password}
                   onChangeText={setPassword}
-                  placeholder="Password (min 6)" 
-                  placeholderTextColor={t.textSecondary} 
+                  placeholder="Password (min 6)"
+                  placeholderTextColor={t.textSecondary}
                   secureTextEntry
-                  style={[styles.field, { color: t.textPrimary }]} 
+                  style={[styles.field, { color: t.textPrimary }]}
                 />
               </View>
 
@@ -248,8 +248,8 @@ export default function Signup() {
 
               {err ? <Text style={[styles.err, { color: t.error }]} testID="signup-error">{err}</Text> : null}
 
-              <TouchableOpacity 
-                testID="signup-submit" 
+              <TouchableOpacity
+                testID="signup-submit"
                 onPress={onSignup}
                 disabled={loading}
                 style={[styles.cta, { backgroundColor: t.primary }]}
@@ -258,13 +258,13 @@ export default function Signup() {
                 {loading ? (
                   <ActivityIndicator color={t.primaryContrast} />
                 ) : (
-                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Create account</Text>
+                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Sign Up</Text>
                 )}
               </TouchableOpacity>
 
               <Text style={{ fontSize: 12, color: t.textSecondary, textAlign: 'center', marginTop: 16, lineHeight: 18 }}>
                 By signing up, you agree to our{' '}
-                <Text 
+                <Text
                   style={{ color: t.primary, fontWeight: '700', textDecorationLine: 'underline' }}
                   onPress={() => { tap(); router.push('/privacy' as any); }}
                 >
@@ -279,13 +279,13 @@ export default function Signup() {
               <View style={[styles.verifyIconWrapper, { backgroundColor: t.muted }]}>
                 <MailCheck color={t.primary} size={48} />
               </View>
-              
+
               <Text style={[styles.verifyTitle, { color: t.textPrimary }]}>Verify Your Email</Text>
               <Text style={[styles.verifyDescription, { color: t.textSecondary }]}>
                 A secure activation link has been sent to your email inbox:{'\n'}
                 <Text style={{ fontWeight: '700', color: t.textPrimary }}>{email.trim()}</Text>
               </Text>
-              
+
               <View style={[styles.alertCard, { backgroundColor: t.muted, borderColor: t.border }]}>
                 <ShieldAlert color={t.textPrimary} size={18} />
                 <Text style={[styles.alertCardText, { color: t.textSecondary }]}>
@@ -295,7 +295,7 @@ export default function Signup() {
 
               {err ? <Text style={[styles.err, { color: t.error, textAlign: 'center' }]}>{err}</Text> : null}
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={checkEmailVerificationStatus}
                 disabled={loading}
                 style={[styles.cta, { backgroundColor: t.primary, width: '100%', marginTop: spacing.md }]}
@@ -330,12 +330,12 @@ export default function Signup() {
 
 function RoleCard({ active, onPress, theme: t, icon, label, hint, testID }: any) {
   return (
-    <TouchableOpacity 
-      testID={testID} 
-      onPress={onPress} 
+    <TouchableOpacity
+      testID={testID}
+      onPress={onPress}
       activeOpacity={0.85}
       style={[
-        styles.role, 
+        styles.role,
         {
           backgroundColor: active ? t.primary : t.surface,
           borderColor: active ? t.primary : t.border,
