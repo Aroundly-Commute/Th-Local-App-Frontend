@@ -258,7 +258,7 @@ export default function Signup() {
                 {loading ? (
                   <ActivityIndicator color={t.primaryContrast} />
                 ) : (
-                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Sign Up</Text>
+                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Create Account</Text>
                 )}
               </TouchableOpacity>
 

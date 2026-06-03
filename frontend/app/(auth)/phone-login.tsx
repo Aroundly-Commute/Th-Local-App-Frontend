@@ -9,7 +9,9 @@ import {
   Platform, 
   ScrollView, 
   useColorScheme, 
-  ActivityIndicator 
+  ActivityIndicator,
+  PermissionsAndroid,
+  DeviceEventEmitter
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -50,6 +52,30 @@ export default function PhoneLogin() {
       setPhoneNumber(cleaned);
     }
   };
+
+  // Request SMS permissions on Android
+  const requestSmsPermission = async () => {
+    if (Platform.OS !== 'android') return;
+    try {
+      const hasReceive = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+      const hasRead = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
+      
+      if (!hasReceive || !hasRead) {
+        await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+          PermissionsAndroid.PERMISSIONS.READ_SMS,
+        ]);
+      }
+    } catch (err) {
+      console.warn('[SMS] Permission request error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'otp') {
+      requestSmsPermission();
+    }
+  }, [mode]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -105,9 +131,7 @@ export default function PhoneLogin() {
     }
   };
 
-  // Handles confirming the OTP digits
-  const onVerifyOtp = async () => {
-    const code = otp.join('');
+  const verifyCode = async (code: string) => {
     if (code.length < 6) {
       setErr('Please enter the complete 6-digit verification code');
       errorH();
@@ -141,6 +165,30 @@ export default function PhoneLogin() {
       setLoading(false);
     }
   };
+
+  // Handles confirming the OTP digits
+  const onVerifyOtp = () => verifyCode(otp.join(''));
+
+  // Listen to incoming SMS when OTP mode is active
+  useEffect(() => {
+    if (mode !== 'otp') return;
+
+    const subscription = DeviceEventEmitter.addListener('onSmsReceived', (event) => {
+      console.log('[SMS] Received SMS event:', event);
+      const message = event.messageBody;
+      const match = message.match(/\b\d{6}\b/);
+      if (match) {
+        const otpCode = match[0];
+        console.log('[SMS] Extracted OTP code:', otpCode);
+        setOtp(otpCode.split(''));
+        verifyCode(otpCode);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [mode, confirmResult]);
 
   // Auto focus shift as user types digit character
   const handleOtpChange = (text: string, index: number) => {

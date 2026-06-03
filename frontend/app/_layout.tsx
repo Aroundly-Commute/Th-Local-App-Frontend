@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '../src/core/auth/auth';
+import { AuthProvider, useAuth } from '../src/core/auth/auth';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 import { CartProvider } from '../src/modules/marketplace/contexts/CartContext';
 import { OrderProvider } from '../src/modules/marketplace/contexts/OrderContext';
 import { MarketDataProvider } from '../src/modules/marketplace/contexts/MarketDataContext';
@@ -27,6 +31,13 @@ function AppNavigationWrapper() {
   const pathname = usePathname();
   const [logsVisible, setLogsVisible] = useState(false);
   const { enableInAppLogs } = useFeatureFlags();
+  const { loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading]);
 
   useEffect(() => {
     // Initialize Google Analytics on app boot

@@ -180,7 +180,7 @@ export default function CommuteDashboard() {
       </View>
 
       {/* Quick search */}
-      <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg }}>
+      <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, zIndex: 99 }}>
         <TouchableOpacity
           testID="home-search-bar"
           onPress={() => { tap(); router.push('/commute/search'); }}
@@ -222,7 +222,7 @@ export default function CommuteDashboard() {
       {/* Upcoming ride */}
       {upcomingRides.length > 0 && (
         <>
-          <SectionHeader t={t} title="Upcoming Ride" actionLabel="View all" onAction={() => router.push('/commute/rides')} />
+          <SectionHeader t={t} title="Upcoming Rides" actionLabel="See all" onAction={() => router.push('/commute/rides')} />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
