@@ -145,7 +145,7 @@ export default function CommuteDashboard() {
       contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 24 }}
       refreshControl={Platform.OS !== 'web' ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} /> : undefined}
       showsVerticalScrollIndicator={false}
-      stickyHeaderIndices={[2]}
+      stickyHeaderIndices={[1]}
     >
       {/* Greeting & Header Sync for Web */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
