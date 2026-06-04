@@ -149,7 +149,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: 12, paddingBottom: 140 }}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>
-          <VerifiedAvatar uri={user.avatar_url} name={user.name} verified={user.is_verified} t={t} size={88} />
+          <VerifiedAvatar uri={user.avatar_url || undefined} name={user.name} verified={user.is_verified} t={t} size={88} />
           <Text numberOfLines={1} style={[styles.name, { color: t.textPrimary }]}>{user.name}</Text>
           <Text numberOfLines={1} style={[styles.email, { color: t.textSecondary }]}>{user.email}</Text>
 
@@ -167,7 +167,7 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          <TouchableOpacity activeOpacity={0.8} style={[styles.editBtn, { borderColor: t.border }]} onPress={() => { tap(); router.push('/edit-profile'); }}>
+          <TouchableOpacity activeOpacity={0.8} style={[styles.editBtn, { borderColor: t.border }]} onPress={() => { tap(); router.push('/edit-profile' as any); }}>
             <Text style={[styles.editText, { color: t.textPrimary }]}>Edit Profile</Text>
           </TouchableOpacity>
         </View>

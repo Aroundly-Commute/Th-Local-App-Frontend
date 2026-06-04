@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, usePathname, useRouter } from 'expo-router';
 import { useColorScheme, Platform } from 'react-native';
 import { Home, Search, Car, User, MapPin, ShoppingBag, Compass } from 'lucide-react-native';
 import { lightTheme, darkTheme } from '../../src/core/theme/theme';
@@ -14,6 +14,13 @@ export default function TabsLayout() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
   const { enableMarketplace } = useFeatureFlags();
+  const router = useRouter();
+  const pathname = usePathname();
+  const pathnameRef = React.useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -57,6 +64,20 @@ export default function TabsLayout() {
             "Parking Booking Status",
             `Your booking request for spot ${msg.payload.spotName} has been ${msg.payload.status.toLowerCase()} by the owner.`
           );
+        } else if (msg.type === 'new_chat_message') {
+          const currentChatId = pathnameRef.current ? pathnameRef.current.split('/chat/')[1] : null;
+          if (currentChatId !== msg.payload.chat_id) {
+            Alert.alert(
+              `Message from ${msg.payload.sender_name}`,
+              msg.payload.text,
+              [
+                { text: "Dismiss", style: "cancel" },
+                { text: "View", onPress: () => {
+                    router.push(`/chat/${msg.payload.chat_id}?name=${encodeURIComponent(msg.payload.sender_name)}` as any);
+                } }
+              ]
+            );
+          }
         }
       } catch (e) {}
     };

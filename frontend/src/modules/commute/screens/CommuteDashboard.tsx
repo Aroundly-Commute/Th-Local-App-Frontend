@@ -80,9 +80,12 @@ export default function CommuteDashboard() {
   const loading = statsLoading && ridesLoading && myRidesLoading && !stats && !ridesData && !myRidesData;
 
   const greeting = (() => {
-    const h = new Date().getHours();
+    const d = new Date();
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    const istTime = new Date(utc + (3600000 * 5.5));
+    const h = istTime.getHours();
     if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
+    if (h < 17) return 'Good afternoon';
     return 'Good evening';
   })();
 

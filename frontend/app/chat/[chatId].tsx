@@ -24,21 +24,37 @@ export default function ChatScreen() {
   useEffect(() => {
     (async () => {
       try {
+        await api.patch(`/chats/${encodeURIComponent(chatId!)}/read`).catch(() => {});
         const { data } = await api.get(`/chats/${encodeURIComponent(chatId!)}/messages`);
         setMessages(data);
       } catch {}
     })();
 
-    const ws = new WebSocket(wsUrl(chatId!));
+    const ws = new WebSocket(wsUrl(chatId!) + (user?.id ? `/${user.id}` : ''));
     wsRef.current = ws;
     ws.onmessage = (ev) => {
       try {
-        const m = JSON.parse(ev.data);
-        setMessages((prev) => prev.some((x) => x.id === m.id) ? prev : [...prev, m]);
+        const data = JSON.parse(ev.data);
+        if (data.type === 'status_update') {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              data.messageIds.includes(msg.id)
+                ? { ...msg, status: data.status }
+                : msg
+            )
+          );
+        } else {
+          setMessages((prev) => {
+            if (prev.some((x) => x.id === data.id)) {
+              return prev.map((x) => (x.id === data.id ? data : x));
+            }
+            return [...prev, data];
+          });
+        }
       } catch {}
     };
     return () => { try { ws.close(); } catch {} };
-  }, [chatId]);
+  }, [chatId, user?.id]);
 
   useEffect(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
@@ -76,9 +92,20 @@ export default function ChatScreen() {
                 <Text style={{ color: mine ? t.primaryContrast : t.textPrimary, fontSize: 15 }}>
                   {item.text}
                 </Text>
-                <Text style={{ color: mine ? t.primaryContrast : t.textSecondary, fontSize: 10, opacity: 0.8, marginTop: 4 }}>
-                  {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <Text style={{ color: mine ? t.primaryContrast : t.textSecondary, fontSize: 10, opacity: 0.8 }}>
+                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  {mine && (
+                    <Text style={{
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: item.status === 'READ' ? '#4fc3f7' : (mine ? 'rgba(255, 255, 255, 0.7)' : t.textSecondary)
+                    }}>
+                      {item.status === 'READ' || item.status === 'DELIVERED' ? '✓✓' : '✓'}
+                    </Text>
+                  )}
+                </View>
               </View>
             );
           }}

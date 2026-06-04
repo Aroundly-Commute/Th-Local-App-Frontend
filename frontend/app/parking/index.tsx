@@ -49,6 +49,10 @@ type SpotState = {
   col: number;
   ownerId: string | null;
   approved: boolean;
+  priceHourly: number;
+  priceDaily: number;
+  priceWeekly: number;
+  priceMonthly: number;
   owner?: {
     name: string;
     email: string;
@@ -593,8 +597,20 @@ export default function Parking() {
       }
 
       // Calculate final pricing based on booking request:
-      // Directly charge the full availability rate (e.g. monthly charge if available on monthly basis)
+      // If the selected slotType matches the availability slotType, charge the availability rate.
+      // Otherwise, charge the spot's rate for the selected slotType duration basis.
       let finalPrice = avail.price;
+      if (avail.slotType !== selectedSlotType) {
+        if (selectedSlotType === 'HOURLY') {
+          finalPrice = selectedSpot.priceHourly;
+        } else if (selectedSlotType === 'DAILY') {
+          finalPrice = selectedSpot.priceDaily;
+        } else if (selectedSlotType === 'WEEKLY') {
+          finalPrice = selectedSpot.priceWeekly;
+        } else if (selectedSlotType === 'MONTHLY') {
+          finalPrice = selectedSpot.priceMonthly;
+        }
+      }
 
       await api.post('/parking/bookings', {
         spotId: selectedSpot.id,
@@ -1299,7 +1315,16 @@ export default function Parking() {
                           </View>
                           <View style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
                             <Text style={{ fontSize: 18, fontWeight: '800', color: t.success }}>
-                              ₹{avail?.price}
+                              ₹{avail?.slotType === selectedSlotType
+                                ? avail?.price
+                                : selectedSlotType === 'HOURLY'
+                                ? spot.priceHourly
+                                : selectedSlotType === 'DAILY'
+                                ? spot.priceDaily
+                                : selectedSlotType === 'WEEKLY'
+                                ? spot.priceWeekly
+                                : spot.priceMonthly
+                              }
                             </Text>
                             <View style={styles.listActionBtn}>
                               <Text style={styles.listActionTxt}>Select</Text>
@@ -1337,7 +1362,16 @@ export default function Parking() {
                         <View style={{ alignItems: 'flex-end' }}>
                           <Text style={{ fontSize: 10, color: t.textTertiary }}>RATE BASIS</Text>
                           <Text style={{ fontSize: 18, fontWeight: '800', color: t.success }}>
-                            ₹{avail?.price}
+                            ₹{avail?.slotType === selectedSlotType
+                              ? avail?.price
+                              : selectedSlotType === 'HOURLY'
+                              ? selectedSpot.priceHourly
+                              : selectedSlotType === 'DAILY'
+                              ? selectedSpot.priceDaily
+                              : selectedSlotType === 'WEEKLY'
+                              ? selectedSpot.priceWeekly
+                              : selectedSpot.priceMonthly
+                            }
                           </Text>
                         </View>
                       </View>

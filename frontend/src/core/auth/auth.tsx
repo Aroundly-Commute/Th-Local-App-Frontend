@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from './firebaseAdapter';
 import { api } from '../api/api';
+import messaging from '@react-native-firebase/messaging';
 
 export type User = {
   id: string;
@@ -15,6 +16,8 @@ export type User = {
   money_saved: number;
   co2_saved_kg: number;
   phoneNumber: string | null;
+  gender?: string | null;
+  vehicle?: any;
 };
 
 type AuthCtx = {
@@ -34,6 +37,44 @@ const Ctx = createContext<AuthCtx | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const syncFcmToken = async () => {
+    try {
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (enabled) {
+        const token = await messaging().getToken();
+        console.log('[FCM] Retrieved token:', token);
+        if (token) {
+          await api.patch('/auth/fcm-token', { fcmToken: token });
+        }
+      }
+    } catch (err) {
+      console.warn('[FCM] Failed to sync FCM token:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      syncFcmToken();
+
+      const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (token) => {
+        console.log('[FCM] Token refreshed:', token);
+        try {
+          await api.patch('/auth/fcm-token', { fcmToken: token });
+        } catch (err) {
+          console.warn('[FCM] Failed to update refreshed FCM token:', err);
+        }
+      });
+
+      return () => {
+        unsubscribeTokenRefresh();
+      };
+    }
+  }, [user]);
 
   const refresh = async () => {
     try {
