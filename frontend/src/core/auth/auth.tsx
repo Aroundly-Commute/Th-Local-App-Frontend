@@ -2,7 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from './firebaseAdapter';
 import { api } from '../api/api';
-import messaging from '@react-native-firebase/messaging';
+import { Platform } from 'react-native';
+
+let messaging: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    messaging = require('@react-native-firebase/messaging').default;
+  } catch (err) {
+    console.warn('[FCM] Failed to load native messaging module:', err);
+  }
+}
 
 export type User = {
   id: string;
@@ -39,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const syncFcmToken = async () => {
+    if (Platform.OS === 'web' || !messaging) return;
     try {
       const authStatus = await messaging().requestPermission();
       const enabled =
@@ -58,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && Platform.OS !== 'web' && messaging) {
       syncFcmToken();
 
       const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (token) => {
