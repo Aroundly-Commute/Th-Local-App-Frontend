@@ -48,7 +48,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const syncFcmToken = async () => {
-    if (Platform.OS === 'web' || !messaging) return;
+    if (Platform.OS === 'web') {
+      try {
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window) {
+          const permission = await Notification.requestPermission();
+          console.log('[FCM Web] Permission status:', permission);
+          if (permission === 'granted') {
+            const { getMessaging, getToken } = require('firebase/messaging');
+            const { initializeApp, getApps, getApp } = require('firebase/app');
+
+            const firebaseConfig = {
+              apiKey: "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
+              authDomain: "aroundyou-497203.firebaseapp.com",
+              projectId: "aroundyou-497203",
+              storageBucket: "aroundyou-497203.firebasestorage.app",
+              messagingSenderId: "233722731121",
+              appId: "1:233722731121:web:642f3868b99992972d19d0"
+            };
+
+            const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+            const messagingInstance = getMessaging(app);
+
+            // Register service worker explicitly to ensure reliability
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+            const vapidKey = process.env.EXPO_PUBLIC_VAPID_KEY;
+            if (!vapidKey) {
+              console.warn('[FCM Web] VAPID Key is missing. Please set EXPO_PUBLIC_VAPID_KEY in your .env file to enable Web Push Notifications.');
+              return;
+            }
+
+            const token = await getToken(messagingInstance, {
+              serviceWorkerRegistration: registration,
+              vapidKey
+            });
+
+            console.log('[FCM Web] Retrieved token:', token);
+            if (token) {
+              await api.patch('/auth/fcm-token', { fcmToken: token });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[FCM Web] Failed to sync Web FCM token:', err);
+      }
+      return;
+    }
+
+    if (!messaging) return;
     try {
       const authStatus = await messaging().requestPermission();
       const enabled =
@@ -68,21 +115,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    if (user && Platform.OS !== 'web' && messaging) {
+    if (user) {
       syncFcmToken();
 
-      const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (token) => {
-        console.log('[FCM] Token refreshed:', token);
-        try {
-          await api.patch('/auth/fcm-token', { fcmToken: token });
-        } catch (err) {
-          console.warn('[FCM] Failed to update refreshed FCM token:', err);
-        }
-      });
+      if (Platform.OS !== 'web' && messaging) {
+        const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (token: string) => {
+          console.log('[FCM] Token refreshed:', token);
+          try {
+            await api.patch('/auth/fcm-token', { fcmToken: token });
+          } catch (err) {
+            console.warn('[FCM] Failed to update refreshed FCM token:', err);
+          }
+        });
 
-      return () => {
-        unsubscribeTokenRefresh();
-      };
+        return () => {
+          unsubscribeTokenRefresh();
+        };
+      }
     }
   }, [user]);
 
