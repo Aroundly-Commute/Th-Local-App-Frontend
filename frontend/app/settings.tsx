@@ -8,10 +8,11 @@ import {
   ScrollView,
   Platform,
   useColorScheme,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf, Terminal, Shield } from 'lucide-react-native';
+import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf, Terminal, Shield, Bell } from 'lucide-react-native';
 import { useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
 import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
 import { tap } from '../src/core/utils/haptics';
@@ -33,6 +34,87 @@ export default function SettingsScreen() {
     loading,
     toggleFeature,
   } = useFeatureFlags();
+
+  const [notificationStatusText, setNotificationStatusText] = React.useState<string>('Checking...');
+
+  const checkNotificationPermission = async () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        setNotificationStatusText(
+          Notification.permission === 'granted'
+            ? 'Allowed'
+            : Notification.permission === 'denied'
+            ? 'Blocked'
+            : 'Not Requested'
+        );
+      } else {
+        setNotificationStatusText('Not Supported');
+      }
+    } else {
+      try {
+        let messaging: any = null;
+        try {
+          messaging = require('@react-native-firebase/messaging').default;
+        } catch (e) {}
+
+        if (messaging) {
+          const hasPerm = await messaging().hasPermission();
+          const enabled =
+            hasPerm === messaging.AuthorizationStatus.AUTHORIZED ||
+            hasPerm === messaging.AuthorizationStatus.PROVISIONAL;
+          setNotificationStatusText(enabled ? 'Allowed' : 'Not Allowed');
+        } else {
+          setNotificationStatusText('Unavailable');
+        }
+      } catch (err) {
+        setNotificationStatusText('Unknown');
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    checkNotificationPermission();
+  }, []);
+
+  const handleManageNotifications = async () => {
+    tap();
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'denied') {
+          alert('Notification permission is blocked. Please click the lock icon in your browser address bar to allow permissions.');
+        } else {
+          const res = await Notification.requestPermission();
+          setNotificationStatusText(res === 'granted' ? 'Allowed' : res === 'denied' ? 'Blocked' : 'Not Requested');
+        }
+      } else {
+        alert('Notifications are not supported in this browser.');
+      }
+    } else {
+      try {
+        let messaging: any = null;
+        try {
+          messaging = require('@react-native-firebase/messaging').default;
+        } catch (e) {}
+
+        if (messaging) {
+          const authStatus = await messaging().requestPermission();
+          const enabled =
+            authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+            authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+          
+          setNotificationStatusText(enabled ? 'Allowed' : 'Not Allowed');
+          
+          if (!enabled) {
+            Linking.openSettings();
+          }
+        } else {
+          Linking.openSettings();
+        }
+      } catch (err) {
+        Linking.openSettings();
+      }
+    }
+  };
 
   const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
     tap();
@@ -216,6 +298,24 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+        
+        {/* Notification Settings Section */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleManageNotifications}
+          style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}
+        >
+          <Bell color={t.primary} size={20} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.infoTitle, { color: t.textPrimary }]}>Notification Permissions</Text>
+            <Text style={[styles.infoDesc, { color: t.textSecondary }]}>
+              {Platform.OS === 'web'
+                ? `Browser status: ${notificationStatusText}. Click to request permission or get help enabling it.`
+                : `Device status: ${notificationStatusText}. Click to request permission or open System Settings.`}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Legal & Privacy Section */}
         <TouchableOpacity
           activeOpacity={0.7}
