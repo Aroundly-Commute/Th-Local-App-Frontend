@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import { useAuth } from '../src/core/auth/auth';
 import { lightTheme, darkTheme } from '../src/core/theme/theme';
 import { useColorScheme } from 'react-native';
@@ -11,6 +12,32 @@ export default function Index() {
   const router = useRouter();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const hasRequested = await AsyncStorage.getItem('permissions_requested');
+        if (!hasRequested) {
+          // 1. Request Location Permission
+          await Location.requestForegroundPermissionsAsync().catch(() => {});
+          
+          // 2. Request Notification Permission
+          if (Platform.OS !== 'web') {
+            try {
+              const { default: messaging } = require('@react-native-firebase/messaging');
+              await messaging().requestPermission().catch(() => {});
+            } catch (err) {
+              console.warn('[PERMISSIONS] Messaging import fail:', err);
+            }
+          }
+          
+          await AsyncStorage.setItem('permissions_requested', 'true');
+        }
+      } catch (err) {
+        console.warn('[PERMISSIONS] Error asking permissions:', err);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (loading) return;
