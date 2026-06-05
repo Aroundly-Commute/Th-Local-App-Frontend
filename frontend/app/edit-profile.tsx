@@ -95,10 +95,15 @@ export default function EditProfileScreen() {
     setErrorMsg('');
 
     try {
+      let formattedPhone = phoneNumber.trim();
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = `+91${formattedPhone}`;
+      }
+
       // 1. Call API to update profile
       await api.patch('/auth/profile', {
         name: name.trim(),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: formattedPhone,
         gender,
         avatarUrl: avatarUrl, // Uploads the image uri or base64 representation
       });

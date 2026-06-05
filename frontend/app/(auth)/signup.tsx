@@ -113,7 +113,7 @@ export default function Signup() {
           // Sync profile details into Postgres cleanly
           await loginWithGoogle(token, name, email);
 
-          router.replace('/(tabs)');
+          router.replace('/');
         } else {
           errorH();
           setErr('Your email is not verified yet. Please check your inbox and tap the link.');

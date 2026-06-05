@@ -1,6 +1,6 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, useColorScheme, Keyboard } from 'react-native';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Send } from 'lucide-react-native';
@@ -20,6 +20,27 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
   const listRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const headerHeight = Platform.OS === 'ios' ? 52 : 56;
+  const keyboardOffset = insets.top + headerHeight;
 
   useEffect(() => {
     (async () => {
@@ -75,12 +96,17 @@ export default function ChatScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }} edges={['top', 'left', 'right']}>
       <ScreenHeader title={name || 'Chat'} />
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={keyboardOffset}
+      >
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ padding: spacing.md, gap: 8, paddingBottom: 12 }}
+          onLayout={() => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)}
           renderItem={({ item }) => {
             const mine = item.sender_id === user?.id;
             return (
@@ -116,7 +142,14 @@ export default function ChatScreen() {
           }
         />
 
-        <View style={[styles.inputBar, { backgroundColor: t.surface, borderColor: t.border }]}>
+        <View style={[
+          styles.inputBar, 
+          { 
+            backgroundColor: t.surface, 
+            borderColor: t.border,
+            paddingBottom: keyboardVisible ? spacing.sm : spacing.sm + insets.bottom
+          }
+        ]}>
           <TextInput
             testID="chat-input"
             value={text}

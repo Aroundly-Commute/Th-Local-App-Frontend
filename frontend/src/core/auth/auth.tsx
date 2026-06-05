@@ -242,8 +242,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     console.log('[AUTH] Log-out action triggered.');
-    await auth().signOut();
-    await AsyncStorage.removeItem('access_token');
+    try {
+      await auth().signOut();
+    } catch (err) {
+      console.warn('[AUTH] Firebase signOut error:', err);
+    }
+    try {
+      await AsyncStorage.clear();
+    } catch (err) {
+      console.warn('[AUTH] AsyncStorage clear error:', err);
+    }
     setUser(null);
   };
 

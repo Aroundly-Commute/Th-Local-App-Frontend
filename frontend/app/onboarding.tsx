@@ -71,10 +71,15 @@ export default function OnboardingScreen() {
     setErrorMsg('');
 
     try {
+      let formattedPhone = phoneNumber.trim();
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = `+91${formattedPhone}`;
+      }
+
       // 1. Call API to update profile on backend database
       await api.patch('/auth/profile', {
         name: name.trim(),
-        phoneNumber: phoneNumber.trim(),
+        phoneNumber: formattedPhone,
         gender,
       });
 

@@ -156,7 +156,7 @@ export default function PhoneLogin() {
       success();
       
       console.log('[AUTH] Phone login and database sync complete!');
-      router.replace('/(tabs)');
+      router.replace('/');
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Firebase verification check failed:', e);

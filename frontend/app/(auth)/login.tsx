@@ -66,7 +66,7 @@ export default function Login() {
     try {
       await login(email.trim(), password);
       success();
-      router.replace('/(tabs)');
+      router.replace('/');
     } catch (e: any) {
       errorH();
       console.warn('[AUTH] Firebase login failed:', e);
@@ -131,7 +131,7 @@ export default function Login() {
       await loginWithGoogle(firebaseIdToken, name, userEmail);
       
       success();
-      router.replace('/(tabs)');
+      router.replace('/');
     } catch (e: any) {
       errorH();
       console.error('[AUTH] Google Sign-in failed:', e);
