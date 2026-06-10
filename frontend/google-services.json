@@ -38,6 +38,14 @@
           }
         },
         {
+          "client_id": "233722731121-l4qct6epk0a4ppr01ui9tbs81tmcec1q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bpandey690.frontend",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6.apps.googleusercontent.com",
           "client_type": 3
         }
