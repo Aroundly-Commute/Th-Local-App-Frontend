@@ -242,16 +242,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     console.log('[AUTH] Log-out action triggered.');
+    
+    // 1. Clear FCM token on backend before signing out (while we still have the access token)
+    try {
+      await api.patch('/auth/fcm-token', { fcmToken: null }).catch((e) => {
+        console.warn('[AUTH] Failed to clear FCM token on backend:', e);
+      });
+    } catch (err) {
+      console.warn('[AUTH] Failed to request fcm-token clear:', err);
+    }
+
+    // 2. Sign out of Firebase
     try {
       await auth().signOut();
     } catch (err) {
       console.warn('[AUTH] Firebase signOut error:', err);
     }
-    try {
-      await AsyncStorage.clear();
-    } catch (err) {
-      console.warn('[AUTH] AsyncStorage clear error:', err);
+
+    // 3. Sign out of native Google Sign-In on mobile
+    if (Platform.OS !== 'web') {
+      try {
+        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+        await GoogleSignin.signOut().catch(() => {});
+      } catch (err) {
+        console.warn('[AUTH] Google Sign-In signOut error:', err);
+      }
     }
+
+    // 4. Clean only auth-specific items instead of wiping everything
+    try {
+      await AsyncStorage.removeItem('access_token');
+      // Clear network cache keys, but preserve analytics client IDs, feature flags, and permission prompts
+      const allKeys = await AsyncStorage.getAllKeys();
+      const cacheKeys = allKeys.filter(key => key.startsWith('@app_cache:'));
+      if (cacheKeys.length > 0) {
+        await AsyncStorage.multiRemove(cacheKeys);
+      }
+    } catch (err) {
+      console.warn('[AUTH] AsyncStorage selective clear error:', err);
+    }
+
     setUser(null);
   };
 
