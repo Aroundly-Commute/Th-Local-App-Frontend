@@ -8,7 +8,7 @@ import {
   MapPin, Users, Calendar, Leaf, Search as SearchIcon,
   ChevronRight, Star, Clock, RefreshCw,
 } from 'lucide-react-native';
-import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import { useAuth } from '../../../core/auth/auth';
 import { api } from '../../../core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
@@ -25,15 +25,23 @@ const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
   </Svg>
 );
 
-const ParkingIcon = ({ color, size }: { color: string; size: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M12.5 3H7v18h3v-6h2.5c3.58 0 6.5-2.92 6.5-6.5S16.08 3 12.5 3zm0 10H10V6h2.5c1.93 0 3.5 1.57 3.5 3.5S14.43 13 12.5 13z" fill={color} />
+const CabBuddyIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <Circle cx="9" cy="7" r="4" />
+    <Path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </Svg>
 );
 
-const CarRentalIcon = ({ color, size }: { color: string; size: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v3h3v-3h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill={color} />
+const OfferRideIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="10" />
+    <Circle cx="12" cy="12" r="3" />
+    <Line x1="12" y1="2" x2="12" y2="9" />
+    <Line x1="12" y1="15" x2="12" y2="22" />
+    <Line x1="2" y1="12" x2="9" y2="12" />
+    <Line x1="15" y1="12" x2="22" y2="12" />
   </Svg>
 );
 
@@ -120,24 +128,24 @@ export default function CommuteDashboard() {
 
   const services = [
     {
+      label: 'Cab Buddy',
+      icon: CabBuddyIcon,
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find' } }),
+    },
+    {
       label: 'Car Pooling',
       icon: CarPoolingIcon,
       onPress: () => router.push('/commute/search'),
     },
     {
-      label: 'Parking',
-      icon: ParkingIcon,
-      onPress: () => router.push('/parking'),
-    },
-    {
-      label: 'Car Rental',
-      icon: CarRentalIcon,
-      onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Car Rental' } }),
-    },
-    {
       label: 'Public Transport',
       icon: PublicTransportIcon,
       onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Public Transport' } }),
+    },
+    {
+      label: 'Offer Ride',
+      icon: OfferRideIcon,
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'offer' } }),
     },
   ];
 
