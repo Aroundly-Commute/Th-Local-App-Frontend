@@ -1,5 +1,7 @@
 import axios, { AxiosResponse, AxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '../auth/firebaseAdapter';
+
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -57,7 +59,21 @@ api.get = async function <T = any, R = AxiosResponse<T>, D = any>(
 
 api.interceptors.request.use(async (config) => {
   console.log(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
-  const token = await AsyncStorage.getItem('access_token');
+  
+  let token = null;
+  try {
+    const currentUser = auth().currentUser;
+    if (currentUser) {
+      token = await currentUser.getIdToken();
+    }
+  } catch (err) {
+    console.warn('[API] Failed to retrieve token from Firebase Auth:', err);
+  }
+
+  if (!token) {
+    token = await AsyncStorage.getItem('access_token');
+  }
+
   if (token) {
     config.headers = config.headers || {};
     (config.headers as any).Authorization = `Bearer ${token}`;
