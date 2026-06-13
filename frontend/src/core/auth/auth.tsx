@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from './firebaseAdapter';
-import { api } from '../api/api';
+import { api, clearApiCache } from '../api/api';
+import { cacheManager } from '../services/cache';
 import { Platform } from 'react-native';
 
 let messaging: any = null;
@@ -137,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refresh = async () => {
     try {
-      const { data } = await api.get('/auth/me');
+      const { data } = await api.get('/auth/me', { params: { bypassCache: true } });
       setUser(data);
     } catch {
       setUser(null);
@@ -264,20 +265,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { GoogleSignin } = require('@react-native-google-signin/google-signin');
         await GoogleSignin.signOut().catch(() => {});
+        await GoogleSignin.revokeAccess().catch(() => {});
       } catch (err) {
-        console.warn('[AUTH] Google Sign-In signOut error:', err);
+        console.warn('[AUTH] Google Sign-In signOut/revoke error:', err);
       }
     }
 
     // 4. Clean only auth-specific items instead of wiping everything
     try {
+      clearApiCache();
+      await cacheManager.clear();
       await AsyncStorage.removeItem('access_token');
-      // Clear network cache keys, but preserve analytics client IDs, feature flags, and permission prompts
-      const allKeys = await AsyncStorage.getAllKeys();
-      const cacheKeys = allKeys.filter(key => key.startsWith('@app_cache:'));
-      if (cacheKeys.length > 0) {
-        await AsyncStorage.multiRemove(cacheKeys);
-      }
     } catch (err) {
       console.warn('[AUTH] AsyncStorage selective clear error:', err);
     }

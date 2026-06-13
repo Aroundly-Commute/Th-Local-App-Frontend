@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Tabs, usePathname, useRouter } from 'expo-router';
-import { useColorScheme, Platform } from 'react-native';
+import { useColorScheme, Platform, AppState, AppStateStatus } from 'react-native';
 import { Home, Search, Car, User, MapPin, ShoppingBag, Compass } from 'lucide-react-native';
 import { lightTheme, darkTheme } from '../../src/core/theme/theme';
 import { tap } from '../../src/core/utils/haptics';
@@ -8,8 +8,10 @@ import { wsUrl, api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 import { Alert } from '../../src/core/components/CustomAlert';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function TabsLayout() {
+  const queryClient = useQueryClient();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
@@ -24,64 +26,135 @@ export default function TabsLayout() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const ws = new WebSocket(wsUrl('').replace('/chat/', '/notifications/') + user.id);
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'new_ride_request') {
-          Alert.alert(
-            "New Ride Request",
-            `${msg.payload.riderName} requested a seat.`,
-            [
-              { text: "Reject", style: "cancel", onPress: () => {
-                  api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'REJECTED' }).catch(()=>{})
-              } },
-              { text: "Accept", onPress: () => {
-                  api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' }).catch(()=>{})
-              } }
-            ]
-          );
-        } else if (msg.type === 'ride_request_updated') {
-          Alert.alert(
-            "Ride Request Status",
-            `Your request has been ${msg.payload.status.toLowerCase()} by the driver.`
-          );
-        } else if (msg.type === 'new_parking_booking_request') {
-          Alert.alert(
-            "New Parking Booking",
-            `${msg.payload.visitorName} requested spot ${msg.payload.spotName} on ${msg.payload.date}.`,
-            [
-              { text: "Reject", style: "cancel", onPress: () => {
-                  api.patch(`/parking/bookings/${msg.payload.id}/status`, { status: 'REJECTED' }).catch(()=>{})
-              } },
-              { text: "Accept", onPress: () => {
-                  api.patch(`/parking/bookings/${msg.payload.id}/status`, { status: 'ACCEPTED' }).catch(()=>{})
-              } }
-            ]
-          );
-        } else if (msg.type === 'parking_booking_status_updated') {
-          Alert.alert(
-            "Parking Booking Status",
-            `Your booking request for spot ${msg.payload.spotName} has been ${msg.payload.status.toLowerCase()} by the owner.`
-          );
-        } else if (msg.type === 'new_chat_message') {
-          const currentChatId = pathnameRef.current ? pathnameRef.current.split('/chat/')[1] : null;
-          if (currentChatId !== msg.payload.chat_id) {
+
+    let ws: WebSocket | null = null;
+    let appState = AppState.currentState;
+
+    const connect = () => {
+      if (ws) return;
+      console.log('[WS] Connecting for user:', user.id);
+      ws = new WebSocket(wsUrl('').replace('/chat/', '/notifications/') + user.id);
+      
+      ws.onopen = () => {
+        console.log('[WS] Connected successfully.');
+        // Pull latest updates upon reconnect/active state
+        queryClient.invalidateQueries();
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          console.log('[WS MESSAGE] Received:', msg);
+          
+          if (msg.type === 'new_ride_request') {
+            queryClient.invalidateQueries({ queryKey: ['ride'] });
+            queryClient.invalidateQueries({ queryKey: ['rides'] });
             Alert.alert(
-              `Message from ${msg.payload.sender_name}`,
-              msg.payload.text,
+              "New Ride Request",
+              `${msg.payload.riderName} requested a seat.`,
               [
-                { text: "Dismiss", style: "cancel" },
-                { text: "View", onPress: () => {
-                    router.push(`/chat/${msg.payload.chat_id}?name=${encodeURIComponent(msg.payload.sender_name)}` as any);
+                { text: "Reject", style: "cancel", onPress: () => {
+                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'REJECTED' })
+                      .then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['ride'] });
+                        queryClient.invalidateQueries({ queryKey: ['rides'] });
+                      })
+                      .catch(()=>{})
+                } },
+                { text: "Accept", onPress: () => {
+                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' })
+                      .then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['ride'] });
+                        queryClient.invalidateQueries({ queryKey: ['rides'] });
+                      })
+                      .catch(()=>{})
                 } }
               ]
             );
+          } else if (msg.type === 'ride_request_updated') {
+            queryClient.invalidateQueries({ queryKey: ['ride'] });
+            queryClient.invalidateQueries({ queryKey: ['rides'] });
+            queryClient.invalidateQueries({ queryKey: ['sustainability'] });
+            Alert.alert(
+              "Ride Request Status",
+              `Your request has been ${msg.payload.status.toLowerCase()} by the driver.`
+            );
+          } else if (msg.type === 'new_parking_booking_request') {
+            queryClient.invalidateQueries({ queryKey: ['parking'] });
+            Alert.alert(
+              "New Parking Booking",
+              `${msg.payload.visitorName} requested spot ${msg.payload.spotName} on ${msg.payload.date}.`,
+              [
+                { text: "Reject", style: "cancel", onPress: () => {
+                    api.patch(`/parking/bookings/${msg.payload.id}/status`, { status: 'REJECTED' })
+                      .then(() => queryClient.invalidateQueries({ queryKey: ['parking'] }))
+                      .catch(()=>{})
+                } },
+                { text: "Accept", onPress: () => {
+                    api.patch(`/parking/bookings/${msg.payload.id}/status`, { status: 'ACCEPTED' })
+                      .then(() => queryClient.invalidateQueries({ queryKey: ['parking'] }))
+                      .catch(()=>{})
+                } }
+              ]
+            );
+          } else if (msg.type === 'parking_booking_status_updated') {
+            queryClient.invalidateQueries({ queryKey: ['parking'] });
+            queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            Alert.alert(
+              "Parking Booking Status",
+              `Your booking request for spot ${msg.payload.spotName} has been ${msg.payload.status.toLowerCase()} by the owner.`
+            );
+          } else if (msg.type === 'new_chat_message') {
+            // No alert for chats as requested, but still invalidate caches to keep lists/badges updated
+            queryClient.invalidateQueries({ queryKey: ['chat', msg.payload.chat_id] });
+            queryClient.invalidateQueries({ queryKey: ['chats'] });
           }
+        } catch (err) {
+          console.error('[WS ERROR] onmessage failed:', err);
         }
-      } catch (e) {}
+      };
+
+      ws.onerror = (err) => {
+        console.warn('[WS ERROR] connection error:', err);
+      };
+
+      ws.onclose = (e) => {
+        console.log('[WS] Connection closed:', e.reason);
+        ws = null;
+      };
     };
-    return () => { try { ws.close(); } catch {} };
+
+    const disconnect = () => {
+      if (ws) {
+        console.log('[WS] Disconnecting WebSocket.');
+        try {
+          ws.close();
+        } catch {}
+        ws = null;
+      }
+    };
+
+    // Connect initially
+    connect();
+
+    // AppState change listener
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[WS] App has come to foreground. Reconnecting...');
+        connect();
+      } else if (nextAppState.match(/inactive|background/)) {
+        console.log('[WS] App has gone to background. Closing connection...');
+        disconnect();
+      }
+      appState = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+      disconnect();
+    };
   }, [user?.id]);
 
   return (

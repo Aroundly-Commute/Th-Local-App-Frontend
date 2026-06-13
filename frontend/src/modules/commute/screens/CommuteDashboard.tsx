@@ -16,8 +16,8 @@ import { Shimmer } from '../../../core/components/Shimmer';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 import { RideCard } from '../components/RideCard';
 import { tap } from '../../../core/utils/haptics';
+import { useQuery } from '@tanstack/react-query';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
-import { useCachedData } from '../../../core/services/cache';
 
 const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -51,29 +51,29 @@ export default function CommuteDashboard() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: stats, loading: statsLoading, refresh: refreshStats } = useCachedData(
-    'sustainability_stats',
-    useCallback(async () => {
+  const { data: stats, isLoading: statsLoading, refetch: refreshStats } = useQuery({
+    queryKey: ['sustainability'],
+    queryFn: async () => {
       const { data } = await api.get('/sustainability/me');
       return data;
-    }, [])
-  );
+    }
+  });
 
-  const { data: ridesData, loading: ridesLoading, refresh: refreshRides } = useCachedData(
-    'nearby_rides',
-    useCallback(async () => {
+  const { data: ridesData, isLoading: ridesLoading, refetch: refreshRides } = useQuery({
+    queryKey: ['rides', 'nearby'],
+    queryFn: async () => {
       const { data } = await api.get('/rides?page=1&limit=5');
       return data;
-    }, [])
-  );
+    }
+  });
 
-  const { data: myRidesData, loading: myRidesLoading, refresh: refreshMyRides } = useCachedData(
-    'my_rides',
-    useCallback(async () => {
+  const { data: myRidesData, isLoading: myRidesLoading, refetch: refreshMyRides } = useQuery({
+    queryKey: ['rides', 'my'],
+    queryFn: async () => {
       const { data } = await api.get('/rides/my');
       return data;
-    }, [])
-  );
+    }
+  });
 
   const rides = ridesData || [];
   const myRides = myRidesData || { upcoming: [] };

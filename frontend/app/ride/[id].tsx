@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Platform } from 'react-native';
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
+import { useQuery } from '@tanstack/react-query';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -33,27 +34,29 @@ export default function RideDetail() {
   const id = params.id;
   const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : null;
   const { user } = useAuth();
-  const [ride, setRide] = useState<any>(null);
   const [booking, setBooking] = useState(false);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
 
-  const load = async () => {
-    try {
-      const { data } = await api.get(`/rides/${id}`);
-      setRide(data);
-      AnalyticsService.trackEvent('ride_detail_viewed', {
-        ride_id: id,
-        driver_name: data.driverName || data.driver_name,
-        start_place: data.startPlaceName || data.origin,
-        end_place: data.endPlaceName || data.destination,
-      }).catch(() => {});
-    } catch (e: any) { 
-      errorH(); 
-      AnalyticsService.trackError(e?.response?.data?.message || 'Load Ride Details Failed', false, { ride_id: id }).catch(() => {});
-    }
-  };
-
-  useEffect(() => { load(); }, [id]);
+  const { data: ride, refetch: load } = useQuery({
+    queryKey: ['ride', id],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get(`/rides/${id}`);
+        AnalyticsService.trackEvent('ride_detail_viewed', {
+          ride_id: id,
+          driver_name: data.driverName || data.driver_name,
+          start_place: data.startPlaceName || data.origin,
+          end_place: data.endPlaceName || data.destination,
+        }).catch(() => {});
+        return data;
+      } catch (e: any) {
+        errorH();
+        AnalyticsService.trackError(e?.response?.data?.message || 'Load Ride Details Failed', false, { ride_id: id }).catch(() => {});
+        throw e;
+      }
+    },
+    enabled: !!id,
+  });
 
   const onBook = async () => {
     tap();

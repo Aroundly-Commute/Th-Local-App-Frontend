@@ -101,6 +101,9 @@ export default function Login() {
         const { webAuth } = require('../../src/core/auth/firebaseAdapter.web');
         const provider = new GoogleAuthProvider();
         
+        // Force account chooser prompt
+        provider.setCustomParameters({ prompt: 'select_account' });
+        
         console.log('[AUTH] Calling Firebase signInWithPopup...');
         const userCredential = await signInWithPopup(webAuth, provider);
         console.log('[AUTH] Firebase signInWithPopup succeeded. User:', userCredential.user?.email);

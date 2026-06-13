@@ -10,7 +10,7 @@ import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { Shimmer } from '../../src/core/components/Shimmer';
 import { tap } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
-import { useCachedData } from '../../src/core/services/cache';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Rides() {
   const cs = useColorScheme();
@@ -21,13 +21,13 @@ export default function Rides() {
   const [limit, setLimit] = useState(10);
 
   // Dynamic cache key that depends on the pagination limit
-  const { data: res, loading: cacheLoading, refresh } = useCachedData(
-    `my_rides_${limit}`,
-    useCallback(async () => {
+  const { data: res, isLoading: cacheLoading, refetch: refresh } = useQuery({
+    queryKey: ['rides', 'my', limit],
+    queryFn: async () => {
       const { data } = await api.get(`/rides/my?page=1&limit=${limit}`);
       return data;
-    }, [limit])
-  );
+    }
+  });
 
   const upcomingList = res?.upcoming || [];
   const requestedList = res?.requested || [];
