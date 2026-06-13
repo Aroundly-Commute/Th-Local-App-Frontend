@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               projectId: "aroundyou-497203",
               storageBucket: "aroundyou-497203.firebasestorage.app",
               messagingSenderId: "233722731121",
-              appId: "1:233722731121:web:642f3868b99992972d19d0"
+              appId: "1:233722731121:web:654c7c8efa3f6e2e2d19d0"
             };
 
             const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
