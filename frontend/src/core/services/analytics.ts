@@ -26,9 +26,16 @@ if (Platform.OS !== 'web') {
 let webAnalyticsInstance: any = null;
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
   try {
-    const { getAnalytics } = require('firebase/analytics');
-    // Firebase app is already initialized in firebaseAdapter.web.ts, so getAnalytics() will automatically hook in
-    webAnalyticsInstance = getAnalytics();
+    const { getApp } = require('firebase/app');
+    const app = getApp();
+    const placeholderWebId = "1:233722731121:web:642f3868b99992972d19d0";
+
+    if (app.options.appId && app.options.appId !== placeholderWebId) {
+      const { getAnalytics } = require('firebase/analytics');
+      webAnalyticsInstance = getAnalytics();
+    } else {
+      console.warn('[Analytics] Skipping Web Firebase Analytics initialization: Placeholder/Invalid Web appId detected.');
+    }
   } catch (e) {
     // Ad-blockers or failed initialization fallback
     console.warn('[Analytics] Web Firebase Analytics is blocked or not configured:', e);
