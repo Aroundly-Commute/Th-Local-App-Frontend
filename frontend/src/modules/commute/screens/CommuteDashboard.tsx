@@ -312,7 +312,7 @@ export default function CommuteDashboard() {
       {/* Nearby rides */}
       {(loading || (nearbyRides && nearbyRides.length > 0)) && (
         <>
-          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } })} />
+          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push({ pathname: '/commute/search' as any, params: { showAll: 'true', hideTabs: 'true' } })} />
           {loading ? (
             <ScrollView
               horizontal
