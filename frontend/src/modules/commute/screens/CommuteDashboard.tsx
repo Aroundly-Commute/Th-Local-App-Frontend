@@ -130,12 +130,12 @@ export default function CommuteDashboard() {
     {
       label: 'Cab Buddy',
       icon: CabBuddyIcon,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find' } }),
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
     },
     {
       label: 'Car Pooling',
       icon: CarPoolingIcon,
-      onPress: () => router.push('/commute/search'),
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
     },
     {
       label: 'Public Transport',
@@ -145,7 +145,7 @@ export default function CommuteDashboard() {
     {
       label: 'Offer Ride',
       icon: OfferRideIcon,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'offer' } }),
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'offer', hideTabs: 'true' } }),
     },
   ];
 
@@ -194,7 +194,7 @@ export default function CommuteDashboard() {
       <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, zIndex: 99 }}>
         <TouchableOpacity
           testID="home-search-bar"
-          onPress={() => { tap(); router.push('/commute/search'); }}
+          onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }); }}
           activeOpacity={0.7}
           style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
         >
@@ -312,7 +312,7 @@ export default function CommuteDashboard() {
       {/* Nearby rides */}
       {(loading || (nearbyRides && nearbyRides.length > 0)) && (
         <>
-          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push('/commute/search')} />
+          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } })} />
           {loading ? (
             <ScrollView
               horizontal

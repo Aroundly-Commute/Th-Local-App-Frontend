@@ -115,7 +115,7 @@ export default function Rides() {
                 : 'Your ride history will appear here'}
             </Text>
             {tab !== 'past' && (
-              <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push('/commute/search'); }}
+              <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }); }}
                 activeOpacity={0.8} style={[styles.emptyCta, { backgroundColor: t.primary }]}>
                 <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
                   {tab === 'upcoming' ? 'Find a Ride' : 'Search Rides'}

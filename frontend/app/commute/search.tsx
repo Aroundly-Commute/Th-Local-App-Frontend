@@ -541,7 +541,7 @@ export default function Search() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; hideTabs?: string }>();
 
   const [mode, setMode] = useState<'find' | 'offer'>('find');
   const [from, setFrom] = useState('');
@@ -666,6 +666,8 @@ export default function Search() {
   useEffect(() => {
     if (params.mode === 'offer') {
       setMode('offer');
+    } else if (params.mode === 'find') {
+      setMode('find');
     }
   }, [params.mode]);
 
@@ -742,10 +744,12 @@ export default function Search() {
         {/* Header */}
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
           {/* Tabs */}
-          <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-            <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
-            <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
-          </View>
+          {params.hideTabs !== 'true' && (
+            <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
+              <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
+              <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
+            </View>
+          )}
 
           {/* From / To inputs */}
           <View style={{ gap: 8, marginTop: spacing.md, zIndex: 10 }}>
