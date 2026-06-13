@@ -203,7 +203,7 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.price, { color: t.textPrimary }]}>${(r.price_per_seat ?? 0).toFixed(0)}</Text>
+          <Text style={[styles.price, { color: t.textPrimary }]}>₹{(r.price_per_seat ?? 0).toFixed(0)}</Text>
           <Text style={[styles.meta, { color: t.textSecondary }]}>{dateStr}</Text>
         </View>
       </View>
