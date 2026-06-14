@@ -12,6 +12,7 @@ import { useAuth } from '../../src/core/auth/auth';
 import { useMarketData } from '../../src/modules/marketplace/contexts/MarketDataContext';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 const MOCK_PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80', // Red Shoes
@@ -27,6 +28,7 @@ export default function MerchantDashboard() {
   const { user } = useAuth();
   const { merchantOrders, updateOrderStatus, loading: ordersLoading } = useOrders();
   const { addProduct, addService, registeredRole, registeredBrandName } = useMarketData();
+  const { enableMarketplace } = useFeatureFlags();
 
   const [activeTab, setActiveTab] = useState<'orders' | 'products'>('orders');
   const [shopId, setShopId] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function MerchantDashboard() {
   const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!enableMarketplace || !user?.id) return;
     const initBusiness = async () => {
       try {
         if (registeredRole === 'provider') {
@@ -93,7 +95,7 @@ export default function MerchantDashboard() {
       }
     };
     initBusiness();
-  }, [user, registeredRole, registeredBrandName]);
+  }, [user, registeredRole, registeredBrandName, enableMarketplace]);
 
   const fetchProducts = async (id: string) => {
     try {

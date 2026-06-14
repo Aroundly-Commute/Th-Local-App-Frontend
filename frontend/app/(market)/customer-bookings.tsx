@@ -9,12 +9,14 @@ import { ChevronLeft, Calendar, Clock, DollarSign, Tag, Info, User, MessageSquar
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 export default function CustomerBookings() {
   const router = useRouter();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
+  const { enableMarketplace } = useFeatureFlags();
   
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +40,12 @@ export default function CustomerBookings() {
   };
 
   useEffect(() => {
+    if (!enableMarketplace) {
+      setLoading(false);
+      return;
+    }
     fetchBookings();
-  }, [user]);
+  }, [user, enableMarketplace]);
 
   const handleBookingPress = (booking: any) => {
     tap();

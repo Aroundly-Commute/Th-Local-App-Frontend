@@ -14,6 +14,7 @@ import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/the
 import { tap, success } from '../../src/core/utils/haptics';
 import { useCart } from '../../src/modules/marketplace/contexts/CartContext';
 import { useAuth } from '../../src/core/auth/auth';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -23,6 +24,7 @@ export default function ShopDetail() {
   const router = useRouter();
   const { user } = useAuth();
   const { id, type } = useLocalSearchParams<{ id: string; type?: 'shop' | 'provider' }>();
+  const { enableMarketplace } = useFeatureFlags();
   const [shop, setShop] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [follow, setFollow] = useState<{ is_following: boolean; followers: number }>({ is_following: false, followers: 0 });
@@ -31,6 +33,10 @@ export default function ShopDetail() {
   const { addItem } = useCart();
 
   useEffect(() => {
+    if (!enableMarketplace) {
+      setLoading(false);
+      return;
+    }
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -103,7 +109,7 @@ export default function ShopDetail() {
       }
     };
     fetchData();
-  }, [id, type]);
+  }, [id, type, enableMarketplace]);
 
   const handleBookService = async (service: any) => {
     tap();
