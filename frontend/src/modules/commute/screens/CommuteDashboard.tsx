@@ -18,6 +18,7 @@ import { RideCard } from '../components/RideCard';
 import { tap } from '../../../core/utils/haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
+import { Alert } from '../../../core/components/CustomAlert';
 
 const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -83,9 +84,23 @@ export default function CommuteDashboard() {
     }
   });
 
+  const { data: buddiesData, isLoading: buddiesLoading, refetch: refreshBuddies } = useQuery({
+    queryKey: ['buddies'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get('/matchmaking/buddies');
+        return data;
+      } catch (err) {
+        console.error('Failed to fetch buddy requests:', err);
+        return [];
+      }
+    }
+  });
+
   const rides = ridesData || [];
   const myRides = myRidesData || { upcoming: [] };
-  const loading = statsLoading && ridesLoading && myRidesLoading && !stats && !ridesData && !myRidesData;
+  const buddies = buddiesData || [];
+  const loading = statsLoading && ridesLoading && myRidesLoading && buddiesLoading && !stats && !ridesData && !myRidesData && !buddiesData;
 
   const greeting = (() => {
     const d = new Date();
@@ -100,18 +115,19 @@ export default function CommuteDashboard() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshStats(), refreshRides(), refreshMyRides()]);
+      await Promise.all([refreshStats(), refreshRides(), refreshMyRides(), refreshBuddies()]);
     } catch {} finally {
       setRefreshing(false);
     }
-  }, [refreshStats, refreshRides, refreshMyRides]);
+  }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies]);
 
   useFocusEffect(
     useCallback(() => {
       refreshStats().catch(() => {});
       refreshRides().catch(() => {});
       refreshMyRides().catch(() => {});
-    }, [refreshStats, refreshRides, refreshMyRides])
+      refreshBuddies().catch(() => {});
+    }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies])
   );
 
   const upcomingRides = (myRides.upcoming || []).slice(0, 5);
@@ -125,6 +141,70 @@ export default function CommuteDashboard() {
 
   const hasMultipleNearby = nearbyRides.length > 1;
   const nearbyCardWidth = hasMultipleNearby ? containerWidth * 0.85 : containerWidth;
+
+  const handleOfferRide = () => {
+    tap();
+    if (!user?.vehicle) {
+      Alert.alert(
+        'Vehicle Required',
+        'To offer a ride, you must register your vehicle first.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Register Now',
+            onPress: () => {
+              tap();
+              router.push({
+                pathname: '/commute/vehicles' as any,
+                params: { redirectAfter: 'offer-ride' },
+              });
+            },
+          },
+        ]
+      );
+    } else {
+      router.push({ pathname: '/commute/search' as any, params: { mode: 'offer', hideTabs: 'true' } });
+    }
+  };
+
+  const handleBuddyPress = (buddy: any) => {
+    tap();
+    const startNameShort = buddy.startPlaceName.split(',')[0];
+    const endNameShort = buddy.endPlaceName.split(',')[0];
+    Alert.alert(
+      'Buddy Request',
+      `${buddy.rider?.name || 'A buddy'} is looking for a ride from ${startNameShort} to ${endNameShort}. How would you like to proceed?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Chat Now',
+          onPress: () => {
+            tap();
+            const chatId = `buddy_${buddy.id}_${user?.id}`;
+            router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(buddy.rider?.name || 'Buddy')}` as any);
+          },
+        },
+        {
+          text: 'Offer Ride',
+          onPress: () => {
+            tap();
+            router.push({
+              pathname: '/commute/search' as any,
+              params: {
+                mode: 'offer',
+                from: buddy.startPlaceName,
+                to: buddy.endPlaceName,
+                hideTabs: 'true',
+              },
+            });
+          },
+        },
+      ]
+    );
+  };
 
   const services = [
     {
@@ -145,7 +225,7 @@ export default function CommuteDashboard() {
     {
       label: 'Offer Ride',
       icon: OfferRideIcon,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'offer', hideTabs: 'true' } }),
+      onPress: handleOfferRide,
     },
   ];
 
@@ -348,6 +428,44 @@ export default function CommuteDashboard() {
         </>
       )}
 
+      {/* Buddies Seeking Rides */}
+      {(loading || (buddies && buddies.length > 0)) && (
+        <>
+          <SectionHeader t={t} title="Buddies Seeking Rides" />
+          {loading ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginHorizontal: -spacing.lg }}
+              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
+            >
+              <Shimmer style={{ width: nearbyCardWidth, height: 150, borderRadius: radius.lg }} />
+              <Shimmer style={{ width: nearbyCardWidth, height: 150, borderRadius: radius.lg }} />
+            </ScrollView>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={nearbyCardWidth + 12}
+              snapToAlignment="start"
+              style={{ marginHorizontal: -spacing.lg }}
+              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
+            >
+              {buddies.map((b: any) => (
+                <BuddyCard
+                  key={b.id}
+                  buddy={b}
+                  t={t}
+                  onPress={() => handleBuddyPress(b)}
+                  style={{ width: nearbyCardWidth }}
+                />
+              ))}
+            </ScrollView>
+          )}
+        </>
+      )}
+
       {/* Impact stats */}
       <View style={[styles.impact, { backgroundColor: t.successBg }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -355,13 +473,19 @@ export default function CommuteDashboard() {
           <Text style={[styles.impactTitle, { color: t.success }]}>Your Green Impact</Text>
           <Text style={[styles.impactMonth, { color: t.success, opacity: 0.7 }]}>· This month</Text>
         </View>
-        <View style={styles.impactRow}>
-          <ImpactStat label="Rides Shared" value={`${stats?.rides_count ?? 0}`} t={t} />
-          <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
-          <ImpactStat label="CO₂ Saved" value={`${stats?.co2_saved_kg?.toFixed(1) ?? '0.0'}kg`} t={t} />
-          <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
-          <ImpactStat label="Money Saved" value={`₹${stats?.money_saved?.toFixed(0) ?? '0'}`} t={t} testID="money-saved" />
-        </View>
+        {(stats?.rides_count ?? 0) === 0 ? (
+          <Text style={[styles.impactPlaceholder, { color: t.success, opacity: 0.8 }]}>
+            No rides shared yet. Start carpooling or offering rides to track your CO₂ savings and split travel costs!
+          </Text>
+        ) : (
+          <View style={styles.impactRow}>
+            <ImpactStat label="Rides Shared" value={`${stats?.rides_count ?? 0}`} t={t} />
+            <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
+            <ImpactStat label="CO₂ Saved" value={`${stats?.co2_saved_kg?.toFixed(1) ?? '0.0'}kg`} t={t} />
+            <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
+            <ImpactStat label="Money Saved" value={`₹${stats?.money_saved?.toFixed(0) ?? '0'}`} t={t} testID="money-saved" />
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -385,6 +509,87 @@ const ImpactStat: React.FC<{ label: string; value: string; t: Theme; testID?: st
     <Text style={[styles.impactLabel, { color: t.success, opacity: 0.75 }]}>{label}</Text>
   </View>
 );
+
+const BuddyCard: React.FC<{ buddy: any; t: Theme; onPress: () => void; style?: any }> = ({
+  buddy,
+  t,
+  onPress,
+  style,
+}) => {
+  const riderName = buddy.rider?.name || 'Unknown';
+  const riderAvatar = buddy.rider?.profilePic;
+  const origin = buddy.startPlaceName || 'Unknown';
+  const destination = buddy.endPlaceName || 'Unknown';
+  const seatsNeeded = buddy.seatsNeeded ?? 1;
+  const time = new Date(buddy.startTime);
+  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  const dateStr = isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}
+      style={[
+        {
+          borderRadius: radius.lg,
+          padding: spacing.md,
+          gap: 12,
+          borderWidth: 1,
+          backgroundColor: t.surface,
+          borderColor: t.border
+        },
+        style
+      ]}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <VerifiedAvatar uri={riderAvatar} name={riderName} verified={false} t={t} size={44} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>
+            {riderName}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <Users color={t.textSecondary} size={12} />
+            <Text style={{ fontSize: 12, color: t.textSecondary }}>{seatsNeeded} buddy seeking</Text>
+            {buddy.rider?.gender && (
+              <>
+                <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
+                <Text style={{ fontSize: 12, color: t.textSecondary, textTransform: 'capitalize' }}>
+                  {buddy.rider.gender}
+                </Text>
+              </>
+            )}
+          </View>
+        </View>
+        <View style={{ backgroundColor: t.isDark ? '#1F2A37' : '#E5E7EB', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: t.textPrimary }}>Rider</Text>
+        </View>
+      </View>
+
+      <View style={{ borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12, gap: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.textPrimary }} />
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', color: t.textPrimary }} numberOfLines={1}>
+            {origin}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: t.muted }}>
+            <Clock color={t.textSecondary} size={10} />
+            <Text style={{ fontSize: 11, fontWeight: '600', color: t.textSecondary }}>{timeStr}</Text>
+          </View>
+        </View>
+        <View style={{ width: 2, height: 14, marginLeft: 3, backgroundColor: t.border }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }} />
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', color: t.textPrimary }} numberOfLines={1}>
+            {destination}
+          </Text>
+          {dateStr ? (
+            <Text style={{ fontSize: 11, fontWeight: '500', color: t.textSecondary }}>
+              {dateStr}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   header: {
@@ -472,4 +677,5 @@ const styles = StyleSheet.create({
   impactDivider: { width: 1, height: 32, marginHorizontal: 4 },
   impactValue: { fontSize: 18, fontWeight: '700' },
   impactLabel: { fontSize: 11, fontWeight: '500' },
+  impactPlaceholder: { fontSize: 13, fontWeight: '500', lineHeight: 18, marginTop: 4 },
 });

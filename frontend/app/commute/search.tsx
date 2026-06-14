@@ -541,7 +541,15 @@ export default function Search() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string; hideTabs?: string; showAll?: string }>();
+  const params = useLocalSearchParams<{
+    mode?: string;
+    hideTabs?: string;
+    showAll?: string;
+    from?: string;
+    to?: string;
+    fromCoords?: string;
+    toCoords?: string;
+  }>();
 
   const [mode, setMode] = useState<'find' | 'offer'>('find');
   const [from, setFrom] = useState('');
@@ -687,6 +695,25 @@ export default function Search() {
     }
   }, [params.mode]);
 
+  useEffect(() => {
+    if (params.from) setFrom(params.from);
+    if (params.to) setTo(params.to);
+    if (params.fromCoords) {
+      try {
+        setFromCoords(JSON.parse(params.fromCoords));
+      } catch (e) {
+        console.error('Failed to parse fromCoords from params:', e);
+      }
+    }
+    if (params.toCoords) {
+      try {
+        setToCoords(JSON.parse(params.toCoords));
+      } catch (e) {
+        console.error('Failed to parse toCoords from params:', e);
+      }
+    }
+  }, [params.from, params.to, params.fromCoords, params.toCoords]);
+
   const dateLabel = datetime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeLabel = datetime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
@@ -751,6 +778,52 @@ export default function Search() {
     setTo(r.to);
     setFromCoords(r.fromCoords || null);
     setToCoords(r.toCoords || null);
+  };
+
+  const handlePostSearch = () => {
+    tap();
+    Alert.alert(
+      'Post Search Request',
+      'Other users will see that you are looking for a ride from ' + (from || '').split(',')[0] + ' to ' + (to || '').split(',')[0] + '. Proceed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Post Request',
+          onPress: async () => {
+            tap();
+            setLoading(true);
+            try {
+              await api.post('/matchmaking/buddies', {
+                startPlaceName: from,
+                endPlaceName: to,
+                startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
+                endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
+                startTime: datetime.toISOString(),
+                seatsNeeded: parseInt(seats) || 1,
+              });
+              success();
+              Alert.alert(
+                'Success',
+                'Your carpool request has been posted successfully!',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      router.replace('/(tabs)');
+                    }
+                  }
+                ]
+              );
+            } catch (err: any) {
+              errorH();
+              Alert.alert('Error', err.response?.data?.message || 'Failed to post search request.');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -984,9 +1057,48 @@ export default function Search() {
                     <View style={{ padding: 40, alignItems: 'center' }}>
                       <SearchIcon color={t.textTertiary} size={28} />
                       <Text style={{ color: t.textSecondary, marginTop: 8 }}>No rides match your search.</Text>
-                      <Text style={{ color: t.textTertiary, marginTop: 4, fontSize: 12, textAlign: 'center' }}>
+                      <Text style={{ color: t.textTertiary, marginTop: 4, fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
                         Try adjusting the time window or search radius.
                       </Text>
+                      <TouchableOpacity
+                        testID="post-search-cta-empty"
+                        activeOpacity={0.8}
+                        onPress={handlePostSearch}
+                        style={{
+                          backgroundColor: t.primary,
+                          paddingHorizontal: 20,
+                          paddingVertical: 12,
+                          borderRadius: radius.md,
+                        }}
+                      >
+                        <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
+                          Post as Carpool Request
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {rides.length > 0 && (
+                    <View style={{ marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: t.border, alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: t.textSecondary, fontSize: 13, textAlign: 'center' }}>
+                        Didn't find a matching ride?
+                      </Text>
+                      <TouchableOpacity
+                        testID="post-search-cta"
+                        activeOpacity={0.8}
+                        onPress={handlePostSearch}
+                        style={{
+                          backgroundColor: t.muted,
+                          paddingHorizontal: 20,
+                          paddingVertical: 12,
+                          borderRadius: radius.md,
+                          borderWidth: 1,
+                          borderColor: t.border,
+                        }}
+                      >
+                        <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: 14 }}>
+                          Post Your Search Request
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>

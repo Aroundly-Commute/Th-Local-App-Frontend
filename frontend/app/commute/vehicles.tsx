@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Car, ChevronLeft, Shield, CheckCircle2, UserCheck, Plus } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
@@ -27,7 +27,8 @@ export default function Vehicles() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { user, login } = useAuth(); // login or me call can refresh user details
+  const { user, refresh } = useAuth();
+  const { redirectAfter } = useLocalSearchParams<{ redirectAfter?: string }>();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -114,10 +115,19 @@ export default function Vehicles() {
       }).catch(() => {});
 
       success();
+      try {
+        await refresh();
+      } catch (err) {
+        console.error('Failed to refresh user profile:', err);
+      }
+
       Alert.alert('Success', 'Your vehicle details have been saved successfully!');
       
-      // Go back
-      router.back();
+      if (redirectAfter === 'offer-ride') {
+        router.replace({ pathname: '/commute/search' as any, params: { mode: 'offer', hideTabs: 'true' } });
+      } else {
+        router.back();
+      }
     } catch (err: any) {
       errorH();
       AnalyticsService.trackError(err?.response?.data?.message || 'Save Vehicle Failed', false, { vehicle_type: type }).catch(() => {});
@@ -146,8 +156,12 @@ export default function Vehicles() {
         <View style={{ width: 40 }} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 80}
+      >
+        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
           
           {existingVehicle ? (
             <View style={[styles.activeCard, { backgroundColor: t.isDark ? '#0f1f17' : '#EAF5EC', borderColor: t.success }]}>
