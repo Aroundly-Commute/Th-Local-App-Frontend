@@ -118,6 +118,60 @@ export default function RideDetail() {
     }
   };
 
+  const onCancelBooking = () => {
+    tap();
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking/request?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            tap();
+            try {
+              await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'CANCELLED' });
+              success();
+              Alert.alert('Cancelled', 'Your booking/request has been cancelled.');
+              load();
+            } catch (e: any) {
+              errorH();
+              Alert.alert('Error', e?.response?.data?.message || 'Failed to cancel booking');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const onWithdrawRide = () => {
+    tap();
+    Alert.alert(
+      'Withdraw Ride',
+      'Are you sure you want to withdraw this offered ride? All passengers will be notified and cancelled.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            tap();
+            try {
+              await api.patch(`/rides/${id}/status`, { status: 'CANCELLED' });
+              success();
+              Alert.alert('Withdrawn', 'Your offered ride has been withdrawn.');
+              load();
+            } catch (e: any) {
+              errorH();
+              Alert.alert('Error', e?.response?.data?.message || 'Failed to withdraw ride');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (!ride) return (
     <View style={{ flex: 1, backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator color={t.primary} />
@@ -166,25 +220,59 @@ export default function RideDetail() {
   // - Rider with REQUESTED (pending): "Awaiting Approval"
   // - Rider with no request: "Book Seat"
   const fabContent = () => {
-    if (isDriver) return null;
+    if (isDriver) {
+      if (ride.status !== 'CANCELLED') {
+        return (
+          <TouchableOpacity
+            testID="withdraw-ride"
+            onPress={onWithdrawRide}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: '#ef4444', width: '100%' }]}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Withdraw Offered Ride</Text>
+          </TouchableOpacity>
+        );
+      }
+      return null;
+    }
     if (myRequestStatus === 'ACCEPTED') {
       return (
-        <TouchableOpacity
-          testID="chat-driver"
-          onPress={() => router.push(`/chat/${encodeURIComponent(myChatId)}?name=${encodeURIComponent(dName)}` as any)}
-          activeOpacity={0.85}
-          style={[styles.cta, { backgroundColor: t.primary }]}
-        >
-          <MessageCircle color={t.primaryContrast} size={18} />
-          <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat with Driver</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+          <TouchableOpacity
+            testID="chat-driver"
+            onPress={() => router.push(`/chat/${encodeURIComponent(myChatId)}?name=${encodeURIComponent(dName)}` as any)}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary, flex: 1 }]}
+          >
+            <MessageCircle color={t.primaryContrast} size={18} />
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="cancel-booking"
+            onPress={onCancelBooking}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Cancel Booking</Text>
+          </TouchableOpacity>
+        </View>
       );
     }
     if (myRequestStatus === 'REQUESTED') {
       return (
-        <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]}>
-          <Clock color={t.textSecondary} size={18} />
-          <Text style={{ color: t.textSecondary, fontSize: 15, fontWeight: '600' }}>Awaiting Driver Approval</Text>
+        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+          <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 2 }]}>
+            <Clock color={t.textSecondary} size={18} />
+            <Text style={{ color: t.textSecondary, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>Awaiting Approval</Text>
+          </View>
+          <TouchableOpacity
+            testID="withdraw-request"
+            onPress={onCancelBooking}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
+          >
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Withdraw</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -429,7 +517,7 @@ export default function RideDetail() {
       </ScrollView>
 
       {/* FAB */}
-      {!isDriver && (
+      {fabContent() !== null && (
         <View style={[styles.fab, { backgroundColor: t.background, borderColor: t.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             {fabContent()}

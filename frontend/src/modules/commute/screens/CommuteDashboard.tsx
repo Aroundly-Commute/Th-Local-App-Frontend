@@ -220,7 +220,7 @@ export default function CommuteDashboard() {
     {
       label: 'Public Transport',
       icon: PublicTransportIcon,
-      onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Public Transport' } }),
+      onPress: () => router.push('/commute/public-transport' as any),
     },
     {
       label: 'Offer Ride',
