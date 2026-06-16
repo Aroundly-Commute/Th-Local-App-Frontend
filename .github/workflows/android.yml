@@ -1,0 +1,85 @@
+name: Build Android App (APK & AAB)
+
+on:
+  push:
+    branches:
+      - dev
+      - stage
+      - staging
+      - main
+  pull_request:
+    branches:
+      - dev
+      - stage
+      - staging
+      - main
+
+jobs:
+  build:
+    name: Build Android APK and AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Create Env File
+        working-directory: ./frontend
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "EXPO_PUBLIC_BACKEND_URL=https://th-local-app-backend.onrender.com" >> .env
+            echo "EXPO_PUBLIC_APP_ENV=production" >> .env
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As" >> .env
+          elif [ "${{ github.ref_name }}" = "stage" ] || [ "${{ github.ref_name }}" = "staging" ]; then
+            echo "EXPO_PUBLIC_BACKEND_URL=https://aroundly-staging.onrender.com" >> .env
+            echo "EXPO_PUBLIC_APP_ENV=staging" >> .env
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyBL6ErltGnL-zedDMBidoiexA8Cez7kL-c" >> .env
+          else
+            echo "EXPO_PUBLIC_BACKEND_URL=https://aroundly-backend.onrender.com" >> .env
+            echo "EXPO_PUBLIC_APP_ENV=development" >> .env
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As" >> .env
+          fi
+          echo "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6.apps.googleusercontent.com" >> .env
+          echo "EXPO_PUBLIC_VAPID_KEY=BKcDsegOVCcv5eo50kR6xP0O5wUUlSMhtiojAF9RCWxD7MFDuDKMD4SCGEwAAuoBYNcJo8p7xs8z9oGcYsWMHOQ" >> .env
+
+      - name: Install Dependencies
+        working-directory: ./frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build Android App (APK & AAB)
+        working-directory: ./frontend/android
+        run: |
+          chmod +x gradlew
+          if [ "${{ github.ref_name }}" = "stage" ] || [ "${{ github.ref_name }}" = "staging" ]; then
+            ./gradlew assembleStaging bundleStaging --no-daemon
+          else
+            ./gradlew assembleRelease bundleRelease --no-daemon
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-apk
+          path: frontend/android/app/build/outputs/apk/*/*.apk
+
+      - name: Upload AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-aab
+          path: frontend/android/app/build/outputs/bundle/*/*.aab
