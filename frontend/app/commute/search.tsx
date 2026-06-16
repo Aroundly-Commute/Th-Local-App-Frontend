@@ -956,7 +956,7 @@ export default function Search() {
                     <RideCard key={r.id} ride={r} t={t} testID={`search-ride-${r.id}`}
                       onPress={() => {
                         tap();
-                        router.push(`/ride/${r.id}`);
+                        router.push(`/ride/${r.id}?seats=${seats}` as any);
                       }} />
                   ))}
                   {rides.length === 0 && (
@@ -1048,6 +1048,7 @@ export default function Search() {
                             fromLng: fromCoords?.lng,
                             toLat: toCoords?.lat,
                             toLng: toCoords?.lng,
+                            seats: seats,
                             estimatedFare: r.estimatedFare ? JSON.stringify(r.estimatedFare) : undefined,
                           }
                         } as any);

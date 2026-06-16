@@ -28,6 +28,7 @@ export default function RideDetail() {
     fromLng?: string;
     toLat?: string;
     toLng?: string;
+    seats?: string;
     estimatedFare?: string;
   }>();
 
@@ -58,12 +59,14 @@ export default function RideDetail() {
     enabled: !!id,
   });
 
+  const requestedSeats = params.seats ? parseInt(params.seats) : 1;
+
   const onBook = async () => {
     tap();
     setBooking(true);
     try {
       const payload = {
-        seats: 1,
+        seats: requestedSeats,
         riderStartName: params.fromName,
         riderEndName: params.toName,
         riderStartCoords: params.fromLng && params.fromLat ? [Number(params.fromLng), Number(params.fromLat)] : undefined,
@@ -277,6 +280,27 @@ export default function RideDetail() {
       );
     }
     // No request yet
+    const isFull = (ride.seatsAvailable ?? 0) <= 0;
+    const notEnoughSeats = (ride.seatsAvailable ?? 0) < requestedSeats;
+
+    if (isFull) {
+      return (
+        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
+          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride is Full</Text>
+        </View>
+      );
+    }
+
+    if (notEnoughSeats) {
+      return (
+        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
+          <Text style={{ color: t.textSecondary, fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+            Not Enough Seats Left (Only {ride.seatsAvailable ?? 0} available)
+          </Text>
+        </View>
+      );
+    }
+
     return (
       <TouchableOpacity
         testID="book-ride"
@@ -289,7 +313,7 @@ export default function RideDetail() {
           <>
             <MessageCircle color={t.primaryContrast} size={18} />
             <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>
-              {`Request Seat · ₹${Math.round(price || 0)}`}
+              {`Request ${requestedSeats} ${requestedSeats === 1 ? 'Seat' : 'Seats'} · ₹${Math.round((price || 0) * requestedSeats)}`}
             </Text>
           </>
         )}
@@ -317,7 +341,9 @@ export default function RideDetail() {
               <Text style={[styles.driver, { color: t.textPrimary }]}>{dName}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 <Star color={t.primary} size={13} fill={t.primary} />
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>{dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'}</Text>
+                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
+                  {dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'} · {ride.seatsAvailable ?? 0} {(ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats'} left
+                </Text>
               </View>
             </View>
             <Text style={[styles.price, { color: t.primary }]}>₹{Math.round(price || 0)}</Text>
@@ -464,30 +490,35 @@ export default function RideDetail() {
               </Text>
             ) : (
               passengers.map((p: any) => (
-                <View key={p.request_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
-                      {p.rider_name} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
-                    </Text>
-                    <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                      {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                    </Text>
+                <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
+                  {/* Top row: Avatar, Name & Fare, Status */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
+                        {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
+                      </Text>
+                      <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                        {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+
+                  {/* Bottom row: Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
                     {p.status === 'REQUESTED' && (
                       <>
                         <TouchableOpacity
                           onPress={() => onAcceptRequest(p.request_id)}
                           activeOpacity={0.8}
-                          style={{ backgroundColor: t.success, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 }}
+                          style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
                         >
                           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => onRejectRequest(p.request_id)}
                           activeOpacity={0.8}
-                          style={{ backgroundColor: t.error, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 }}
+                          style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
                         >
                           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
                         </TouchableOpacity>
@@ -496,7 +527,7 @@ export default function RideDetail() {
                     <TouchableOpacity
                       onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
                       activeOpacity={0.8}
-                      style={{ backgroundColor: t.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
                     >
                       <MessageCircle color="#fff" size={12} />
                       <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
