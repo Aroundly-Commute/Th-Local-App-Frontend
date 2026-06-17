@@ -43,27 +43,44 @@ jobs:
         working-directory: ./frontend
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "EXPO_PUBLIC_BACKEND_URL=https://th-local-app-backend.onrender.com" >> .env
+            echo "EXPO_PUBLIC_BACKEND_URL=${{ secrets.EXPO_PUBLIC_BACKEND_URL_PROD }}" >> .env
             echo "EXPO_PUBLIC_APP_ENV=production" >> .env
-            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As" >> .env
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}" >> .env
           elif [ "${{ github.ref_name }}" = "stage" ] || [ "${{ github.ref_name }}" = "staging" ]; then
-            echo "EXPO_PUBLIC_BACKEND_URL=https://aroundly-staging.onrender.com" >> .env
+            echo "EXPO_PUBLIC_BACKEND_URL=${{ secrets.EXPO_PUBLIC_BACKEND_URL_STAGE }}" >> .env
             echo "EXPO_PUBLIC_APP_ENV=staging" >> .env
-            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyBL6ErltGnL-zedDMBidoiexA8Cez7kL-c" >> .env
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}" >> .env
           else
-            echo "EXPO_PUBLIC_BACKEND_URL=https://aroundly-backend.onrender.com" >> .env
+            echo "EXPO_PUBLIC_BACKEND_URL=${{ secrets.EXPO_PUBLIC_BACKEND_URL_DEV }}" >> .env
             echo "EXPO_PUBLIC_APP_ENV=development" >> .env
-            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As" >> .env
+            echo "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}" >> .env
           fi
-          echo "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=233722731121-brn0chd58jfffn5ecq5qe493a58eg4r6.apps.googleusercontent.com" >> .env
-          echo "EXPO_PUBLIC_VAPID_KEY=BKcDsegOVCcv5eo50kR6xP0O5wUUlSMhtiojAF9RCWxD7MFDuDKMD4SCGEwAAuoBYNcJo8p7xs8z9oGcYsWMHOQ" >> .env
+          echo "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}" >> .env
+          echo "EXPO_PUBLIC_VAPID_KEY=${{ secrets.EXPO_PUBLIC_VAPID_KEY }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
+          echo "EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}" >> .env
 
       - name: Install Dependencies
         working-directory: ./frontend
         run: yarn install --frozen-lockfile
 
+      - name: Decode Android Keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: ./frontend/android/app
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+
       - name: Build Android App (APK & AAB)
         working-directory: ./frontend/android
+        env:
+          ANDROID_KEYSTORE_FILE: "release.keystore"
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           if [ "${{ github.ref_name }}" = "stage" ] || [ "${{ github.ref_name }}" = "staging" ]; then
