@@ -11,14 +11,14 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 
-// Extract Firebase config from the environment variables (with default fallbacks)
+// Extract Firebase config from the same project settings (mirroring google-services.json)
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "aroundyou-497203.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "aroundyou-497203",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "aroundyou-497203.firebasestorage.app",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "233722731121",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:233722731121:web:654c7c8efa3f6e2e2d19d0"
+  apiKey: "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
+  authDomain: "aroundyou-497203.firebaseapp.com",
+  projectId: "aroundyou-497203",
+  storageBucket: "aroundyou-497203.firebasestorage.app",
+  messagingSenderId: "233722731121",
+  appId: "1:233722731121:web:642f3868b99992972d19d0"
 };
 
 // Initialize Firebase App for Web if not already initialized

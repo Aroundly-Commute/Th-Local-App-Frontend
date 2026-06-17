@@ -43,7 +43,7 @@ export default function Signup() {
   const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
-    let interval: any;
+    let interval: NodeJS.Timeout;
     if (resendTimer > 0) {
       interval = setInterval(() => {
         setResendTimer((prev) => prev - 1);

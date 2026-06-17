@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from './firebaseAdapter';
-import { api, clearApiCache } from '../api/api';
-import { cacheManager } from '../services/cache';
+import { api } from '../api/api';
 import { Platform } from 'react-native';
 
 let messaging: any = null;
@@ -59,20 +58,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const { initializeApp, getApps, getApp } = require('firebase/app');
 
             const firebaseConfig = {
-              apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
-              authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "aroundyou-497203.firebaseapp.com",
-              projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "aroundyou-497203",
-              storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "aroundyou-497203.firebasestorage.app",
-              messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "233722731121",
-              appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:233722731121:web:654c7c8efa3f6e2e2d19d0"
+              apiKey: "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
+              authDomain: "aroundyou-497203.firebaseapp.com",
+              projectId: "aroundyou-497203",
+              storageBucket: "aroundyou-497203.firebasestorage.app",
+              messagingSenderId: "233722731121",
+              appId: "1:233722731121:web:642f3868b99992972d19d0"
             };
 
             const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
             const messagingInstance = getMessaging(app);
 
-            // Register service worker explicitly with configuration query parameters to support dynamic initialization
-            const params = new URLSearchParams(firebaseConfig as any).toString();
-            const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${params}`);
+            // Register service worker explicitly to ensure reliability
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
             const vapidKey = process.env.EXPO_PUBLIC_VAPID_KEY;
             if (!vapidKey) {
@@ -139,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refresh = async () => {
     try {
-      const { data } = await api.get('/auth/me', { params: { bypassCache: true } });
+      const { data } = await api.get('/auth/me');
       setUser(data);
     } catch {
       setUser(null);
@@ -244,43 +242,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     console.log('[AUTH] Log-out action triggered.');
-    
-    // 1. Clear FCM token on backend before signing out (while we still have the access token)
-    try {
-      await api.patch('/auth/fcm-token', { fcmToken: null }).catch((e) => {
-        console.warn('[AUTH] Failed to clear FCM token on backend:', e);
-      });
-    } catch (err) {
-      console.warn('[AUTH] Failed to request fcm-token clear:', err);
-    }
-
-    // 2. Sign out of Firebase
     try {
       await auth().signOut();
     } catch (err) {
       console.warn('[AUTH] Firebase signOut error:', err);
     }
-
-    // 3. Sign out of native Google Sign-In on mobile
-    if (Platform.OS !== 'web') {
-      try {
-        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-        await GoogleSignin.signOut().catch(() => {});
-        await GoogleSignin.revokeAccess().catch(() => {});
-      } catch (err) {
-        console.warn('[AUTH] Google Sign-In signOut/revoke error:', err);
-      }
-    }
-
-    // 4. Clean only auth-specific items instead of wiping everything
     try {
-      clearApiCache();
-      await cacheManager.clear();
-      await AsyncStorage.removeItem('access_token');
+      await AsyncStorage.clear();
     } catch (err) {
-      console.warn('[AUTH] AsyncStorage selective clear error:', err);
+      console.warn('[AUTH] AsyncStorage clear error:', err);
     }
-
     setUser(null);
   };
 

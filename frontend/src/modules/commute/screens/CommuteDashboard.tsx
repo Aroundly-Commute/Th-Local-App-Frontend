@@ -8,7 +8,7 @@ import {
   MapPin, Users, Calendar, Leaf, Search as SearchIcon,
   ChevronRight, Star, Clock, RefreshCw,
 } from 'lucide-react-native';
-import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { useAuth } from '../../../core/auth/auth';
 import { api } from '../../../core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
@@ -16,9 +16,8 @@ import { Shimmer } from '../../../core/components/Shimmer';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 import { RideCard } from '../components/RideCard';
 import { tap } from '../../../core/utils/haptics';
-import { useQuery } from '@tanstack/react-query';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
-import { Alert } from '../../../core/components/CustomAlert';
+import { useCachedData } from '../../../core/services/cache';
 
 const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -26,23 +25,15 @@ const CarPoolingIcon = ({ color, size }: { color: string; size: number }) => (
   </Svg>
 );
 
-const CabBuddyIcon = ({ color, size }: { color: string; size: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <Circle cx="9" cy="7" r="4" />
-    <Path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
+const ParkingIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12.5 3H7v18h3v-6h2.5c3.58 0 6.5-2.92 6.5-6.5S16.08 3 12.5 3zm0 10H10V6h2.5c1.93 0 3.5 1.57 3.5 3.5S14.43 13 12.5 13z" fill={color} />
   </Svg>
 );
 
-const OfferRideIcon = ({ color, size }: { color: string; size: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-    <Circle cx="12" cy="12" r="10" />
-    <Circle cx="12" cy="12" r="3" />
-    <Line x1="12" y1="2" x2="12" y2="9" />
-    <Line x1="12" y1="15" x2="12" y2="22" />
-    <Line x1="2" y1="12" x2="9" y2="12" />
-    <Line x1="15" y1="12" x2="22" y2="12" />
+const CarRentalIcon = ({ color, size }: { color: string; size: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v3h3v-3h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill={color} />
   </Svg>
 );
 
@@ -60,47 +51,33 @@ export default function CommuteDashboard() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: stats, isLoading: statsLoading, refetch: refreshStats } = useQuery({
-    queryKey: ['sustainability'],
-    queryFn: async () => {
+  const { data: stats, loading: statsLoading, refresh: refreshStats } = useCachedData(
+    'sustainability_stats',
+    useCallback(async () => {
       const { data } = await api.get('/sustainability/me');
       return data;
-    }
-  });
+    }, [])
+  );
 
-  const { data: ridesData, isLoading: ridesLoading, refetch: refreshRides } = useQuery({
-    queryKey: ['rides', 'nearby'],
-    queryFn: async () => {
+  const { data: ridesData, loading: ridesLoading, refresh: refreshRides } = useCachedData(
+    'nearby_rides',
+    useCallback(async () => {
       const { data } = await api.get('/rides?page=1&limit=5');
       return data;
-    }
-  });
+    }, [])
+  );
 
-  const { data: myRidesData, isLoading: myRidesLoading, refetch: refreshMyRides } = useQuery({
-    queryKey: ['rides', 'my'],
-    queryFn: async () => {
+  const { data: myRidesData, loading: myRidesLoading, refresh: refreshMyRides } = useCachedData(
+    'my_rides',
+    useCallback(async () => {
       const { data } = await api.get('/rides/my');
       return data;
-    }
-  });
-
-  const { data: buddiesData, isLoading: buddiesLoading, refetch: refreshBuddies } = useQuery({
-    queryKey: ['buddies'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get('/matchmaking/buddies');
-        return data;
-      } catch (err) {
-        console.error('Failed to fetch buddy requests:', err);
-        return [];
-      }
-    }
-  });
+    }, [])
+  );
 
   const rides = ridesData || [];
   const myRides = myRidesData || { upcoming: [] };
-  const buddies = buddiesData || [];
-  const loading = statsLoading && ridesLoading && myRidesLoading && buddiesLoading && !stats && !ridesData && !myRidesData && !buddiesData;
+  const loading = statsLoading && ridesLoading && myRidesLoading && !stats && !ridesData && !myRidesData;
 
   const greeting = (() => {
     const d = new Date();
@@ -115,19 +92,18 @@ export default function CommuteDashboard() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshStats(), refreshRides(), refreshMyRides(), refreshBuddies()]);
+      await Promise.all([refreshStats(), refreshRides(), refreshMyRides()]);
     } catch {} finally {
       setRefreshing(false);
     }
-  }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies]);
+  }, [refreshStats, refreshRides, refreshMyRides]);
 
   useFocusEffect(
     useCallback(() => {
       refreshStats().catch(() => {});
       refreshRides().catch(() => {});
       refreshMyRides().catch(() => {});
-      refreshBuddies().catch(() => {});
-    }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies])
+    }, [refreshStats, refreshRides, refreshMyRides])
   );
 
   const upcomingRides = (myRides.upcoming || []).slice(0, 5);
@@ -142,90 +118,26 @@ export default function CommuteDashboard() {
   const hasMultipleNearby = nearbyRides.length > 1;
   const nearbyCardWidth = hasMultipleNearby ? containerWidth * 0.85 : containerWidth;
 
-  const handleOfferRide = () => {
-    tap();
-    if (!user?.vehicle) {
-      Alert.alert(
-        'Vehicle Required',
-        'To offer a ride, you must register your vehicle first.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Register Now',
-            onPress: () => {
-              tap();
-              router.push({
-                pathname: '/commute/vehicles' as any,
-                params: { redirectAfter: 'offer-ride' },
-              });
-            },
-          },
-        ]
-      );
-    } else {
-      router.push({ pathname: '/commute/search' as any, params: { mode: 'offer', hideTabs: 'true' } });
-    }
-  };
-
-  const handleBuddyPress = (buddy: any) => {
-    tap();
-    const startNameShort = buddy.startPlaceName.split(',')[0];
-    const endNameShort = buddy.endPlaceName.split(',')[0];
-    Alert.alert(
-      'Buddy Request',
-      `${buddy.rider?.name || 'A buddy'} is looking for a ride from ${startNameShort} to ${endNameShort}. How would you like to proceed?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Chat Now',
-          onPress: () => {
-            tap();
-            const chatId = `buddy_${buddy.id}_${user?.id}`;
-            router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(buddy.rider?.name || 'Buddy')}` as any);
-          },
-        },
-        {
-          text: 'Offer Ride',
-          onPress: () => {
-            tap();
-            router.push({
-              pathname: '/commute/search' as any,
-              params: {
-                mode: 'offer',
-                from: buddy.startPlaceName,
-                to: buddy.endPlaceName,
-                hideTabs: 'true',
-              },
-            });
-          },
-        },
-      ]
-    );
-  };
-
   const services = [
-    {
-      label: 'Cab Buddy',
-      icon: CabBuddyIcon,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
-    },
     {
       label: 'Car Pooling',
       icon: CarPoolingIcon,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
+      onPress: () => router.push('/commute/search'),
+    },
+    {
+      label: 'Parking',
+      icon: ParkingIcon,
+      onPress: () => router.push('/parking'),
+    },
+    {
+      label: 'Car Rental',
+      icon: CarRentalIcon,
+      onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Car Rental' } }),
     },
     {
       label: 'Public Transport',
       icon: PublicTransportIcon,
-      onPress: () => router.push('/commute/public-transport' as any),
-    },
-    {
-      label: 'Offer Ride',
-      icon: OfferRideIcon,
-      onPress: handleOfferRide,
+      onPress: () => router.push({ pathname: '/coming-soon' as any, params: { feature: 'Public Transport' } }),
     },
   ];
 
@@ -274,7 +186,7 @@ export default function CommuteDashboard() {
       <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, zIndex: 99 }}>
         <TouchableOpacity
           testID="home-search-bar"
-          onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }); }}
+          onPress={() => { tap(); router.push('/commute/search'); }}
           activeOpacity={0.7}
           style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
         >
@@ -392,7 +304,7 @@ export default function CommuteDashboard() {
       {/* Nearby rides */}
       {(loading || (nearbyRides && nearbyRides.length > 0)) && (
         <>
-          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push({ pathname: '/commute/search' as any, params: { showAll: 'true', hideTabs: 'true' } })} />
+          <SectionHeader t={t} title="Rides Near You" actionLabel="See all" onAction={() => router.push('/commute/search')} />
           {loading ? (
             <ScrollView
               horizontal
@@ -428,44 +340,6 @@ export default function CommuteDashboard() {
         </>
       )}
 
-      {/* Buddies Seeking Rides */}
-      {(loading || (buddies && buddies.length > 0)) && (
-        <>
-          <SectionHeader t={t} title="Buddies Seeking Rides" />
-          {loading ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginHorizontal: -spacing.lg }}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
-            >
-              <Shimmer style={{ width: nearbyCardWidth, height: 150, borderRadius: radius.lg }} />
-              <Shimmer style={{ width: nearbyCardWidth, height: 150, borderRadius: radius.lg }} />
-            </ScrollView>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              snapToInterval={nearbyCardWidth + 12}
-              snapToAlignment="start"
-              style={{ marginHorizontal: -spacing.lg }}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
-            >
-              {buddies.map((b: any) => (
-                <BuddyCard
-                  key={b.id}
-                  buddy={b}
-                  t={t}
-                  onPress={() => handleBuddyPress(b)}
-                  style={{ width: nearbyCardWidth }}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </>
-      )}
-
       {/* Impact stats */}
       <View style={[styles.impact, { backgroundColor: t.successBg }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -473,19 +347,13 @@ export default function CommuteDashboard() {
           <Text style={[styles.impactTitle, { color: t.success }]}>Your Green Impact</Text>
           <Text style={[styles.impactMonth, { color: t.success, opacity: 0.7 }]}>· This month</Text>
         </View>
-        {(stats?.rides_count ?? 0) === 0 ? (
-          <Text style={[styles.impactPlaceholder, { color: t.success, opacity: 0.8 }]}>
-            No rides shared yet. Start carpooling or offering rides to track your CO₂ savings and split travel costs!
-          </Text>
-        ) : (
-          <View style={styles.impactRow}>
-            <ImpactStat label="Rides Shared" value={`${stats?.rides_count ?? 0}`} t={t} />
-            <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
-            <ImpactStat label="CO₂ Saved" value={`${stats?.co2_saved_kg?.toFixed(1) ?? '0.0'}kg`} t={t} />
-            <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
-            <ImpactStat label="Money Saved" value={`₹${stats?.money_saved?.toFixed(0) ?? '0'}`} t={t} testID="money-saved" />
-          </View>
-        )}
+        <View style={styles.impactRow}>
+          <ImpactStat label="Rides Shared" value={`${stats?.rides_count ?? 0}`} t={t} />
+          <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
+          <ImpactStat label="CO₂ Saved" value={`${stats?.co2_saved_kg?.toFixed(1) ?? '0.0'}kg`} t={t} />
+          <View style={[styles.impactDivider, { backgroundColor: t.success, opacity: 0.15 }]} />
+          <ImpactStat label="Money Saved" value={`₹${stats?.money_saved?.toFixed(0) ?? '0'}`} t={t} testID="money-saved" />
+        </View>
       </View>
     </ScrollView>
   );
@@ -509,87 +377,6 @@ const ImpactStat: React.FC<{ label: string; value: string; t: Theme; testID?: st
     <Text style={[styles.impactLabel, { color: t.success, opacity: 0.75 }]}>{label}</Text>
   </View>
 );
-
-const BuddyCard: React.FC<{ buddy: any; t: Theme; onPress: () => void; style?: any }> = ({
-  buddy,
-  t,
-  onPress,
-  style,
-}) => {
-  const riderName = buddy.rider?.name || 'Unknown';
-  const riderAvatar = buddy.rider?.profilePic;
-  const origin = buddy.startPlaceName || 'Unknown';
-  const destination = buddy.endPlaceName || 'Unknown';
-  const seatsNeeded = buddy.seatsNeeded ?? 1;
-  const time = new Date(buddy.startTime);
-  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
-  const dateStr = isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}
-      style={[
-        {
-          borderRadius: radius.lg,
-          padding: spacing.md,
-          gap: 12,
-          borderWidth: 1,
-          backgroundColor: t.surface,
-          borderColor: t.border
-        },
-        style
-      ]}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <VerifiedAvatar uri={riderAvatar} name={riderName} verified={false} t={t} size={44} />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>
-            {riderName}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <Users color={t.textSecondary} size={12} />
-            <Text style={{ fontSize: 12, color: t.textSecondary }}>{seatsNeeded} buddy seeking</Text>
-            {buddy.rider?.gender && (
-              <>
-                <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
-                <Text style={{ fontSize: 12, color: t.textSecondary, textTransform: 'capitalize' }}>
-                  {buddy.rider.gender}
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
-        <View style={{ backgroundColor: t.isDark ? '#1F2A37' : '#E5E7EB', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: t.textPrimary }}>Rider</Text>
-        </View>
-      </View>
-
-      <View style={{ borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12, gap: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.textPrimary }} />
-          <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', color: t.textPrimary }} numberOfLines={1}>
-            {origin}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: t.muted }}>
-            <Clock color={t.textSecondary} size={10} />
-            <Text style={{ fontSize: 11, fontWeight: '600', color: t.textSecondary }}>{timeStr}</Text>
-          </View>
-        </View>
-        <View style={{ width: 2, height: 14, marginLeft: 3, backgroundColor: t.border }} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }} />
-          <Text style={{ flex: 1, fontSize: 14, fontWeight: '500', color: t.textPrimary }} numberOfLines={1}>
-            {destination}
-          </Text>
-          {dateStr ? (
-            <Text style={{ fontSize: 11, fontWeight: '500', color: t.textSecondary }}>
-              {dateStr}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
 
 const styles = StyleSheet.create({
   header: {
@@ -677,5 +464,4 @@ const styles = StyleSheet.create({
   impactDivider: { width: 1, height: 32, marginHorizontal: 4 },
   impactValue: { fontSize: 18, fontWeight: '700' },
   impactLabel: { fontSize: 11, fontWeight: '500' },
-  impactPlaceholder: { fontSize: 13, fontWeight: '500', lineHeight: 18, marginTop: 4 },
 });

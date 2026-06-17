@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../../core/auth/auth';
 import { api } from '../../../core/api/api';
-import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
 
 export type OrderItem = {
   id: string;
@@ -41,7 +40,6 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { enableMarketplace } = useFeatureFlags();
   
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [merchantOrders, setMerchantOrders] = useState<Order[]>([]);
@@ -51,7 +49,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   // Resolve business / shop ID dynamically from database
   useEffect(() => {
-    if (!enableMarketplace || !user) {
+    if (!user) {
       setShopId(null);
       return;
     }
@@ -86,13 +84,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       }
     };
     resolveShopId();
-  }, [user, enableMarketplace]);
+  }, [user]);
 
   useEffect(() => {
-    if (!enableMarketplace || !user) {
+    if (!user) {
       setCustomerOrders([]);
       setMerchantOrders([]);
-      setLoading(false);
       return;
     }
 
@@ -161,10 +158,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return () => {
       newSocket.disconnect();
     };
-  }, [user, shopId, enableMarketplace]);
+  }, [user, shopId]);
 
   const placeOrder = async (targetShopId: string, items: any[], totalAmount: number) => {
-    if (!enableMarketplace) return;
     if (socket && socket.connected) {
       const orderData = {
         shopId: targetShopId,
@@ -214,7 +210,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-    if (!enableMarketplace) return;
     // Instantly update states locally for maximum UI responsiveness
     setCustomerOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     setMerchantOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
