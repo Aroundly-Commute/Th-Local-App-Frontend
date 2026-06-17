@@ -69,10 +69,12 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Decode Android Keystore
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
         working-directory: ./frontend/android/app
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
 
       - name: Build Android App (APK & AAB)
         working-directory: ./frontend/android
