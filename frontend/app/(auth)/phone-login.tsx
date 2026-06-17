@@ -78,7 +78,7 @@ export default function PhoneLogin() {
   }, [mode]);
 
   useEffect(() => {
-    let interval: any;
+    let interval: NodeJS.Timeout;
     if (mode === 'otp' && timer > 0) {
       interval = setInterval(() => {
         setTimer((prev) => prev - 1);

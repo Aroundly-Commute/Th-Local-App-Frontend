@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Platform } from 'react-native';
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
-import { useQuery } from '@tanstack/react-query';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -28,45 +27,40 @@ export default function RideDetail() {
     fromLng?: string;
     toLat?: string;
     toLng?: string;
-    seats?: string;
     estimatedFare?: string;
   }>();
 
   const id = params.id;
   const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : null;
   const { user } = useAuth();
+  const [ride, setRide] = useState<any>(null);
   const [booking, setBooking] = useState(false);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
 
-  const { data: ride, refetch: load } = useQuery({
-    queryKey: ['ride', id],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get(`/rides/${id}`);
-        AnalyticsService.trackEvent('ride_detail_viewed', {
-          ride_id: id,
-          driver_name: data.driverName || data.driver_name,
-          start_place: data.startPlaceName || data.origin,
-          end_place: data.endPlaceName || data.destination,
-        }).catch(() => {});
-        return data;
-      } catch (e: any) {
-        errorH();
-        AnalyticsService.trackError(e?.response?.data?.message || 'Load Ride Details Failed', false, { ride_id: id }).catch(() => {});
-        throw e;
-      }
-    },
-    enabled: !!id,
-  });
+  const load = async () => {
+    try {
+      const { data } = await api.get(`/rides/${id}`);
+      setRide(data);
+      AnalyticsService.trackEvent('ride_detail_viewed', {
+        ride_id: id,
+        driver_name: data.driverName || data.driver_name,
+        start_place: data.startPlaceName || data.origin,
+        end_place: data.endPlaceName || data.destination,
+      }).catch(() => {});
+    } catch (e: any) { 
+      errorH(); 
+      AnalyticsService.trackError(e?.response?.data?.message || 'Load Ride Details Failed', false, { ride_id: id }).catch(() => {});
+    }
+  };
 
-  const requestedSeats = params.seats ? parseInt(params.seats) : 1;
+  useEffect(() => { load(); }, [id]);
 
   const onBook = async () => {
     tap();
     setBooking(true);
     try {
       const payload = {
-        seats: requestedSeats,
+        seats: 1,
         riderStartName: params.fromName,
         riderEndName: params.toName,
         riderStartCoords: params.fromLng && params.fromLat ? [Number(params.fromLng), Number(params.fromLat)] : undefined,
@@ -121,60 +115,6 @@ export default function RideDetail() {
     }
   };
 
-  const onCancelBooking = () => {
-    tap();
-    Alert.alert(
-      'Cancel Booking',
-      'Are you sure you want to cancel this booking/request?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            tap();
-            try {
-              await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'CANCELLED' });
-              success();
-              Alert.alert('Cancelled', 'Your booking/request has been cancelled.');
-              load();
-            } catch (e: any) {
-              errorH();
-              Alert.alert('Error', e?.response?.data?.message || 'Failed to cancel booking');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const onWithdrawRide = () => {
-    tap();
-    Alert.alert(
-      'Withdraw Ride',
-      'Are you sure you want to withdraw this offered ride? All passengers will be notified and cancelled.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Withdraw',
-          style: 'destructive',
-          onPress: async () => {
-            tap();
-            try {
-              await api.patch(`/rides/${id}/status`, { status: 'CANCELLED' });
-              success();
-              Alert.alert('Withdrawn', 'Your offered ride has been withdrawn.');
-              load();
-            } catch (e: any) {
-              errorH();
-              Alert.alert('Error', e?.response?.data?.message || 'Failed to withdraw ride');
-            }
-          }
-        }
-      ]
-    );
-  };
-
   if (!ride) return (
     <View style={{ flex: 1, backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator color={t.primary} />
@@ -223,84 +163,29 @@ export default function RideDetail() {
   // - Rider with REQUESTED (pending): "Awaiting Approval"
   // - Rider with no request: "Book Seat"
   const fabContent = () => {
-    if (isDriver) {
-      if (ride.status !== 'CANCELLED') {
-        return (
-          <TouchableOpacity
-            testID="withdraw-ride"
-            onPress={onWithdrawRide}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ef4444', width: '100%' }]}
-          >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Withdraw Offered Ride</Text>
-          </TouchableOpacity>
-        );
-      }
-      return null;
-    }
+    if (isDriver) return null;
     if (myRequestStatus === 'ACCEPTED') {
       return (
-        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-          <TouchableOpacity
-            testID="chat-driver"
-            onPress={() => router.push(`/chat/${encodeURIComponent(myChatId)}?name=${encodeURIComponent(dName)}` as any)}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, flex: 1 }]}
-          >
-            <MessageCircle color={t.primaryContrast} size={18} />
-            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            testID="cancel-booking"
-            onPress={onCancelBooking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
-          >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Cancel Booking</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          testID="chat-driver"
+          onPress={() => router.push(`/chat/${encodeURIComponent(myChatId)}?name=${encodeURIComponent(dName)}` as any)}
+          activeOpacity={0.85}
+          style={[styles.cta, { backgroundColor: t.primary }]}
+        >
+          <MessageCircle color={t.primaryContrast} size={18} />
+          <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat with Driver</Text>
+        </TouchableOpacity>
       );
     }
     if (myRequestStatus === 'REQUESTED') {
       return (
-        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-          <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 2 }]}>
-            <Clock color={t.textSecondary} size={18} />
-            <Text style={{ color: t.textSecondary, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>Awaiting Approval</Text>
-          </View>
-          <TouchableOpacity
-            testID="withdraw-request"
-            onPress={onCancelBooking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
-          >
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Withdraw</Text>
-          </TouchableOpacity>
+        <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }]}>
+          <Clock color={t.textSecondary} size={18} />
+          <Text style={{ color: t.textSecondary, fontSize: 15, fontWeight: '600' }}>Awaiting Driver Approval</Text>
         </View>
       );
     }
     // No request yet
-    const isFull = (ride.seatsAvailable ?? 0) <= 0;
-    const notEnoughSeats = (ride.seatsAvailable ?? 0) < requestedSeats;
-
-    if (isFull) {
-      return (
-        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride is Full</Text>
-        </View>
-      );
-    }
-
-    if (notEnoughSeats) {
-      return (
-        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
-            Not Enough Seats Left (Only {ride.seatsAvailable ?? 0} available)
-          </Text>
-        </View>
-      );
-    }
-
     return (
       <TouchableOpacity
         testID="book-ride"
@@ -313,7 +198,7 @@ export default function RideDetail() {
           <>
             <MessageCircle color={t.primaryContrast} size={18} />
             <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>
-              {`Request ${requestedSeats} ${requestedSeats === 1 ? 'Seat' : 'Seats'} · ₹${Math.round((price || 0) * requestedSeats)}`}
+              {`Request Seat · ₹${Math.round(price || 0)}`}
             </Text>
           </>
         )}
@@ -341,9 +226,7 @@ export default function RideDetail() {
               <Text style={[styles.driver, { color: t.textPrimary }]}>{dName}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 <Star color={t.primary} size={13} fill={t.primary} />
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                  {dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'} · {ride.seatsAvailable ?? 0} {(ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats'} left
-                </Text>
+                <Text style={{ color: t.textSecondary, fontSize: 13 }}>{dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'}</Text>
               </View>
             </View>
             <Text style={[styles.price, { color: t.primary }]}>₹{Math.round(price || 0)}</Text>
@@ -490,35 +373,30 @@ export default function RideDetail() {
               </Text>
             ) : (
               passengers.map((p: any) => (
-                <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
-                  {/* Top row: Avatar, Name & Fare, Status */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
-                        {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
-                      </Text>
-                      <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                        {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                      </Text>
-                    </View>
+                <View key={p.request_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
+                      {p.rider_name} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
+                    </Text>
+                    <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                      {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                    </Text>
                   </View>
-
-                  {/* Bottom row: Action Buttons */}
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                     {p.status === 'REQUESTED' && (
                       <>
                         <TouchableOpacity
                           onPress={() => onAcceptRequest(p.request_id)}
                           activeOpacity={0.8}
-                          style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                          style={{ backgroundColor: t.success, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 }}
                         >
                           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => onRejectRequest(p.request_id)}
                           activeOpacity={0.8}
-                          style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                          style={{ backgroundColor: t.error, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999 }}
                         >
                           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
                         </TouchableOpacity>
@@ -527,7 +405,7 @@ export default function RideDetail() {
                     <TouchableOpacity
                       onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
                       activeOpacity={0.8}
-                      style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
+                      style={{ backgroundColor: t.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', gap: 4 }}
                     >
                       <MessageCircle color="#fff" size={12} />
                       <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
@@ -548,7 +426,7 @@ export default function RideDetail() {
       </ScrollView>
 
       {/* FAB */}
-      {fabContent() !== null && (
+      {!isDriver && (
         <View style={[styles.fab, { backgroundColor: t.background, borderColor: t.border }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             {fabContent()}

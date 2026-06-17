@@ -4,7 +4,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../src/core/auth/auth';
 import * as SplashScreen from 'expo-splash-screen';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -116,31 +115,27 @@ function AppNavigationWrapper() {
   );
 }
 
-const queryClient = new QueryClient();
-
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <ErrorBoundary>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <AuthProvider>
-              <FeatureFlagProvider>
-                <MarketDataProvider>
-                  <CartProvider>
-                    <OrderProvider>
-                      <StatusBar style="dark" />
-                      <AppNavigationWrapper />
-                      <CustomAlertProvider />
-                    </OrderProvider>
-                  </CartProvider>
-                </MarketDataProvider>
-              </FeatureFlagProvider>
-            </AuthProvider>
-          </GestureHandlerRootView>
-        </ErrorBoundary>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <AuthProvider>
+            <FeatureFlagProvider>
+              <MarketDataProvider>
+                <CartProvider>
+                  <OrderProvider>
+                    <StatusBar style="dark" />
+                    <AppNavigationWrapper />
+                    <CustomAlertProvider />
+                  </OrderProvider>
+                </CartProvider>
+              </MarketDataProvider>
+            </FeatureFlagProvider>
+          </AuthProvider>
+        </GestureHandlerRootView>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 

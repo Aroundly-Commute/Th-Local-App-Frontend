@@ -52,6 +52,26 @@ export default function EditProfileScreen() {
     }
   };
 
+  const pickImage = async () => {
+    tap();
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setAvatarUrl(result.assets[0].uri);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -123,6 +143,10 @@ export default function EditProfileScreen() {
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
             <VerifiedAvatar uri={avatarUrl || undefined} name={name} verified={user?.is_verified} t={t} size={110} />
+            <TouchableOpacity onPress={pickImage} style={[styles.pickBtn, { backgroundColor: t.muted }]}>
+              <ImageIcon size={14} color={t.textPrimary} />
+              <Text style={[styles.pickBtnText, { color: t.textPrimary }]}>Change Profile Pic</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.form}>

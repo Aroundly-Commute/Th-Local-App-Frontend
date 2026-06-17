@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SHOPS, SERVICES, SERVICE_PROVIDERS, FLASH_ITEMS } from '../screens/data';
 import { api } from '../../../core/api/api';
 import { useAuth } from '../../../core/auth/auth';
-import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
 
 export type Shop = {
   id: string;
@@ -73,7 +72,6 @@ const MarketDataContext = createContext<MarketDataContextType | undefined>(undef
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { enableMarketplace } = useFeatureFlags();
   const [shops, setShops] = useState<Shop[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([]);
@@ -89,31 +87,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const [activeMode, setActiveMode] = useState<'marketplace' | 'pooling'>('marketplace');
 
   const initAndFetchData = async (showLoadingIndicator = true) => {
-    if (!enableMarketplace) {
-      if (showLoadingIndicator) {
-        setLoading(true);
-      }
-      try {
-        console.log('[MarketDataContext] Marketplace feature disabled. Loading local fallback data.');
-        const storedShops = await AsyncStorage.getItem('@verdex_shops');
-        const storedServices = await AsyncStorage.getItem('@verdex_services');
-        const storedProviders = await AsyncStorage.getItem('@verdex_providers');
-        const storedProducts = await AsyncStorage.getItem('@verdex_products');
-
-        setShops(storedShops ? JSON.parse(storedShops) : SHOPS.map((s: any) => ({ ...s, category: 'Groceries' })));
-        setServices(storedServices ? JSON.parse(storedServices) : SERVICES);
-        setServiceProviders(storedProviders ? JSON.parse(storedProviders) : SERVICE_PROVIDERS);
-        setProducts(storedProducts ? JSON.parse(storedProducts) : FLASH_ITEMS);
-      } catch (err) {
-        console.error('[MarketDataContext] Error loading offline fallback data:', err);
-      } finally {
-        if (showLoadingIndicator) {
-          setLoading(false);
-        }
-      }
-      return;
-    }
-
     try {
       if (showLoadingIndicator) {
         setLoading(true);
@@ -275,7 +248,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     initAndFetchData(true);
-  }, [user, enableMarketplace]);
+  }, [user]);
 
   const refreshData = async () => {
     await initAndFetchData(false);
@@ -298,7 +271,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleFollow = async (id: string) => {
-    if (!enableMarketplace || !user?.id) return;
+    if (!user?.id) return;
     try {
       await api.post('/marketplace/follows', {
         userId: user.id,
@@ -314,25 +287,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   const addShop = async (name: string, category: string, emoji = '🏪') => {
     const ownerId = user?.id || 'mock-owner-id';
-    if (!enableMarketplace) {
-      const id = `s_custom_${Date.now()}`;
-      const newShop: Shop = {
-        id,
-        name,
-        rating: '5.0',
-        dist: '0.1 km',
-        emoji,
-        bg: '#E8FBF9',
-        orders: '0',
-        category,
-      };
-      setShops(prev => {
-        const updated = [newShop, ...prev];
-        saveToStorage('@verdex_shops', updated);
-        return updated;
-      });
-      return id;
-    }
     try {
       const { data } = await api.post('/marketplace/shops', {
         ownerId,
@@ -377,23 +331,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const addProduct = async (name: string, price: string, desc: string, stock: string) => {
     const shopId = shops[0]?.id || 'mock-shop-id';
     const numericPrice = parseFloat(price) || 0;
-    if (!enableMarketplace) {
-      const originalPrice = Math.round(numericPrice * 1.25);
-      const newProduct: Product = {
-        name,
-        emoji: '🎁',
-        bg: '#E8FBF9',
-        was: `₹${originalPrice}`,
-        now: `₹${numericPrice}`,
-        off: '20%',
-      };
-      setProducts(prev => {
-        const updated = [newProduct, ...prev];
-        saveToStorage('@verdex_products', updated);
-        return updated;
-      });
-      return;
-    }
     try {
       await api.post('/marketplace/products', {
         shopId,
@@ -435,25 +372,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   const addServiceProvider = async (name: string, category: string, emoji = '🛠️') => {
     const ownerId = user?.id || 'mock-owner-id';
-    if (!enableMarketplace) {
-      const id = `sp_custom_${Date.now()}`;
-      const newProvider: ServiceProvider = {
-        id,
-        name,
-        rating: '5.0',
-        dist: '0.1 km',
-        emoji,
-        bg: '#E8FBF9',
-        services: category,
-        ratingCount: '1',
-      };
-      setServiceProviders(prev => {
-        const updated = [newProvider, ...prev];
-        saveToStorage('@verdex_providers', updated);
-        return updated;
-      });
-      return id;
-    }
     try {
       const { data } = await api.post('/marketplace/providers', {
         ownerId,
@@ -498,24 +416,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const addService = async (name: string, price: string, desc: string, providerName: string, category: string) => {
     const provider = serviceProviders.find(p => p.name === providerName);
     const providerId = provider?.id || 'mock-provider-id';
-    if (!enableMarketplace) {
-      const newService: Service = {
-        id: `srv_custom_${Date.now()}`,
-        name,
-        provider: providerName,
-        price: `₹${price}`,
-        rating: '5.0',
-        emoji: '🛠️',
-        category,
-        bg: '#E8FBF9',
-      };
-      setServices(prev => {
-        const updated = [newService, ...prev];
-        saveToStorage('@verdex_services', updated);
-        return updated;
-      });
-      return;
-    }
     try {
       await api.post('/marketplace/services', {
         providerId,
@@ -558,9 +458,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   const createBooking = async (serviceId: string, timeSlot: string, date = 'Today') => {
     const userId = user?.id || 'mock-user-id';
-    if (!enableMarketplace) {
-      throw new Error('Marketplace feature is currently disabled.');
-    }
     try {
       const { data } = await api.post('/marketplace/bookings', {
         userId,

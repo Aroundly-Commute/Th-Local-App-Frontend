@@ -275,7 +275,7 @@ function DateTimePicker({
       setTimeout(() => {
         const hourIndex = tempHour; // 0 to 23
         const minIndex = minutes.indexOf(tempMin); // 0 to 11
-
+        
         if (hourScrollRef.current) {
           hourScrollRef.current.scrollTo({ y: hourIndex * 40, animated: false });
         }
@@ -541,15 +541,7 @@ export default function Search() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    mode?: string;
-    hideTabs?: string;
-    showAll?: string;
-    from?: string;
-    to?: string;
-    fromCoords?: string;
-    toCoords?: string;
-  }>();
+  const params = useLocalSearchParams<{ mode?: string }>();
 
   const [mode, setMode] = useState<'find' | 'offer'>('find');
   const [from, setFrom] = useState('');
@@ -577,22 +569,6 @@ export default function Search() {
       }
     })();
   }, []);
-
-  useEffect(() => {
-    if (params.showAll === 'true') {
-      setLoading(true);
-      api.get('/rides?page=1&limit=50')
-        .then(({ data }) => {
-          setRides(data || []);
-        })
-        .catch((err) => {
-          console.error('Failed to load all rides:', err);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  }, [params.showAll]);
 
   const saveRecentSearch = async (fromVal: string, toVal: string) => {
     try {
@@ -690,36 +666,15 @@ export default function Search() {
   useEffect(() => {
     if (params.mode === 'offer') {
       setMode('offer');
-    } else if (params.mode === 'find') {
-      setMode('find');
     }
   }, [params.mode]);
-
-  useEffect(() => {
-    if (params.from) setFrom(params.from);
-    if (params.to) setTo(params.to);
-    if (params.fromCoords) {
-      try {
-        setFromCoords(JSON.parse(params.fromCoords));
-      } catch (e) {
-        console.error('Failed to parse fromCoords from params:', e);
-      }
-    }
-    if (params.toCoords) {
-      try {
-        setToCoords(JSON.parse(params.toCoords));
-      } catch (e) {
-        console.error('Failed to parse toCoords from params:', e);
-      }
-    }
-  }, [params.from, params.to, params.fromCoords, params.toCoords]);
 
   const dateLabel = datetime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeLabel = datetime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
-      AnalyticsService.trackWarning('Location Validation Failed', { from, to }).catch(() => { });
+      AnalyticsService.trackWarning('Location Validation Failed', { from, to }).catch(() => {});
       Alert.alert('Validation Error', 'Please select both source (From) and destination (To) locations.');
       return;
     }
@@ -734,7 +689,7 @@ export default function Search() {
           start_place: from,
           end_place: to,
           seats_count: seats,
-        }).catch(() => { });
+        }).catch(() => {});
 
         await api.post('/rides/offer', {
           startName: from, endName: to,
@@ -752,7 +707,7 @@ export default function Search() {
         AnalyticsService.trackEvent('ride_search_initiated', {
           start_place: from,
           end_place: to,
-        }).catch(() => { });
+        }).catch(() => {});
 
         const { data } = await api.post('/matchmaking/search', {
           start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
@@ -765,7 +720,7 @@ export default function Search() {
       }
     } catch (e: any) {
       errorH();
-      AnalyticsService.trackError(e?.response?.data?.message || 'Submit Action Exception', false, { mode }).catch(() => { });
+      AnalyticsService.trackError(e?.response?.data?.message || 'Submit Action Exception', false, { mode }).catch(() => {});
       Alert.alert('Error', e?.response?.data?.message || 'Action failed. Please check your connection.');
     } finally {
       setLoading(false);
@@ -780,195 +735,114 @@ export default function Search() {
     setToCoords(r.toCoords || null);
   };
 
-  const handlePostSearch = () => {
-    tap();
-    Alert.alert(
-      'Post Search Request',
-      'Other users will see that you are looking for a ride from ' + (from || '').split(',')[0] + ' to ' + (to || '').split(',')[0] + '. Proceed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Post Request',
-          onPress: async () => {
-            tap();
-            setLoading(true);
-            try {
-              await api.post('/matchmaking/buddies', {
-                startPlaceName: from,
-                endPlaceName: to,
-                startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
-                endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
-                startTime: datetime.toISOString(),
-                seatsNeeded: parseInt(seats) || 1,
-              });
-              success();
-              Alert.alert(
-                'Success',
-                'Your carpool request has been posted successfully!',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      router.replace('/(tabs)');
-                    }
-                  }
-                ]
-              );
-            } catch (err: any) {
-              errorH();
-              Alert.alert('Error', err.response?.data?.message || 'Failed to post search request.');
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title={params.showAll === 'true' ? 'Rides Near You' : (mode === 'find' ? 'Find a Ride' : 'Offer a Ride')} />
+      <ScreenHeader title={mode === 'find' ? 'Find a Ride' : 'Offer a Ride'} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
-        {params.showAll !== 'true' && (
-          <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
-            {/* Tabs */}
-            {params.hideTabs !== 'true' && (
-              <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-                <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
-                <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
-              </View>
-            )}
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
+          {/* Tabs */}
+          <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
+            <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
+            <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
+          </View>
 
-            {/* From / To inputs */}
-            <View style={{ gap: 8, marginTop: spacing.md, zIndex: 10 }}>
-              <TouchableOpacity
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setSearchTarget('from'); }}
-                activeOpacity={0.8}
-                style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+          {/* From / To inputs */}
+          <View style={{ gap: 8, marginTop: spacing.md, zIndex: 10 }}>
+            <TouchableOpacity
+              disabled={loading || locLoading}
+              onPress={() => { tap(); setSearchTarget('from'); }}
+              activeOpacity={0.8}
+              style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+            >
+              <View style={[styles.dot, { backgroundColor: t.textPrimary }]} />
+              <Text
+                style={[
+                  styles.fakeInputText,
+                  { color: from ? t.textPrimary : t.textSecondary },
+                ]}
+                numberOfLines={1}
               >
-                <View style={[styles.dot, { backgroundColor: t.textPrimary }]} />
-                <Text
-                  style={[
-                    styles.fakeInputText,
-                    { color: from ? t.textPrimary : t.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {from || 'From (Origin)'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setSearchTarget('to'); }}
-                activeOpacity={0.8}
-                style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />
-                <Text
-                  style={[
-                    styles.fakeInputText,
-                    { color: to ? t.textPrimary : t.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {to || 'To (Destination)'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Date / Time / Seats row */}
-            <View style={[styles.filters, { marginTop: spacing.sm, zIndex: 0 }]}>
-              {/* Date picker trigger */}
-              <TouchableOpacity
-                testID="date-picker-btn"
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setShowDatePicker(true); }}
-                style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <Calendar color={t.textSecondary} size={13} />
-                <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{dateLabel}</Text>
-              </TouchableOpacity>
-
-              {/* Time picker trigger */}
-              <TouchableOpacity
-                testID="time-picker-btn"
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setShowTimePicker(true); }}
-                style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <Clock color={t.textSecondary} size={13} />
-                <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{timeLabel}</Text>
-              </TouchableOpacity>
-
-              {/* Seats manual input */}
-              <View style={[styles.filterChip, { borderColor: t.border, width: 72, opacity: (loading || locLoading) ? 0.6 : 1 }]}>
-                <Users color={t.textSecondary} size={13} />
-                <TextInput
-                  testID="seats-input"
-                  editable={!loading && !locLoading}
-                  value={seats}
-                  onChangeText={setSeats}
-                  keyboardType="numeric"
-                  maxLength={1}
-                  style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1, padding: 0 }}
-                  placeholderTextColor={t.textSecondary}
-                  placeholder="1"
-                />
-              </View>
-            </View>
+                {from || 'From (Origin)'}
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
-              testID="search-submit"
               disabled={loading || locLoading}
-              onPress={() => { tap(); submitAction(); }}
+              onPress={() => { tap(); setSearchTarget('to'); }}
               activeOpacity={0.8}
-              style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+              style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
             >
-              <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
-                {mode === 'find' ? 'Search Rides' : 'Create Offer'}
+              <View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />
+              <Text
+                style={[
+                  styles.fakeInputText,
+                  { color: to ? t.textPrimary : t.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {to || 'To (Destination)'}
               </Text>
             </TouchableOpacity>
           </View>
-        )}
+
+          {/* Date / Time / Seats row */}
+          <View style={[styles.filters, { marginTop: spacing.sm, zIndex: 0 }]}>
+            {/* Date picker trigger */}
+            <TouchableOpacity
+              testID="date-picker-btn"
+              disabled={loading || locLoading}
+              onPress={() => { tap(); setShowDatePicker(true); }}
+              style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+            >
+              <Calendar color={t.textSecondary} size={13} />
+              <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{dateLabel}</Text>
+            </TouchableOpacity>
+
+            {/* Time picker trigger */}
+            <TouchableOpacity
+              testID="time-picker-btn"
+              disabled={loading || locLoading}
+              onPress={() => { tap(); setShowTimePicker(true); }}
+              style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+            >
+              <Clock color={t.textSecondary} size={13} />
+              <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{timeLabel}</Text>
+            </TouchableOpacity>
+
+            {/* Seats manual input */}
+            <View style={[styles.filterChip, { borderColor: t.border, width: 72, opacity: (loading || locLoading) ? 0.6 : 1 }]}>
+              <Users color={t.textSecondary} size={13} />
+              <TextInput
+                testID="seats-input"
+                editable={!loading && !locLoading}
+                value={seats}
+                onChangeText={setSeats}
+                keyboardType="numeric"
+                maxLength={1}
+                style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1, padding: 0 }}
+                placeholderTextColor={t.textSecondary}
+                placeholder="1"
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            testID="search-submit"
+            disabled={loading || locLoading}
+            onPress={() => { tap(); submitAction(); }}
+            activeOpacity={0.8}
+            style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
+              {mode === 'find' ? 'Search Rides' : 'Create Offer'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Content */}
         <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, paddingBottom: 140 }}>
-          {params.showAll === 'true' ? (
-            <>
-              <View style={styles.resultsHeader}>
-                <Text style={[styles.resultsCount, { color: t.textPrimary }]}>
-                  {loading ? 'Loading rides…' : `${rides.length} rides available`}
-                </Text>
-              </View>
-
-              {loading ? (
-                <View style={{ gap: 12 }}>
-                  <Shimmer style={{ height: 150, borderRadius: radius.lg }} />
-                  <Shimmer style={{ height: 150, borderRadius: radius.lg }} />
-                </View>
-              ) : (
-                <View style={{ gap: 12 }}>
-                  {rides.map((r) => (
-                    <RideCard key={r.id} ride={r} t={t} testID={`search-ride-${r.id}`}
-                      onPress={() => {
-                        tap();
-                        router.push(`/ride/${r.id}?seats=${seats}` as any);
-                      }} />
-                  ))}
-                  {rides.length === 0 && (
-                    <View style={{ padding: 40, alignItems: 'center' }}>
-                      <SearchIcon color={t.textTertiary} size={28} />
-                      <Text style={{ color: t.textSecondary, marginTop: 8 }}>No rides available on campus.</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </>
-          ) : !searched ? (
+          {!searched ? (
             <>
               {recentSearches.length > 0 && (
                 <>
@@ -1048,7 +922,6 @@ export default function Search() {
                             fromLng: fromCoords?.lng,
                             toLat: toCoords?.lat,
                             toLng: toCoords?.lng,
-                            seats: seats,
                             estimatedFare: r.estimatedFare ? JSON.stringify(r.estimatedFare) : undefined,
                           }
                         } as any);
@@ -1058,48 +931,9 @@ export default function Search() {
                     <View style={{ padding: 40, alignItems: 'center' }}>
                       <SearchIcon color={t.textTertiary} size={28} />
                       <Text style={{ color: t.textSecondary, marginTop: 8 }}>No rides match your search.</Text>
-                      <Text style={{ color: t.textTertiary, marginTop: 4, fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
+                      <Text style={{ color: t.textTertiary, marginTop: 4, fontSize: 12, textAlign: 'center' }}>
                         Try adjusting the time window or search radius.
                       </Text>
-                      <TouchableOpacity
-                        testID="post-search-cta-empty"
-                        activeOpacity={0.8}
-                        onPress={handlePostSearch}
-                        style={{
-                          backgroundColor: t.primary,
-                          paddingHorizontal: 20,
-                          paddingVertical: 12,
-                          borderRadius: radius.md,
-                        }}
-                      >
-                        <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
-                          Post as Carpool Request
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {rides.length > 0 && (
-                    <View style={{ marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: t.border, alignItems: 'center', gap: 8 }}>
-                      <Text style={{ color: t.textSecondary, fontSize: 13, textAlign: 'center' }}>
-                        Didn't find a matching ride?
-                      </Text>
-                      <TouchableOpacity
-                        testID="post-search-cta"
-                        activeOpacity={0.8}
-                        onPress={handlePostSearch}
-                        style={{
-                          backgroundColor: t.muted,
-                          paddingHorizontal: 20,
-                          paddingVertical: 12,
-                          borderRadius: radius.md,
-                          borderWidth: 1,
-                          borderColor: t.border,
-                        }}
-                      >
-                        <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: 14 }}>
-                          Post Your Search Request
-                        </Text>
-                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
