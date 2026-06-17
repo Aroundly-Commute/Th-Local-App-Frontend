@@ -10,6 +10,7 @@ import { verdexColors as G } from '../../src/core/theme/theme';
 import { IconChevronRight } from '../../src/modules/marketplace/components/primitives';
 import { useCart } from '../../src/modules/marketplace/contexts/CartContext';
 import { useMarketData } from '../../src/modules/marketplace/contexts/MarketDataContext';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_WIDTH = (width - 48) / 2;
@@ -19,6 +20,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const { addItem } = useCart();
   const { products: contextProducts, shops: contextShops, services: contextServices, serviceProviders: contextProviders } = useMarketData();
+  const { enableMarketplace } = useFeatureFlags();
 
   const [query, setQuery] = useState((q as string) || '');
   const [submittedQuery, setSubmittedQuery] = useState((q as string) || '');
@@ -66,6 +68,7 @@ export default function SearchScreen() {
   // Execute actual search query against both local context & backend APIs
   const handleSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) return;
+    if (!enableMarketplace) return;
     Keyboard.dismiss();
     setSubmittedQuery(searchTerm);
     setShowSuggestions(false);
@@ -132,10 +135,10 @@ export default function SearchScreen() {
       inputRef.current?.focus();
     }, 150);
 
-    if (q) {
+    if (q && enableMarketplace) {
       handleSearch(q as string);
     }
-  }, [q]);
+  }, [q, enableMarketplace]);
 
   const renderProduct = ({ item }: { item: any }) => (
     <View style={s.gridCard}>

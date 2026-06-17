@@ -8,9 +8,10 @@ import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { Shimmer } from '../../src/core/components/Shimmer';
-import { tap } from '../../src/core/utils/haptics';
+import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
-import { useCachedData } from '../../src/core/services/cache';
+import { useQuery } from '@tanstack/react-query';
+import { Alert } from '../../src/core/components/CustomAlert';
 
 export default function Rides() {
   const cs = useColorScheme();
@@ -21,13 +22,13 @@ export default function Rides() {
   const [limit, setLimit] = useState(10);
 
   // Dynamic cache key that depends on the pagination limit
-  const { data: res, loading: cacheLoading, refresh } = useCachedData(
-    `my_rides_${limit}`,
-    useCallback(async () => {
+  const { data: res, isLoading: cacheLoading, refetch: refresh } = useQuery({
+    queryKey: ['rides', 'my', limit],
+    queryFn: async () => {
       const { data } = await api.get(`/rides/my?page=1&limit=${limit}`);
       return data;
-    }, [limit])
-  );
+    }
+  });
 
   const upcomingList = res?.upcoming || [];
   const requestedList = res?.requested || [];
@@ -115,7 +116,7 @@ export default function Rides() {
                 : 'Your ride history will appear here'}
             </Text>
             {tab !== 'past' && (
-              <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push('/commute/search'); }}
+              <TouchableOpacity testID="empty-cta" onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }); }}
                 activeOpacity={0.8} style={[styles.emptyCta, { backgroundColor: t.primary }]}>
                 <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
                   {tab === 'upcoming' ? 'Find a Ride' : 'Search Rides'}
@@ -126,7 +127,7 @@ export default function Rides() {
         ) : (
           <>
             {list.map((r: any) => (
-              <RideCardExt key={`${r.id}-${r.role}-${r.request_id || ''}`} r={r} t={t} isPast={tab === 'past'} isRequested={tab === 'requested'} router={router} />
+              <RideCardExt key={`${r.id}-${r.role}-${r.request_id || ''}`} r={r} t={t} isPast={tab === 'past'} isRequested={tab === 'requested'} router={router} onRefresh={refresh} />
             ))}
             {hasMore && (
               <TouchableOpacity
@@ -144,7 +145,7 @@ export default function Rides() {
   );
 }
 
-const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: boolean; router: any }> = ({ r, t, isPast, isRequested, router }) => {
+const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: boolean; router: any; onRefresh: () => void }> = ({ r, t, isPast, isRequested, router, onRefresh }) => {
   const date = new Date(r.departure_time);
   const dateStr = isNaN(date.getTime()) ? '—' : date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeStr = isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
@@ -152,8 +153,8 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
   const isDriver = r.role === 'driver';
 
   const statusLabel = isPast
-    ? (r.request_status === 'REQUESTED' ? 'Expired' : 'Completed')
-    : isRequested ? 'Pending'
+    ? (r.request_status === 'REQUESTED' || r.request_status === 'OPEN' ? 'Expired' : 'Completed')
+    : isRequested ? (r.isBuddyRequest ? 'Open' : 'Pending')
     : 'Confirmed';
   const statusColor = isPast ? t.textSecondary : isRequested ? t.warning : t.success;
   const statusBg = isPast ? t.muted : isRequested ? (t.isDark ? '#2a2010' : '#fff8e1') : t.successBg;
@@ -164,46 +165,142 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
   // Chat: driver -> first passenger chat, rider -> their own chat with driver
   const chatId = r.chat_id;
 
+  const handleCancelRequest = async (e: any) => {
+    e.stopPropagation();
+    tap();
+    Alert.alert(
+      'Cancel Request/Booking',
+      'Are you sure you want to cancel this request/booking?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            tap();
+            try {
+              await api.patch(`/matchmaking/requests/${r.request_id}`, { status: 'CANCELLED' });
+              success();
+              Alert.alert('Cancelled', 'Your request/booking has been cancelled.');
+              onRefresh();
+            } catch (err: any) {
+              errorH();
+              Alert.alert('Error', err?.response?.data?.message || 'Failed to cancel');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleCancelBuddyRequest = async (e: any) => {
+    e.stopPropagation();
+    tap();
+    Alert.alert(
+      'Withdraw Buddy Request',
+      'Are you sure you want to withdraw this buddy request?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            tap();
+            try {
+              await api.patch(`/matchmaking/buddies/${r.id}`, { status: 'CANCELLED' });
+              success();
+              Alert.alert('Withdrawn', 'Your buddy request has been withdrawn.');
+              onRefresh();
+            } catch (err: any) {
+              errorH();
+              Alert.alert('Error', err?.response?.data?.message || 'Failed to withdraw request');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleCancelRide = async (e: any) => {
+    e.stopPropagation();
+    tap();
+    Alert.alert(
+      'Withdraw Offered Ride',
+      'Are you sure you want to withdraw this offered ride? All passengers will be notified and cancelled.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            tap();
+            try {
+              await api.patch(`/rides/${r.id}/status`, { status: 'CANCELLED' });
+              success();
+              Alert.alert('Withdrawn', 'Your offered ride has been withdrawn.');
+              onRefresh();
+            } catch (err: any) {
+              errorH();
+              Alert.alert('Error', err?.response?.data?.message || 'Failed to withdraw ride');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <TouchableOpacity
       testID={`myride-${r.id}`}
       activeOpacity={0.8}
-      onPress={() => router.push(`/ride/${r.id}`)}
+      onPress={() => {
+        if (!r.isBuddyRequest) {
+          router.push(`/ride/${r.id}`);
+        }
+      }}
       style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}
     >
       {/* Status row */}
       <View style={styles.statusRow}>
         <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-          {isPast && r.request_status !== 'REQUESTED' ? <CheckCircle2 color={statusColor} size={12} />
+          {isPast && r.request_status !== 'REQUESTED' && r.request_status !== 'OPEN' ? <CheckCircle2 color={statusColor} size={12} />
             : <AlertCircle color={statusColor} size={12} />}
           <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
         <Text style={[styles.role, { color: t.textTertiary }]}>
-          {isDriver ? "You're driving" : "You're riding"}
+          {r.isBuddyRequest ? 'Buddy Request' : (isDriver ? "You're driving" : "You're riding")}
         </Text>
       </View>
 
       {/* Driver/passenger + price */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <VerifiedAvatar uri={r.driver_avatar} name={r.driver_name} verified={isDriver} t={t} size={44} />
+        <VerifiedAvatar uri={r.driver_avatar} name={r.driver_name} verified={isDriver && !r.isBuddyRequest} t={t} size={44} />
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: t.textPrimary }]}>
-            {isDriver ? `${r.driver_name} (You)` : r.driver_name}
+            {r.isBuddyRequest ? 'Buddy Request' : (isDriver ? `${r.driver_name} (You)` : r.driver_name)}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-            <Star color={t.warning} size={11} fill={t.warning} />
-            <Text style={[styles.meta, { color: t.textSecondary }]}>{(r.driver_rating ?? 5).toFixed(1)}</Text>
-            {isDriver && r.passengers?.length > 0 && (
+            {r.isBuddyRequest ? (
+              <Text style={[styles.meta, { color: t.textSecondary }]}>{r.seats_available} buddy seeking</Text>
+            ) : (
               <>
-                <Text style={[styles.meta, { color: t.textTertiary }]}> · </Text>
-                <Users color={t.textTertiary} size={11} />
-                <Text style={[styles.meta, { color: t.textTertiary }]}>{r.passengers.length} passenger{r.passengers.length > 1 ? 's' : ''}</Text>
+                <Star color={t.warning} size={11} fill={t.warning} />
+                <Text style={[styles.meta, { color: t.textSecondary }]}>{(r.driver_rating ?? 5).toFixed(1)}</Text>
+                {isDriver && r.passengers?.length > 0 && (
+                  <>
+                    <Text style={[styles.meta, { color: t.textTertiary }]}> · </Text>
+                    <Users color={t.textTertiary} size={11} />
+                    <Text style={[styles.meta, { color: t.textTertiary }]}>{r.passengers.length} passenger{r.passengers.length > 1 ? 's' : ''}</Text>
+                  </>
+                )}
               </>
             )}
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.price, { color: t.textPrimary }]}>${(r.price_per_seat ?? 0).toFixed(0)}</Text>
+          <Text style={[styles.price, { color: t.textPrimary }]}>
+            {r.isBuddyRequest ? 'Buddy' : `₹${(r.price_per_seat ?? 0).toFixed(0)}`}
+          </Text>
           <Text style={[styles.meta, { color: t.textSecondary }]}>{dateStr}</Text>
         </View>
       </View>
@@ -225,28 +322,74 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
         </View>
       </View>
 
-      {/* Action buttons — only for non-past, non-requested rides with a chat */}
-      {!isPast && !isRequested && chatId && (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity
-            testID={`myride-message-${r.id}`}
-            onPress={(e) => {
-              e.stopPropagation();
-              tap();
-              router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(peerName)}`);
-            }}
-            activeOpacity={0.8}
-            style={[styles.actionBtn, { borderColor: t.border }]}
-          >
-            <MessageCircle color={t.textPrimary} size={14} />
-            <Text style={[styles.actionText, { color: t.textPrimary }]}>
-              {isDriver ? `Message ${peerName.split(' ')[0]}` : 'Message Driver'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.8} style={[styles.actionBtn, { borderColor: t.border }]} onPress={() => tap()}>
-            <Phone color={t.textPrimary} size={14} />
-            <Text style={[styles.actionText, { color: t.textPrimary }]}>Call</Text>
-          </TouchableOpacity>
+      {/* Action buttons */}
+      {!isPast && (
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          {/* Messages & Calls */}
+          {!isRequested && chatId && (
+            <>
+              <TouchableOpacity
+                testID={`myride-message-${r.id}`}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  tap();
+                  router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(peerName)}`);
+                }}
+                activeOpacity={0.8}
+                style={[styles.actionBtn, { borderColor: t.border }]}
+              >
+                <MessageCircle color={t.textPrimary} size={14} />
+                <Text style={[styles.actionText, { color: t.textPrimary }]}>
+                  {isDriver ? `Message Passenger` : 'Message Driver'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.actionBtn, { borderColor: t.border }]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  tap();
+                }}
+              >
+                <Phone color={t.textPrimary} size={14} />
+                <Text style={[styles.actionText, { color: t.textPrimary }]}>Call</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Withdraw and cancel options */}
+          {!isRequested && !isDriver && (
+            <TouchableOpacity
+              testID={`myride-cancel-${r.id}`}
+              onPress={handleCancelRequest}
+              activeOpacity={0.8}
+              style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }]}
+            >
+              <Text style={[styles.actionText, { color: '#ef4444' }]}>Cancel Booking</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isRequested && isDriver && (
+            <TouchableOpacity
+              testID={`myride-withdraw-${r.id}`}
+              onPress={handleCancelRide}
+              activeOpacity={0.8}
+              style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }]}
+            >
+              <Text style={[styles.actionText, { color: '#ef4444' }]}>Withdraw Ride</Text>
+            </TouchableOpacity>
+          )}
+
+          {isRequested && (
+            <TouchableOpacity
+              testID={`myride-withdraw-req-${r.id}`}
+              onPress={r.isBuddyRequest ? handleCancelBuddyRequest : handleCancelRequest}
+              activeOpacity={0.8}
+              style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)' }]}
+            >
+              <Text style={[styles.actionText, { color: '#ef4444' }]}>Withdraw Request</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -255,7 +398,7 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
         <View style={{ backgroundColor: statusBg, borderRadius: radius.sm, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Clock color={statusColor} size={13} strokeWidth={2.5} />
           <Text style={{ color: statusColor, fontSize: 12, fontWeight: '600', flex: 1 }}>
-            Waiting for driver to accept your request
+            {r.isBuddyRequest ? 'Looking for a cab buddy' : 'Waiting for driver to accept your request'}
           </Text>
         </View>
       )}

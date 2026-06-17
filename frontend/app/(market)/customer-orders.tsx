@@ -9,12 +9,14 @@ import { ChevronLeft, Calendar, ShoppingBag, Package, DollarSign, MessageSquare 
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
+import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 
 export default function CustomerOrders() {
   const router = useRouter();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
+  const { enableMarketplace } = useFeatureFlags();
   
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,8 +40,12 @@ export default function CustomerOrders() {
   };
 
   useEffect(() => {
+    if (!enableMarketplace) {
+      setLoading(false);
+      return;
+    }
     fetchOrders();
-  }, [user]);
+  }, [user, enableMarketplace]);
 
   const handleOrderPress = (order: any) => {
     tap();
