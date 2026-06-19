@@ -5,10 +5,9 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, A
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,
-  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, ShoppingBag, Trash2
+  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, Trash2
 } from 'lucide-react-native';
 import { useAuth } from '../../../core/auth/auth';
-import { useMarketData } from '../../marketplace/contexts/MarketDataContext';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 import { tap, success } from '../../../core/utils/haptics';
@@ -30,7 +29,6 @@ export default function ProfileScreen() {
   const settingsTapCountRef = React.useRef<number>(0);
   const lastTapRef = React.useRef<number>(0);
   const { user, logout, refresh } = useAuth();
-  const { registeredRole } = useMarketData();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -86,27 +84,13 @@ export default function ProfileScreen() {
     );
   };
 
-  const { enableMarketplace, enableRideSharing, enableParking, enableYourBadges, enableEcoStarter } = useFeatureFlags();
+  const { enableRideSharing, enableParking, enableYourBadges, enableEcoStarter } = useFeatureFlags();
 
   const level = user.rides_count >= 100 ? 'Eco Champion' : user.rides_count >= 25 ? 'Green Commuter' : (enableEcoStarter ? 'Eco Starter' : 'Green Starter');
   const progress = Math.min(100, (user.rides_count / 100) * 100);
   const nextLevel = user.rides_count >= 100 ? 'Planet Saver' : 'Eco Champion';
 
   const menu = [];
-  
-  if (enableMarketplace) {
-    if (registeredRole === 'merchant') {
-      menu.push({ icon: Award, label: 'Manage Shop', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
-    } else if (registeredRole === 'provider') {
-      menu.push({ icon: Settings, label: 'Manage Service', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
-    } else {
-      menu.push({ icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' });
-    }
-    menu.push(
-      { icon: Calendar, label: 'My Bookings', badge: null, route: '/(market)/customer-bookings' },
-      { icon: ShoppingBag, label: 'My Orders', badge: null, route: '/(market)/customer-orders' }
-    );
-  }
 
   if (enableParking) {
     menu.push(

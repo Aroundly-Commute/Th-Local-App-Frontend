@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type FeatureFlags = {
-  enableMarketplace: boolean;
   enableRideSharing: boolean;
   enableParking: boolean;
   enableYourBadges: boolean;
@@ -22,7 +21,6 @@ const STORAGE_KEY = '@app_feature_flags';
 
 export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [flags, setFlags] = useState<FeatureFlags>({
-    enableMarketplace: false,
     enableRideSharing: true,
     enableParking: true,
     enableYourBadges: false,

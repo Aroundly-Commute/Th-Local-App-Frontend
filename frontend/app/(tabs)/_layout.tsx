@@ -15,7 +15,6 @@ export default function TabsLayout() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
-  const { enableMarketplace } = useFeatureFlags();
   const router = useRouter();
   const pathname = usePathname();
   const pathnameRef = React.useRef(pathname);

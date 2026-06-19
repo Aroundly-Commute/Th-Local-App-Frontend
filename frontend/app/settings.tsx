@@ -24,7 +24,6 @@ export default function SettingsScreen() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
 
   const {
-    enableMarketplace,
     enableRideSharing,
     enableParking,
     enableYourBadges,
@@ -116,7 +115,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
+  const handleToggle = async (key: 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
     tap();
     await toggleFeature(key);
   };
@@ -145,28 +144,6 @@ export default function SettingsScreen() {
           </View>
         ) : (
           <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}>
-            {/* Marketplace toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#EFF6FF' }]}>
-                <ShoppingBag color="#3B82F6" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Marketplace Module</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Shop groceries, order home services, or register as a merchant / provider.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableMarketplace ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableMarketplace')}
-                value={enableMarketplace}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
             {/* Ride Sharing toggle */}
             <View style={styles.toggleRow}>
               <View style={[styles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
@@ -347,7 +324,6 @@ export default function SettingsScreen() {
           <BadgeInfo color={t.textSecondary} size={16} />
           <Text style={[styles.stateInfoText, { color: t.textSecondary }]}>
             Active Modules: {[
-              enableMarketplace && 'Marketplace',
               enableRideSharing && 'Ride Sharing',
               enableParking && 'Smart Parking',
               enableYourBadges && 'Your Badges',
