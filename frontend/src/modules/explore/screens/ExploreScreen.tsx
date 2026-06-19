@@ -24,7 +24,6 @@ import {
   ChevronRight,
   Ticket,
   Map,
-  ShoppingBag,
   Info,
 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -235,21 +234,6 @@ export default function ExploreScreen() {
               </View>
             </View>
 
-            {/* Campus Marketplace */}
-            <View style={[styles.comingSoonCard, { backgroundColor: t.surface, borderColor: t.border }]}>
-              <View style={[styles.csIconContainer, { backgroundColor: isDark ? t.muted : '#eff4ff' }]}>
-                <ShoppingBag color={t.textTertiary} size={20} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={[styles.csTitle, { color: t.textPrimary }]}>Campus Marketplace</Text>
-                  <Text style={styles.csBadge}>SHOPS</Text>
-                </View>
-                <Text style={[styles.csDesc, { color: t.textSecondary }]}>
-                  Explore sustainable products, find student-run stores, food stalls, and rent vehicles on-demand.
-                </Text>
-              </View>
-            </View>
           </View>
         </View>
 
