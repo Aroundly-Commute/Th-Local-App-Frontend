@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import { useColorScheme, Platform, AppState, AppStateStatus } from 'react-native';
-import { Home, Search, Car, User, MapPin, ShoppingBag, Compass } from 'lucide-react-native';
+import { Home, Search, Car, User, MapPin, ShoppingBag, Users } from 'lucide-react-native';
 import { lightTheme, darkTheme } from '../../src/core/theme/theme';
 import { tap } from '../../src/core/utils/haptics';
 import { wsUrl, api } from '../../src/core/api/api';
@@ -10,10 +10,17 @@ import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagCont
 import { Alert } from '../../src/core/components/CustomAlert';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
+  const baseHeight = Platform.OS === 'ios' ? 52 : 58;
+  const tabBarHeight = baseHeight + bottomPadding;
+
   const queryClient = useQueryClient();
   const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
+  const t = lightTheme;
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -28,6 +35,7 @@ export default function TabsLayout() {
 
     let ws: WebSocket | null = null;
     let appState = AppState.currentState;
+    let isInitialConnect = true;
 
     const connect = () => {
       if (ws) return;
@@ -37,7 +45,10 @@ export default function TabsLayout() {
       ws.onopen = () => {
         console.log('[WS] Connected successfully.');
         // Pull latest updates upon reconnect/active state
-        queryClient.invalidateQueries();
+        if (!isInitialConnect) {
+          queryClient.invalidateQueries();
+        }
+        isInitialConnect = false;
       };
 
       ws.onmessage = (e) => {
@@ -165,16 +176,16 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: t.surface,
           borderTopColor: t.border,
-          height: Platform.OS === 'ios' ? 84 : 64,
+          height: tabBarHeight,
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          paddingBottom: bottomPadding,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
       screenListeners={{ tabPress: () => tap() }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Home color={color} size={size - 2} strokeWidth={2} /> }} />
-      <Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} strokeWidth={2} /> }} />
+      <Tabs.Screen name="community" options={{ title: 'Community', tabBarIcon: ({ color, size }) => <Users color={color} size={size - 2} strokeWidth={2} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <User color={color} size={size - 2} strokeWidth={2} /> }} />
     </Tabs>
   );

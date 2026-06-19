@@ -59,7 +59,7 @@ export default function DeleteAccountScreen() {
           <ChevronLeft color="#000000" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Data Deletion Request</Text>
-        <div style={{ width: 40 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.contentContainer}>

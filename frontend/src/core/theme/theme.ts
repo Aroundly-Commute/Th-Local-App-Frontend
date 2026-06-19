@@ -48,30 +48,8 @@ export const lightTheme = {
 };
 
 export const darkTheme = {
-  primary:         verdexColors.lime,
-  primaryContrast: verdexColors.g900,
-  secondary:       verdexColors.g700,
-  background:      verdexColors.g900,
-  surface:         verdexColors.g800,
-  surfaceElevated: verdexColors.g700,
-  muted:           '#0D1E38',
-  textPrimary:     '#E8FBF9',
-  textSecondary:   verdexColors.g200,
-  textTertiary:    verdexColors.g300,
-  border:          verdexColors.g700,
-  success:         verdexColors.lime,
-  successBg:       verdexColors.g800,
-  error:           verdexColors.red,
-  errorBg:         '#450A0A',
-  warning:         verdexColors.warn,
-  warningBg:       '#422006',
-  accent:          verdexColors.g300,
-  accentBg:        verdexColors.g700,
-  mint:            verdexColors.lime,
-  mintBg:          verdexColors.g700,
-  shimmerBase:     verdexColors.g700,
-  shimmerHighlight:verdexColors.g600,
-  isDark: true,
+  ...lightTheme,
+  isDark: false,
 };
 
 export type Theme = typeof lightTheme;

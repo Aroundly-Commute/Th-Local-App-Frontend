@@ -1,7 +1,6 @@
-import axios, { AxiosResponse, AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '../auth/firebaseAdapter';
-
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -9,7 +8,6 @@ export const api = axios.create({
   baseURL: `${BASE}/api`,
   timeout: 15000,
 });
-
 
 api.interceptors.request.use(async (config) => {
   console.log(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
@@ -58,4 +56,3 @@ export const wsUrl = (chatId: string) => {
 export const clearApiCache = () => {
   console.log('[API CACHE] Cleared memory cache (no-op).');
 };
-

@@ -358,9 +358,8 @@ function buildItinerary(pathNodeIds: string[], edges: any[]): ItinerarySegment[]
 }
 
 export default function PublicTransportScreen() {
-  const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
-  const isDark = cs === 'dark';
+  const t = lightTheme;
+  const isDark = false;
   const router = useRouter();
 
   const [moduleMode, setModuleMode] = useState<'selection' | 'metro'>('selection');

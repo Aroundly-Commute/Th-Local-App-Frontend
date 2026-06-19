@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
   RefreshControl, Dimensions, Platform, ActivityIndicator,
@@ -54,11 +54,11 @@ const PublicTransportIcon = ({ color, size }: { color: string; size: number }) =
 
 export default function CommuteDashboard() {
   const { enableRideSharing, enableParking } = useFeatureFlags();
-  const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
+  const t = lightTheme;
   const router = useRouter();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const hasInitialFetched = useRef(false);
 
   const { data: stats, isLoading: statsLoading, refetch: refreshStats } = useQuery({
     queryKey: ['sustainability'],
@@ -123,10 +123,14 @@ export default function CommuteDashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshStats().catch(() => {});
-      refreshRides().catch(() => {});
-      refreshMyRides().catch(() => {});
-      refreshBuddies().catch(() => {});
+      if (hasInitialFetched.current) {
+        refreshStats().catch(() => {});
+        refreshRides().catch(() => {});
+        refreshMyRides().catch(() => {});
+        refreshBuddies().catch(() => {});
+      } else {
+        hasInitialFetched.current = true;
+      }
     }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies])
   );
 
@@ -229,7 +233,7 @@ export default function CommuteDashboard() {
     },
   ];
 
-  const isDark = cs === 'dark';
+  const isDark = false;
 
   return (
     <ScrollView

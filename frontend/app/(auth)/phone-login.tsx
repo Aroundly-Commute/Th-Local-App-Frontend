@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
-  useColorScheme, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  useColorScheme,
   ActivityIndicator,
   PermissionsAndroid,
   DeviceEventEmitter
@@ -26,7 +26,7 @@ export default function PhoneLogin() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  
+
   const { sendPhoneOtp, verifyPhoneOtp } = useAuth();
 
   // Screen UI Modes: 'phone' (input phone) or 'otp' (input code)
@@ -59,7 +59,7 @@ export default function PhoneLogin() {
     try {
       const hasReceive = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
       const hasRead = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
-      
+
       if (!hasReceive || !hasRead) {
         await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
@@ -113,14 +113,14 @@ export default function PhoneLogin() {
 
     try {
       console.log(`[AUTH] Initiating native Firebase Phone SMS to: ${formattedPhone}...`);
-      
+
       // Call Firebase Client Phone SDK
       const confirmation = await sendPhoneOtp(formattedPhone);
       setConfirmResult(confirmation);
-      
+
       setMode('otp');
       setTimer(59);
-      setSuccessMsg('SMS verification code successfully sent via Firebase!');
+      setSuccessMsg('SMS verification code successfully!');
       success();
     } catch (e: any) {
       errorH();
@@ -150,11 +150,11 @@ export default function PhoneLogin() {
 
     try {
       console.log(`[AUTH] Verifying code: ${code} with Firebase...`);
-      
+
       // Verify OTP code natively via Firebase Client SDK
       await verifyPhoneOtp(confirmResult, code);
       success();
-      
+
       console.log('[AUTH] Phone login and database sync complete!');
       router.replace('/');
     } catch (e: any) {
@@ -211,16 +211,16 @@ export default function PhoneLogin() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          
+
           {/* Header Back Button */}
-          <TouchableOpacity 
-            onPress={() => { tap(); router.back(); }} 
+          <TouchableOpacity
+            onPress={() => { tap(); router.back(); }}
             style={[styles.backBtn, { backgroundColor: t.muted }]}
           >
             <ArrowLeft color={t.textPrimary} size={20} />
@@ -297,11 +297,11 @@ export default function PhoneLogin() {
                     maxLength={1}
                     selectTextOnFocus
                     style={[
-                      styles.otpBox, 
-                      { 
-                        backgroundColor: t.muted, 
+                      styles.otpBox,
+                      {
+                        backgroundColor: t.muted,
                         borderColor: digit ? t.primary : t.border,
-                        color: t.textPrimary 
+                        color: t.textPrimary
                       }
                     ]}
                   />
@@ -332,9 +332,9 @@ export default function PhoneLogin() {
                     Resend code in <Text style={{ fontWeight: '700', color: t.textPrimary }}>{timer}s</Text>
                   </Text>
                 ) : (
-                  <TouchableOpacity 
-                    onPress={onRequestOtp} 
-                    disabled={loading} 
+                  <TouchableOpacity
+                    onPress={onRequestOtp}
+                    disabled={loading}
                     style={styles.resendBtn}
                   >
                     <RefreshCw size={14} color={t.primary} />
