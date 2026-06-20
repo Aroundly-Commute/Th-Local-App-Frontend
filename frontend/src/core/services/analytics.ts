@@ -3,20 +3,36 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 // Safe check for Native Firebase Analytics (ensures safe fallback operation on Expo Go)
-let firebaseAnalyticsInstance: any = null;
+let getAnalyticsNative: any = null;
+let logEventNative: any = null;
+let setAnalyticsCollectionEnabledNative: any = null;
+
 if (Platform.OS !== 'web') {
   try {
-    firebaseAnalyticsInstance = require('@react-native-firebase/analytics').default;
+    const nativeAnalytics = require('@react-native-firebase/analytics');
+    getAnalyticsNative = nativeAnalytics.getAnalytics;
+    logEventNative = nativeAnalytics.logEvent;
+    setAnalyticsCollectionEnabledNative = nativeAnalytics.setAnalyticsCollectionEnabled;
   } catch (e) {
     // Gracefully falls back in standard Expo Go or unlinked dev environments
   }
 }
 
 // Safe check for Native Firebase Crashlytics
-let crashlyticsInstance: any = null;
+let getCrashlyticsNative: any = null;
+let setAttributesNative: any = null;
+let setUserIdNative: any = null;
+let recordErrorNative: any = null;
+let crashNative: any = null;
+
 if (Platform.OS !== 'web') {
   try {
-    crashlyticsInstance = require('@react-native-firebase/crashlytics').default;
+    const nativeCrashlytics = require('@react-native-firebase/crashlytics');
+    getCrashlyticsNative = nativeCrashlytics.getCrashlytics;
+    setAttributesNative = nativeCrashlytics.setAttributes;
+    setUserIdNative = nativeCrashlytics.setUserId;
+    recordErrorNative = nativeCrashlytics.recordError;
+    crashNative = nativeCrashlytics.crash;
   } catch (e) {
     // Gracefully falls back in standard Expo Go or unlinked dev environments
   }
@@ -50,9 +66,10 @@ export class AnalyticsService {
    */
   public static async initialize(): Promise<string> {
     try {
-      if (Platform.OS !== 'web' && firebaseAnalyticsInstance) {
-        console.log('[Analytics] Initializing native Firebase Analytics...');
-        await firebaseAnalyticsInstance().setAnalyticsCollectionEnabled(true);
+      if (Platform.OS !== 'web' && getAnalyticsNative && setAnalyticsCollectionEnabledNative) {
+        console.log('[Analytics] Initializing native Firebase Analytics (Modular)...');
+        const analytics = getAnalyticsNative();
+        await setAnalyticsCollectionEnabledNative(analytics, true);
       }
       
       // Keep unique ClientID generation for session consistency
@@ -94,8 +111,9 @@ export class AnalyticsService {
           logEvent(webAnalyticsInstance, sanitizedName, enrichedParams);
         }
       } else {
-        if (firebaseAnalyticsInstance) {
-          await firebaseAnalyticsInstance().logEvent(sanitizedName, enrichedParams);
+        if (logEventNative && getAnalyticsNative) {
+          const analytics = getAnalyticsNative();
+          await logEventNative(analytics, sanitizedName, enrichedParams);
         }
       }
     } catch (err) {
@@ -119,8 +137,9 @@ export class AnalyticsService {
           });
         }
       } else {
-        if (firebaseAnalyticsInstance) {
-          await firebaseAnalyticsInstance().logScreenView({
+        if (logEventNative && getAnalyticsNative) {
+          const analytics = getAnalyticsNative();
+          await logEventNative(analytics, 'screen_view', {
             screen_name: screenName,
             screen_class: screenName,
           });
@@ -155,23 +174,27 @@ export class AnalyticsService {
     // 2. Report natively to Firebase Crashlytics
     if (Platform.OS !== 'web') {
       try {
-        if (crashlyticsInstance) {
-          const crash = crashlyticsInstance();
-          
-          crash.setAttributes({
+        if (getCrashlyticsNative) {
+          const crashlytics = getCrashlyticsNative();
+          const attributes = {
             fatal: fatal ? 'true' : 'false',
             platform: Platform.OS,
             os_version: String(Platform.Version),
             app_version: Constants.expoConfig?.version || '1.0.0',
             ...extra,
-          });
+          };
 
-          if (this.clientId) {
-            crash.setUserId(this.clientId);
+          if (setAttributesNative) {
+            await setAttributesNative(crashlytics, attributes);
           }
 
-          // Record custom exception stack trace
-          crash.recordError(new Error(message));
+          if (this.clientId && setUserIdNative) {
+            await setUserIdNative(crashlytics, this.clientId);
+          }
+
+          if (recordErrorNative) {
+            await recordErrorNative(crashlytics, new Error(message));
+          }
           
           if (fatal) {
             console.warn('[Analytics] Uncaught Fatal Exception recorded in Firebase Crashlytics.');
@@ -195,9 +218,10 @@ export class AnalyticsService {
    */
   public static triggerMockCrash(): void {
     try {
-      if (Platform.OS !== 'web' && crashlyticsInstance) {
+      if (Platform.OS !== 'web' && getCrashlyticsNative && crashNative) {
         console.log('[Analytics] Invoking intentional native crash inside Crashlytics...');
-        crashlyticsInstance().crash();
+        const crashlytics = getCrashlyticsNative();
+        crashNative(crashlytics);
       } else {
         console.warn('[Analytics] Crashlytics native module is not active. (Are you running in Web or Expo Go?)');
       }

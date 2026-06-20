@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -20,6 +20,7 @@ export default function Rides() {
   const [tab, setTab] = useState<'upcoming' | 'requested' | 'past'>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
   const [limit, setLimit] = useState(10);
+  const hasInitialFetched = useRef(false);
 
   // Dynamic cache key that depends on the pagination limit
   const { data: res, isLoading: cacheLoading, refetch: refresh } = useQuery({
@@ -53,7 +54,11 @@ export default function Rides() {
 
   useFocusEffect(
     useCallback(() => {
-      refresh().catch(() => {});
+      if (hasInitialFetched.current) {
+        refresh().catch(() => {});
+      } else {
+        hasInitialFetched.current = true;
+      }
     }, [refresh])
   );
 

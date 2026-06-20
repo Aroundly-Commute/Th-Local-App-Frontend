@@ -36,7 +36,7 @@ export default function Login() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, setIsAuthenticating } = useAuth();
   
   const [email, setEmail] = useState('sarah.driver@ecoride.app');
   const [password, setPassword] = useState('password123');
@@ -91,6 +91,7 @@ export default function Login() {
     console.log("=========================================");
 
     try {
+      setIsAuthenticating(true);
       let firebaseIdToken = '';
       let name = 'Google User';
       let userEmail = 'google.user@gmail.com';
@@ -174,6 +175,7 @@ export default function Login() {
       }
       setErr(translateFirebaseError(e));
     } finally { 
+      setIsAuthenticating(false);
       setLoading(false); 
     }
   };
