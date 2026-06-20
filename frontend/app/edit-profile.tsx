@@ -8,15 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  useColorScheme,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { User, Phone, Save, Image as ImageIcon } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { User, Phone, Save, Building2, Briefcase, Mail, Lock, FileText } from 'lucide-react-native';
 import { useAuth } from '../src/core/auth/auth';
-import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
+import { lightTheme, spacing, radius } from '../src/core/theme/theme';
 import { tap, success, errorH } from '../src/core/utils/haptics';
 import { api } from '../src/core/api/api';
 import { ScreenHeader } from '../src/core/components/ScreenHeader';
@@ -24,16 +23,47 @@ import { VerifiedAvatar } from '../src/core/components/VerifiedAvatar';
 import { Alert } from '../src/core/components/CustomAlert';
 import { validatePhoneNumber } from '../src/core/utils/validation';
 
+const AVATARS = {
+  Male: [
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Felix',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Jack',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Oliver',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Charlie',
+  ],
+  Female: [
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Aneka',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Lily',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Maya',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Zoe',
+  ],
+  Other: [
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Sparky',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Buster',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Coco',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Gizmo',
+  ],
+};
+
 export default function EditProfileScreen() {
-  const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
+  const t = lightTheme;
   const router = useRouter();
   const { user, refresh } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
-  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>((user?.gender as any) || 'Male');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>(() => {
+    const rawGender = user?.gender;
+    if (!rawGender) return 'Male';
+    const capitalized = rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase();
+    if (capitalized === 'Male' || capitalized === 'Female' || capitalized === 'Other') {
+      return capitalized as 'Male' | 'Female' | 'Other';
+    }
+    return 'Male';
+  });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatar_url || null);
+  const [society, setSociety] = useState(user?.society || '');
+  const [workplace, setWorkplace] = useState(user?.workplace || '');
+  const [bio, setBio] = useState(user?.bio || '');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -52,25 +82,11 @@ export default function EditProfileScreen() {
     }
   };
 
-  const pickImage = async () => {
+  const handleGenderChange = (selectedGender: 'Male' | 'Female' | 'Other') => {
     tap();
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setAvatarUrl(result.assets[0].uri);
-    }
+    setGender(selectedGender);
+    const defaultAvatar = AVATARS[selectedGender][0];
+    setAvatarUrl(defaultAvatar);
   };
 
   const handleSave = async () => {
@@ -100,12 +116,14 @@ export default function EditProfileScreen() {
         formattedPhone = `+91${formattedPhone}`;
       }
 
-      // 1. Call API to update profile
       await api.patch('/auth/profile', {
         name: name.trim(),
         phoneNumber: formattedPhone,
         gender,
-        avatarUrl: avatarUrl, // Uploads the image uri or base64 representation
+        avatarUrl: avatarUrl,
+        society: society.trim(),
+        workplace: workplace.trim(),
+        bio: bio.trim(),
       });
 
       success();
@@ -140,16 +158,54 @@ export default function EditProfileScreen() {
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           
-          {/* Avatar Section */}
+          {/* Avatar Preview Section */}
           <View style={styles.avatarSection}>
             <VerifiedAvatar uri={avatarUrl || undefined} name={name} verified={user?.is_verified} t={t} size={110} />
-            <TouchableOpacity onPress={pickImage} style={[styles.pickBtn, { backgroundColor: t.muted }]}>
-              <ImageIcon size={14} color={t.textPrimary} />
-              <Text style={[styles.pickBtnText, { color: t.textPrimary }]}>Change Profile Pic</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.form}>
+            {/* Avatar Selector Grid */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Select Avatar</Text>
+              <View style={styles.avatarGrid}>
+                {AVATARS[gender].map((uri, idx) => {
+                  const isSelected = avatarUrl === uri;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        tap();
+                        setAvatarUrl(uri);
+                      }}
+                      style={[
+                        styles.avatarGridItem,
+                        isSelected
+                          ? { borderColor: t.success, borderWidth: 3 }
+                          : { borderColor: t.border, borderWidth: 1 }
+                      ]}
+                    >
+                      <Image source={{ uri }} style={styles.gridAvatarImage} contentFit="cover" />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Email Address (Read-Only) */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Email Address (Read-Only)</Text>
+              <View style={[styles.inputFieldWrapper, { backgroundColor: t.surfaceElevated, borderColor: t.border }]}>
+                <Mail color={t.textTertiary} size={18} />
+                <TextInput
+                  value={user?.email || 'No email registered'}
+                  editable={false}
+                  style={[styles.inputField, { color: t.textSecondary }]}
+                />
+                <Lock color={t.textTertiary} size={16} />
+              </View>
+            </View>
+
             {/* Name Input */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Full Name</Text>
@@ -191,10 +247,7 @@ export default function EditProfileScreen() {
                     <TouchableOpacity
                       key={g}
                       activeOpacity={0.8}
-                      onPress={() => {
-                        tap();
-                        setGender(g);
-                      }}
+                      onPress={() => handleGenderChange(g)}
                       style={[
                         styles.genderBtn,
                         active
@@ -213,6 +266,74 @@ export default function EditProfileScreen() {
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+            </View>
+
+            {/* Bio Input */}
+            <View style={styles.inputGroup}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Bio</Text>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: t.textTertiary }}>{bio.length}/120</Text>
+              </View>
+              <View style={[styles.inputFieldWrapper, styles.bioWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <FileText color={t.textSecondary} size={18} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
+                <TextInput
+                  placeholder="Share a short bio (e.g. Quiet commuter, loves podcasts...)"
+                  placeholderTextColor={t.textSecondary}
+                  value={bio}
+                  onChangeText={(text) => {
+                    if (text.length <= 120) {
+                      setBio(text);
+                    }
+                  }}
+                  multiline
+                  numberOfLines={3}
+                  style={[styles.inputField, styles.bioInputField, { color: t.textPrimary }]}
+                />
+              </View>
+            </View>
+
+            {/* Society / Apartment Input */}
+            <View style={styles.inputGroup}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Society / Apartment Name</Text>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: t.textTertiary }}>{society.length}/50</Text>
+              </View>
+              <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <Building2 color={t.textSecondary} size={18} />
+                <TextInput
+                  placeholder="e.g. Green Valley Society"
+                  placeholderTextColor={t.textSecondary}
+                  value={society}
+                  onChangeText={(text) => {
+                    if (text.length <= 50) {
+                      setSociety(text);
+                    }
+                  }}
+                  style={[styles.inputField, { color: t.textPrimary }]}
+                />
+              </View>
+            </View>
+
+            {/* Workplace / Office Input */}
+            <View style={styles.inputGroup}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Workplace / Office</Text>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: t.textTertiary }}>{workplace.length}/50</Text>
+              </View>
+              <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <Briefcase color={t.textSecondary} size={18} />
+                <TextInput
+                  placeholder="e.g. Acme Corp, Outer Ring Road"
+                  placeholderTextColor={t.textSecondary}
+                  value={workplace}
+                  onChangeText={(text) => {
+                    if (text.length <= 50) {
+                      setWorkplace(text);
+                    }
+                  }}
+                  style={[styles.inputField, { color: t.textPrimary }]}
+                />
               </View>
             </View>
 
@@ -251,17 +372,29 @@ const styles = StyleSheet.create({
     marginVertical: spacing.lg,
     gap: 12,
   },
-  pickBtn: {
+  avatarGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 9999,
+    justifyContent: 'space-around',
+    marginVertical: spacing.xs,
   },
-  pickBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
+  avatarGridItem: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  gridAvatarImage: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
   },
   form: {
     gap: spacing.md,
@@ -284,9 +417,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 52,
   },
+  bioWrapper: {
+    height: 90,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+  },
   inputField: {
     flex: 1,
     fontSize: 15,
+  },
+  bioInputField: {
+    height: 70,
+    textAlignVertical: 'top',
+    paddingTop: 0,
   },
   genderContainer: {
     flexDirection: 'row',

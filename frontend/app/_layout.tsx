@@ -4,12 +4,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../src/core/auth/auth';
 import * as SplashScreen from 'expo-splash-screen';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
-import { CartProvider } from '../src/modules/marketplace/contexts/CartContext';
-import { OrderProvider } from '../src/modules/marketplace/contexts/OrderContext';
-import { MarketDataProvider } from '../src/modules/marketplace/contexts/MarketDataContext';
 import { BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
@@ -59,7 +57,6 @@ function AppNavigationWrapper() {
         pathname === '/index' || 
         pathname === '/(tabs)' || 
         pathname === '/(tabs)/home' || 
-        pathname === '/(market)' || 
         pathname === '/home' ||
         pathname === '/onboarding' ||
         pathname === '/login' ||
@@ -93,8 +90,6 @@ function AppNavigationWrapper() {
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(market)" />
-        <Stack.Screen name="shop/[id]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="ride/[id]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="chat/[chatId]" />
       </Stack>
@@ -115,27 +110,25 @@ function AppNavigationWrapper() {
   );
 }
 
+const queryClient = new QueryClient();
+
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <ErrorBoundary>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <AuthProvider>
-            <FeatureFlagProvider>
-              <MarketDataProvider>
-                <CartProvider>
-                  <OrderProvider>
-                    <StatusBar style="dark" />
-                    <AppNavigationWrapper />
-                    <CustomAlertProvider />
-                  </OrderProvider>
-                </CartProvider>
-              </MarketDataProvider>
-            </FeatureFlagProvider>
-          </AuthProvider>
-        </GestureHandlerRootView>
-      </ErrorBoundary>
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <AuthProvider>
+              <FeatureFlagProvider>
+                <StatusBar style="dark" />
+                <AppNavigationWrapper />
+                <CustomAlertProvider />
+              </FeatureFlagProvider>
+            </AuthProvider>
+          </GestureHandlerRootView>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }
 

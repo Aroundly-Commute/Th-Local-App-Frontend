@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.bpandey690.frontend",
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -26,7 +27,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyB8n5ckKM8wADK-mE90N6RtD_elEv-K5As"
+          "apiKey": ""
         }
       },
       "adaptiveIcon": {

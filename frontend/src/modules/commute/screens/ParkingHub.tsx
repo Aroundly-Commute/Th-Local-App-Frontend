@@ -134,8 +134,7 @@ const convertISTToUTC = (dateStr: string, timeStr: string): string => {
 };
 
 export default function ParkingHub() {
-  const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
+  const t = lightTheme;
   const { user } = useAuth();
   const router = useRouter();
 

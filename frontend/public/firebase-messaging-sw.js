@@ -5,14 +5,18 @@ importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js');
 
 // Initialize Firebase App for Service Worker
-// Mirroring the client config credentials
+// Parse the query parameters from the registration URL to set configuration dynamically,
+// falling back to default values if not provided.
+const urlParams = new URLSearchParams(location.search);
+const config = Object.fromEntries(urlParams);
+
 firebase.initializeApp({
-  apiKey: "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
-  authDomain: "aroundyou-497203.firebaseapp.com",
-  projectId: "aroundyou-497203",
-  storageBucket: "aroundyou-497203.firebasestorage.app",
-  messagingSenderId: "233722731121",
-  appId: "1:233722731121:web:642f3868b99992972d19d0"
+  apiKey: config.apiKey || "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
+  authDomain: config.authDomain || "aroundyou-497203.firebaseapp.com",
+  projectId: config.projectId || "aroundyou-497203",
+  storageBucket: config.storageBucket || "aroundyou-497203.firebasestorage.app",
+  messagingSenderId: config.messagingSenderId || "233722731121",
+  appId: config.appId || "1:233722731121:web:654c7c8efa3f6e2e2d19d0"
 });
 
 const messaging = firebase.messaging();

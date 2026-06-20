@@ -1,5 +1,6 @@
-import axios, { AxiosResponse, AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '../auth/firebaseAdapter';
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -8,56 +9,23 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// Cache storage for GET requests
-const apiCache = new Map<string, { timestamp: number; promise?: Promise<any>; response?: any }>();
-const CACHE_TTL = 30000; // 30 seconds Cache TTL
-
-const originalGet = api.get;
-api.get = async function <T = any, R = AxiosResponse<T>, D = any>(
-  url: string,
-  config?: AxiosRequestConfig<D>
-): Promise<R> {
-  const bypass = 
-    config?.headers?.['x-bypass-cache'] === 'true' || 
-    (config?.params && config.params.bypassCache === true);
-  
-  // Strip bypassCache parameter so it doesn't pollute the query params sent to server
-  if (config?.params && 'bypassCache' in config.params) {
-    const { bypassCache, ...restParams } = config.params;
-    config.params = restParams;
-  }
-  
-  const cacheKey = url + JSON.stringify(config?.params || {});
-  
-  if (!bypass) {
-    const cached = apiCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-      console.log(`[API CACHE] Hit for: ${url}`);
-      if (cached.promise) {
-        return cached.promise;
-      }
-      return cached.response;
-    }
-  }
-  
-  console.log(`[API CACHE] Miss/Bypass for: ${url}. Fetching from network...`);
-  
-  const promise = originalGet.call(api, url, config);
-  apiCache.set(cacheKey, { timestamp: Date.now(), promise });
-  
-  try {
-    const response = await promise;
-    apiCache.set(cacheKey, { timestamp: Date.now(), response });
-    return response as any;
-  } catch (err) {
-    apiCache.delete(cacheKey); // Do not cache failed requests
-    throw err;
-  }
-};
-
 api.interceptors.request.use(async (config) => {
   console.log(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
-  const token = await AsyncStorage.getItem('access_token');
+  
+  let token = null;
+  try {
+    const currentUser = auth().currentUser;
+    if (currentUser) {
+      token = await currentUser.getIdToken();
+    }
+  } catch (err) {
+    console.warn('[API] Failed to retrieve token from Firebase Auth:', err);
+  }
+
+  if (!token) {
+    token = await AsyncStorage.getItem('access_token');
+  }
+
   if (token) {
     config.headers = config.headers || {};
     (config.headers as any).Authorization = `Bearer ${token}`;
@@ -85,3 +53,6 @@ export const wsUrl = (chatId: string) => {
   return `${u}/api/ws/chat/${chatId}`;
 };
 
+export const clearApiCache = () => {
+  console.log('[API CACHE] Cleared memory cache (no-op).');
+};

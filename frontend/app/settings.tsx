@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,24 +7,26 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
-  useColorScheme,
   Linking,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ShoppingBag, Car, MapPin, ShieldAlert, BadgeInfo, Award, Leaf, Terminal, Shield, Bell } from 'lucide-react-native';
+import { 
+  Sliders, Lock, Info, BookOpen, User, ChevronRight, X, 
+  Car, MapPin, Award, Leaf, Terminal, ShieldAlert 
+} from 'lucide-react-native';
 import { useFeatureFlags } from '../src/services/feature-flag/FeatureFlagContext';
-import { lightTheme, darkTheme, spacing, radius } from '../src/core/theme/theme';
+import { lightTheme, spacing, radius } from '../src/core/theme/theme';
 import { tap } from '../src/core/utils/haptics';
 import { ScreenHeader } from '../src/core/components/ScreenHeader';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
+  const t = lightTheme;
 
   const {
-    enableMarketplace,
     enableRideSharing,
     enableParking,
     enableYourBadges,
@@ -35,90 +37,24 @@ export default function SettingsScreen() {
     toggleFeature,
   } = useFeatureFlags();
 
-  const [notificationStatusText, setNotificationStatusText] = React.useState<string>('Checking...');
+  const [featureModalVisible, setFeatureModalVisible] = useState(false);
+  const [webPermissionModalVisible, setWebPermissionModalVisible] = useState(false);
+  const [appSettingsModalVisible, setAppSettingsModalVisible] = useState(false);
 
-  const checkNotificationPermission = async () => {
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        setNotificationStatusText(
-          Notification.permission === 'granted'
-            ? 'Allowed'
-            : Notification.permission === 'denied'
-            ? 'Blocked'
-            : 'Not Requested'
-        );
-      } else {
-        setNotificationStatusText('Not Supported');
-      }
-    } else {
-      try {
-        let messaging: any = null;
-        try {
-          messaging = require('@react-native-firebase/messaging').default;
-        } catch (e) {}
-
-        if (messaging) {
-          const hasPerm = await messaging().hasPermission();
-          const enabled =
-            hasPerm === messaging.AuthorizationStatus.AUTHORIZED ||
-            hasPerm === messaging.AuthorizationStatus.PROVISIONAL;
-          setNotificationStatusText(enabled ? 'Allowed' : 'Not Allowed');
-        } else {
-          setNotificationStatusText('Unavailable');
-        }
-      } catch (err) {
-        setNotificationStatusText('Unknown');
-      }
-    }
-  };
-
-  React.useEffect(() => {
-    checkNotificationPermission();
-  }, []);
-
-  const handleManageNotifications = async () => {
-    tap();
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission === 'denied') {
-          alert('Notification permission is blocked. Please click the lock icon in your browser address bar to allow permissions.');
-        } else {
-          const res = await Notification.requestPermission();
-          setNotificationStatusText(res === 'granted' ? 'Allowed' : res === 'denied' ? 'Blocked' : 'Not Requested');
-        }
-      } else {
-        alert('Notifications are not supported in this browser.');
-      }
-    } else {
-      try {
-        let messaging: any = null;
-        try {
-          messaging = require('@react-native-firebase/messaging').default;
-        } catch (e) {}
-
-        if (messaging) {
-          const authStatus = await messaging().requestPermission();
-          const enabled =
-            authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-            authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-          
-          setNotificationStatusText(enabled ? 'Allowed' : 'Not Allowed');
-          
-          if (!enabled) {
-            Linking.openSettings();
-          }
-        } else {
-          Linking.openSettings();
-        }
-      } catch (err) {
-        Linking.openSettings();
-      }
-    }
-  };
-
-  const handleToggle = async (key: 'enableMarketplace' | 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
+  const handleToggle = async (key: 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
     tap();
     await toggleFeature(key);
+  };
+
+  const handlePermissionsClick = () => {
+    tap();
+    if (Platform.OS === 'web') {
+      setWebPermissionModalVisible(true);
+    } else {
+      Linking.openSettings().catch((err) => {
+        console.error('Failed to open settings:', err);
+      });
+    }
   };
 
   const handleBack = () => {
@@ -130,291 +66,365 @@ export default function SettingsScreen() {
     }
   };
 
+  const menu = [
+    { icon: Sliders, label: 'Feature Manager', action: () => setFeatureModalVisible(true) },
+    { icon: Lock, label: 'Permissions', action: handlePermissionsClick },
+    { icon: Info, label: 'App Settings', action: () => setAppSettingsModalVisible(true) },
+    { icon: BookOpen, label: 'Privacy Policy', action: () => { tap(); router.push('/privacy' as any); } },
+    { icon: User, label: 'Manage Account', action: () => { tap(); router.push('/delete-account' as any); } },
+  ];
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title="Feature Settings" onBack={handleBack} />
+      <ScreenHeader title="Settings" onBack={handleBack} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 60 }}>
-        <Text style={[styles.subtitle, { color: t.textSecondary }]}>
-          Toggle premium app modules on or off dynamically. Disabled modules are immediately hidden from bottom tabs, dashboard home views, and settings menus.
-        </Text>
-
-        {loading ? (
-          <View style={styles.loadingWrap}>
-            <Text style={{ color: t.textSecondary }}>Loading preferences...</Text>
-          </View>
-        ) : (
-          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}>
-            {/* Marketplace toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#EFF6FF' }]}>
-                <ShoppingBag color="#3B82F6" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Marketplace Module</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Shop groceries, order home services, or register as a merchant / provider.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableMarketplace ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableMarketplace')}
-                value={enableMarketplace}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
-            {/* Ride Sharing toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
-                <Car color="#10B981" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Ride Sharing (Commute)</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Offer seats in your vehicle or book scheduled carpooling commutes near you.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableRideSharing ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableRideSharing')}
-                value={enableRideSharing}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
-            {/* Smart Parking toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#FFFBEB' }]}>
-                <MapPin color="#F59E0B" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Smart Parking</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Register your private parking spots or book reservation spots in real-time.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableParking ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableParking')}
-                value={enableParking}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
-            {/* Your Badges toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#F3E8FF' }]}>
-                <Award color="#A855F7" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Your Badges Section</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Display gained status badges like Eco Starter, First Drive, and Planet Saver.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableYourBadges ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableYourBadges')}
-                value={enableYourBadges}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
-            {/* Eco Starter badge toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#F0FDF4' }]}>
-                <Leaf color="#22C55E" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Eco Starter Badge</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Enable or disable the specific introductory 🌱 Eco Starter badge in the badges strip.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableEcoStarter ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableEcoStarter')}
-                value={enableEcoStarter}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
-            {/* Popular Routes toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#EFF6FF' }]}>
-                <MapPin color="#3B82F6" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Popular Routes</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Display the "Popular Routes" section on the commute rides search screen.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enablePopularRoutes ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enablePopularRoutes')}
-                value={enablePopularRoutes}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: t.border }]} />
-
-            {/* In-App Log Viewer toggle */}
-            <View style={styles.toggleRow}>
-              <View style={[styles.iconWrap, { backgroundColor: '#F1F5F9' }]}>
-                <Terminal color="#475569" size={18} />
-              </View>
-              <View style={styles.toggleText}>
-                <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Floating Debug Logs</Text>
-                <Text style={[styles.toggleDesc, { color: t.textTertiary }]}>
-                  Display the floating logger terminal icon on the top right of the application views.
-                </Text>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#10B981' }}
-                thumbColor={enableInAppLogs ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={() => handleToggle('enableInAppLogs')}
-                value={enableInAppLogs}
-              />
-            </View>
-          </View>
-        )}
-        
-        {/* Notification Settings Section */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleManageNotifications}
-          style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}
-        >
-          <Bell color={t.primary} size={20} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.infoTitle, { color: t.textPrimary }]}>Notification Permissions</Text>
-            <Text style={[styles.infoDesc, { color: t.textSecondary }]}>
-              {Platform.OS === 'web'
-                ? `Browser status: ${notificationStatusText}. Click to request permission or get help enabling it.`
-                : `Device status: ${notificationStatusText}. Click to request permission or open System Settings.`}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Legal & Privacy Section */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => { tap(); router.push('/privacy' as any); }}
-          style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}
-        >
-          <Shield color={t.primary} size={20} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.infoTitle, { color: t.textPrimary }]}>Privacy Policy</Text>
-            <Text style={[styles.infoDesc, { color: t.textSecondary }]}>
-              Read our official Privacy Notice to understand how we collect, store, and protect your data.
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Warning info card */}
-        <View style={[styles.infoCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-          <ShieldAlert color="#EF4444" size={20} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.infoTitle, { color: t.textPrimary }]}>Dynamic Real-time Refresh</Text>
-            <Text style={[styles.infoDesc, { color: t.textSecondary }]}>
-              These controls use persistent AsyncStorage. Changes are applied immediately and reactive UI blocks will filter content instantly without requiring an app reload.
-            </Text>
-          </View>
-        </View>
-
-        {/* Dynamic State Info */}
-        <View style={[styles.stateInfoCard, { borderColor: t.border, marginTop: spacing.md }]}>
-          <BadgeInfo color={t.textSecondary} size={16} />
-          <Text style={[styles.stateInfoText, { color: t.textSecondary }]}>
-            Active Modules: {[
-              enableMarketplace && 'Marketplace',
-              enableRideSharing && 'Ride Sharing',
-              enableParking && 'Smart Parking',
-              enableYourBadges && 'Your Badges',
-              enableEcoStarter && 'Eco Starter',
-              enablePopularRoutes && 'Popular Routes',
-              enableInAppLogs && 'Debug Logs'
-            ].filter(Boolean).join(', ') || 'None (All Disabled)'}
-          </Text>
+        {/* Settings Menu List (Styled exactly like Profile menu) */}
+        <View style={[styles.menu, { backgroundColor: t.surface, borderColor: t.border }]}>
+          {menu.map((m, i) => {
+            const Icon = m.icon;
+            return (
+              <React.Fragment key={m.label}>
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  onPress={m.action}
+                  style={styles.menuRow}
+                >
+                  <View style={[styles.menuIcon, { backgroundColor: t.surfaceElevated }]}>
+                    <Icon color={t.textPrimary} size={16} />
+                  </View>
+                  <Text style={[styles.menuLabel, { color: t.textPrimary }]}>{m.label}</Text>
+                  <ChevronRight color={t.textTertiary} size={16} />
+                </TouchableOpacity>
+                {i < menu.length - 1 && <View style={[styles.menuDivider, { backgroundColor: t.border }]} />}
+              </React.Fragment>
+            );
+          })}
         </View>
       </ScrollView>
+
+      {/* Feature Manager Modal */}
+      <Modal
+        visible={featureModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setFeatureModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: t.background, maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Feature Manager</Text>
+              <TouchableOpacity onPress={() => setFeatureModalVisible(false)} activeOpacity={0.7}>
+                <X color={t.textPrimary} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {loading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator color={t.primary} />
+              </View>
+            ) : (
+              <ScrollView style={{ width: '100%' }} contentContainerStyle={{ gap: spacing.md }}>
+                {/* Ride Sharing toggle */}
+                <View style={styles.toggleRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#ECFDF5' }]}>
+                    <Car color="#10B981" size={18} />
+                  </View>
+                  <View style={styles.toggleText}>
+                    <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Ride Sharing (Commute)</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#767577', true: '#10B981' }}
+                    thumbColor={enableRideSharing ? '#FFFFFF' : '#f4f3f4'}
+                    onValueChange={() => handleToggle('enableRideSharing')}
+                    value={enableRideSharing}
+                  />
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+                {/* Smart Parking toggle */}
+                <View style={styles.toggleRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#FFFBEB' }]}>
+                    <MapPin color="#F59E0B" size={18} />
+                  </View>
+                  <View style={styles.toggleText}>
+                    <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Smart Parking</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#767577', true: '#10B981' }}
+                    thumbColor={enableParking ? '#FFFFFF' : '#f4f3f4'}
+                    onValueChange={() => handleToggle('enableParking')}
+                    value={enableParking}
+                  />
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+                {/* Your Badges toggle */}
+                <View style={styles.toggleRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#F3E8FF' }]}>
+                    <Award color="#A855F7" size={18} />
+                  </View>
+                  <View style={styles.toggleText}>
+                    <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Your Badges</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#767577', true: '#10B981' }}
+                    thumbColor={enableYourBadges ? '#FFFFFF' : '#f4f3f4'}
+                    onValueChange={() => handleToggle('enableYourBadges')}
+                    value={enableYourBadges}
+                  />
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+                {/* Eco Starter badge toggle */}
+                <View style={styles.toggleRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#F0FDF4' }]}>
+                    <Leaf color="#22C55E" size={18} />
+                  </View>
+                  <View style={styles.toggleText}>
+                    <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Eco Starter Badge</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#767577', true: '#10B981' }}
+                    thumbColor={enableEcoStarter ? '#FFFFFF' : '#f4f3f4'}
+                    onValueChange={() => handleToggle('enableEcoStarter')}
+                    value={enableEcoStarter}
+                  />
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+                {/* Popular Routes toggle */}
+                <View style={styles.toggleRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#EFF6FF' }]}>
+                    <MapPin color="#3B82F6" size={18} />
+                  </View>
+                  <View style={styles.toggleText}>
+                    <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Popular Routes</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#767577', true: '#10B981' }}
+                    thumbColor={enablePopularRoutes ? '#FFFFFF' : '#f4f3f4'}
+                    onValueChange={() => handleToggle('enablePopularRoutes')}
+                    value={enablePopularRoutes}
+                  />
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+                {/* In-App Log Viewer toggle */}
+                <View style={styles.toggleRow}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#F1F5F9' }]}>
+                    <Terminal color="#475569" size={18} />
+                  </View>
+                  <View style={styles.toggleText}>
+                    <Text style={[styles.toggleLabel, { color: t.textPrimary }]}>Floating Debug Logs</Text>
+                  </View>
+                  <Switch
+                    trackColor={{ false: '#767577', true: '#10B981' }}
+                    thumbColor={enableInAppLogs ? '#FFFFFF' : '#f4f3f4'}
+                    onValueChange={() => handleToggle('enableInAppLogs')}
+                    value={enableInAppLogs}
+                  />
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Web Permissions Modal */}
+      <Modal
+        visible={webPermissionModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setWebPermissionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: t.background }]}>
+            <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Browser Permissions Guide</Text>
+            <Text style={[styles.modalText, { color: t.textSecondary }]}>
+              To update site permissions (Location, Notifications, etc.) for this web app:
+            </Text>
+            <View style={styles.modalSteps}>
+              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
+                1. Look at the address bar of your browser.
+              </Text>
+              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
+                2. Click on the lock (🔒) or settings icon next to the URL.
+              </Text>
+              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
+                3. Locate the permission toggles and select "Allow" or "Ask".
+              </Text>
+              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
+                4. Reload the page to apply the changes.
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.modalCloseBtn, { backgroundColor: t.primary }]}
+              onPress={() => setWebPermissionModalVisible(false)}
+            >
+              <Text style={{ color: t.primaryContrast, fontWeight: '700' }}>Got It</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* App Settings Modal */}
+      <Modal
+        visible={appSettingsModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setAppSettingsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: t.background }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: t.textPrimary }]}>App Settings</Text>
+              <TouchableOpacity onPress={() => setAppSettingsModalVisible(false)} activeOpacity={0.7}>
+                <X color={t.textPrimary} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ width: '100%', gap: 14, marginVertical: spacing.md }}>
+              <View style={styles.infoRow}>
+                <Text style={{ color: t.textSecondary, fontWeight: '600' }}>App Version</Text>
+                <Text style={{ color: t.textPrimary, fontWeight: '700' }}>1.0.0</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={{ color: t.textSecondary, fontWeight: '600' }}>Theme Mode</Text>
+                <Text style={{ color: t.textPrimary, fontWeight: '700' }}>Light (Locked)</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={{ color: t.textSecondary, fontWeight: '600' }}>Default Language</Text>
+                <Text style={{ color: t.textPrimary, fontWeight: '700' }}>English</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={{ color: t.textSecondary, fontWeight: '600' }}>App Build</Text>
+                <Text style={{ color: t.textPrimary, fontWeight: '700' }}>Production Stable</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.modalCloseBtn, { backgroundColor: t.primary, marginTop: spacing.md }]}
+              onPress={() => setAppSettingsModalVisible(false)}
+            >
+              <Text style={{ color: t.primaryContrast, fontWeight: '700' }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
   subtitle: {
     fontSize: 13,
     lineHeight: 18,
     marginBottom: spacing.lg,
   },
+  menu: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    paddingHorizontal: 16,
+  },
+  menuIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  menuDivider: {
+    height: 1,
+    marginLeft: 58,
+  },
   loadingWrap: {
     padding: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
   },
-  card: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    padding: spacing.xl,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalText: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  modalSteps: {
+    width: '100%',
+    gap: 10,
+    marginBottom: spacing.lg,
+  },
+  modalStep: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modalCloseBtn: {
+    height: 46,
+    borderRadius: radius.pill,
+    paddingHorizontal: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: spacing.md,
+    paddingVertical: 10,
+    width: '100%',
   },
   iconWrap: {
     width: 36,
@@ -425,50 +435,18 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     flex: 1,
-    gap: 3,
   },
   toggleLabel: {
     fontSize: 14,
     fontWeight: '700',
   },
-  toggleDesc: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
   divider: {
     height: 1,
-    marginVertical: 4,
   },
-  infoCard: {
+  infoRow: {
     flexDirection: 'row',
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  infoTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  infoDesc: {
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 2,
-  },
-  stateInfoCard: {
-    flexDirection: 'row',
-    padding: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: 8,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderStyle: 'dashed',
-  },
-  stateInfoText: {
-    fontSize: 11,
-    fontWeight: '600',
+    width: '100%',
   },
 });

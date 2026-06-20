@@ -37,10 +37,11 @@ venv/
 .venv/
 
 # Mobile development
-android/
-ios/
+/android/
+/ios/
 .expo/
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -57,6 +58,8 @@ test_reports/
 .env.*
 *.env
 credentials.json
+google-services.json
+GoogleService-Info.plist
 *.pem
 *.key
 .credentials

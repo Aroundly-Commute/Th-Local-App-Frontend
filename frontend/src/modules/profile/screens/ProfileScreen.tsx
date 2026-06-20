@@ -1,20 +1,18 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,
-  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award, ShoppingBag, Trash2
+  ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award,
+  Building2, Briefcase
 } from 'lucide-react-native';
 import { useAuth } from '../../../core/auth/auth';
-import { useMarketData } from '../../marketplace/contexts/MarketDataContext';
-import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
+import { lightTheme, spacing, radius } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
-import { tap, success } from '../../../core/utils/haptics';
+import { tap } from '../../../core/utils/haptics';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
-import { api } from '../../../core/api/api';
-import auth from '../../../core/auth/firebaseAdapter';
 
 const BADGES = [
   { icon: '🌱', name: 'Eco Starter' },
@@ -24,13 +22,9 @@ const BADGES = [
 ];
 
 export default function ProfileScreen() {
-  const cs = useColorScheme();
-  const t = cs === 'dark' ? darkTheme : lightTheme;
+  const t = lightTheme;
   const router = useRouter();
-  const settingsTapCountRef = React.useRef<number>(0);
-  const lastTapRef = React.useRef<number>(0);
   const { user, logout, refresh } = useAuth();
-  const { registeredRole } = useMarketData();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -43,77 +37,16 @@ export default function ProfileScreen() {
   const onLogout = async () => {
     tap();
     await logout();
-    success();
     router.replace('/(auth)/login');
   };
 
-  const onDeleteAccount = () => {
-    tap();
-    Alert.alert(
-      'Delete Account?',
-      'Are you absolutely sure you want to permanently delete your account? All your commute history, reviews, and parking slots will be permanently purged.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete Permanently', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // 1. Call backend delete account API
-              await api.post('/auth/delete-account').catch(() => {});
-              
-              // 2. Call Firebase Auth user deletion
-              const currentUser = auth().currentUser;
-              if (currentUser) {
-                await currentUser.delete().catch((e: any) => {
-                  console.warn('Firebase user delete failed (may need recent authentication):', e);
-                });
-              }
-              
-              // 3. Clear session
-              await logout();
-              success();
-              
-              Alert.alert('Account Deleted', 'Your account and data have been completely removed.');
-              router.replace('/(auth)/login' as any);
-            } catch (err: any) {
-              console.error('Account deletion failure:', err);
-              Alert.alert('Error', 'Failed to complete deletion. Please log out and back in to re-authenticate, then try again.');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const { enableMarketplace, enableRideSharing, enableParking, enableYourBadges, enableEcoStarter } = useFeatureFlags();
+  const { enableRideSharing, enableParking, enableYourBadges, enableEcoStarter } = useFeatureFlags();
 
   const level = user.rides_count >= 100 ? 'Eco Champion' : user.rides_count >= 25 ? 'Green Commuter' : (enableEcoStarter ? 'Eco Starter' : 'Green Starter');
   const progress = Math.min(100, (user.rides_count / 100) * 100);
   const nextLevel = user.rides_count >= 100 ? 'Planet Saver' : 'Eco Champion';
 
   const menu = [];
-  
-  if (enableMarketplace) {
-    if (registeredRole === 'merchant') {
-      menu.push({ icon: Award, label: 'Manage Shop', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
-    } else if (registeredRole === 'provider') {
-      menu.push({ icon: Settings, label: 'Manage Service', badge: 'Active', badgeVariant: 'success', route: '/(market)/merchant' });
-    } else {
-      menu.push({ icon: Shield, label: 'Partner with Us', badge: 'Join Now', badgeVariant: 'success', route: '/(market)/partner' });
-    }
-    menu.push(
-      { icon: Calendar, label: 'My Bookings', badge: null, route: '/(market)/customer-bookings' },
-      { icon: ShoppingBag, label: 'My Orders', badge: null, route: '/(market)/customer-orders' }
-    );
-  }
-
-  if (enableParking) {
-    menu.push(
-      { icon: Car, label: 'Register Parking Spot', badge: null, route: '/parking/register' },
-      { icon: Settings, label: 'Manage My Parking', badge: null, route: '/parking/manage' }
-    );
-  }
 
   if (enableRideSharing) {
     menu.push(
@@ -128,7 +61,7 @@ export default function ProfileScreen() {
     { icon: Shield, label: 'Verification', badge: user.is_verified ? 'Verified' : null, badgeVariant: 'success' },
     { icon: Bell, label: 'Notifications', badge: null },
     { icon: Settings, label: 'Settings', badge: null, route: '/settings' },
-    { icon: HelpCircle, label: 'Help & Support', badge: null }
+    { icon: HelpCircle, label: 'Help & Support', badge: null, route: '/help' }
   );
 
   return (
@@ -152,6 +85,35 @@ export default function ProfileScreen() {
           <VerifiedAvatar uri={user.avatar_url || undefined} name={user.name} verified={user.is_verified} t={t} size={88} />
           <Text numberOfLines={1} style={[styles.name, { color: t.textPrimary }]}>{user.name}</Text>
           <Text numberOfLines={1} style={[styles.email, { color: t.textSecondary }]}>{user.email}</Text>
+
+          {/* User Bio */}
+          {user.bio ? (
+            <Text style={[styles.bioText, { color: t.textSecondary }]}>
+              "{user.bio}"
+            </Text>
+          ) : null}
+
+          {/* Hyper-local Society & Workplace */}
+          {(user.society || user.workplace) ? (
+            <View style={styles.communityContainer}>
+              {user.society ? (
+                <View style={[styles.communityRow, { backgroundColor: t.surfaceElevated }]}>
+                  <Building2 size={13} color={t.textSecondary} />
+                  <Text numberOfLines={1} style={[styles.communityText, { color: t.textSecondary }]}>
+                    {user.society}
+                  </Text>
+                </View>
+              ) : null}
+              {user.workplace ? (
+                <View style={[styles.communityRow, { backgroundColor: t.surfaceElevated }]}>
+                  <Briefcase size={13} color={t.textSecondary} />
+                  <Text numberOfLines={1} style={[styles.communityText, { color: t.textSecondary }]}>
+                    {user.workplace}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={styles.metaRow}>
             <Star color={t.warning} size={13} fill={t.warning} />
@@ -241,21 +203,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity testID={`menu-${m.label}`} activeOpacity={0.6} onPress={() => {
                   tap();
                   if ((m as any).route) {
-                    if ((m as any).route === '/settings') {
-                      const now = Date.now();
-                      if (now - lastTapRef.current > 2000) {
-                        settingsTapCountRef.current = 1;
-                      } else {
-                        settingsTapCountRef.current += 1;
-                      }
-                      lastTapRef.current = now;
-                      if (settingsTapCountRef.current >= 5) {
-                        settingsTapCountRef.current = 0;
-                        router.push('/settings');
-                      }
-                    } else {
-                      router.push((m as any).route);
-                    }
+                    router.push((m as any).route);
                   }
                 }}
                   style={styles.menuRow}>
@@ -288,13 +236,6 @@ export default function ProfileScreen() {
           <Text style={[styles.logoutText, { color: t.error }]}>Log Out</Text>
         </TouchableOpacity>
 
-        {/* Delete Account */}
-        <TouchableOpacity testID="delete-account-btn" onPress={onDeleteAccount} activeOpacity={0.7}
-          style={[styles.deleteBtn, { borderColor: t.border, marginTop: spacing.sm }]}>
-          <Trash2 color={t.error} size={16} />
-          <Text style={[styles.deleteBtnText, { color: t.error }]}>Delete Account & Data</Text>
-        </TouchableOpacity>
-
         <Text style={[styles.version, { color: t.textTertiary }]}>Aroundly v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
@@ -305,7 +246,35 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, gap: 6 },
   name: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5, marginTop: 12, textAlign: 'center', width: '100%' },
   email: { fontSize: 13, textAlign: 'center', width: '100%' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  bioText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 6,
+    paddingHorizontal: spacing.md,
+    lineHeight: 18,
+  },
+  communityContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+    width: '100%',
+  },
+  communityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  communityText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
   metaText: { fontSize: 12 },
   metaDot: { fontSize: 14 },
   editBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 9999, borderWidth: 1 },
@@ -336,7 +305,5 @@ const styles = StyleSheet.create({
   menuDivider: { height: 1, marginLeft: 58 },
   logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, marginTop: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
   logoutText: { fontSize: 14, fontWeight: '600' },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: radius.lg, borderWidth: 1, backgroundColor: '#FEF2F2', borderColor: '#FEE2E2' },
-  deleteBtnText: { fontSize: 14, fontWeight: '700' },
   version: { textAlign: 'center', fontSize: 11, marginTop: spacing.lg },
 });

@@ -36,7 +36,7 @@ export default function Login() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, setIsAuthenticating } = useAuth();
   
   const [email, setEmail] = useState('sarah.driver@ecoride.app');
   const [password, setPassword] = useState('password123');
@@ -81,7 +81,17 @@ export default function Login() {
     setLoading(true); 
     setErr('');
     
+    console.log("=========================================");
+    console.log("       FRONTEND GOOGLE LOGIN TRIGGER     ");
+    console.log("=========================================");
+    console.log("EXPO_PUBLIC_BACKEND_URL:", process.env.EXPO_PUBLIC_BACKEND_URL);
+    console.log("EXPO_PUBLIC_APP_ENV:", process.env.EXPO_PUBLIC_APP_ENV);
+    console.log("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:", process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+    console.log("GoogleSignin Module loaded?:", !!GoogleSignin);
+    console.log("=========================================");
+
     try {
+      setIsAuthenticating(true);
       let firebaseIdToken = '';
       let name = 'Google User';
       let userEmail = 'google.user@gmail.com';
@@ -91,7 +101,13 @@ export default function Login() {
         const { signInWithPopup, GoogleAuthProvider } = require('firebase/auth');
         const { webAuth } = require('../../src/core/auth/firebaseAdapter.web');
         const provider = new GoogleAuthProvider();
+        
+        // Force account chooser prompt
+        provider.setCustomParameters({ prompt: 'select_account' });
+        
+        console.log('[AUTH] Calling Firebase signInWithPopup...');
         const userCredential = await signInWithPopup(webAuth, provider);
+        console.log('[AUTH] Firebase signInWithPopup succeeded. User:', userCredential.user?.email);
         
         firebaseIdToken = await userCredential.user.getIdToken();
         name = userCredential.user.displayName || 'Google User';
@@ -103,11 +119,21 @@ export default function Login() {
         console.log('[AUTH] Triggering native Google Sign-in...');
         
         // 1. Check for Play Services on Android
+        console.log('[AUTH] Checking Play Services...');
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        console.log('[AUTH] Play Services are available.');
         
         // 2. Open Google Accounts overlay
+        console.log('[AUTH] Calling GoogleSignin.signIn()...');
         const signInResult = await GoogleSignin.signIn();
+        console.log('[AUTH] GoogleSignin.signIn() success. Result keys:', Object.keys(signInResult || {}));
+        if (signInResult.data) {
+          console.log('[AUTH] GoogleSignin data keys:', Object.keys(signInResult.data));
+          console.log('[AUTH] Google User email:', signInResult.data.user?.email);
+        }
+        
         const idToken = signInResult.data?.idToken;
+        console.log('[AUTH] Google ID Token present?:', !!idToken, idToken ? `(Length: ${idToken.length})` : '');
         
         if (!idToken) {
           throw new Error('Google Sign-in failed to return an ID Token');
@@ -117,7 +143,9 @@ export default function Login() {
         
         // 3. Build credential and log into Firebase client SDK
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+        console.log('[AUTH] Calling Firebase signInWithCredential...');
         const userCredential = await auth().signInWithCredential(googleCredential);
+        console.log('[AUTH] Firebase signInWithCredential success. User:', userCredential.user?.email);
         
         // 4. Extract secure JWT token
         firebaseIdToken = await userCredential.user.getIdToken();
@@ -126,17 +154,28 @@ export default function Login() {
       }
 
       console.log('[AUTH] Syncing Google session with PostgreSQL...');
+      console.log(`[AUTH] Calling loginWithGoogle with name: "${name}", email: "${userEmail}", token length: ${firebaseIdToken?.length}`);
       
       // 5. Synchronize with our Postgres database
       await loginWithGoogle(firebaseIdToken, name, userEmail);
+      console.log('[AUTH] Google Sign-in and backend sync completed successfully!');
       
       success();
       router.replace('/');
     } catch (e: any) {
       errorH();
-      console.error('[AUTH] Google Sign-in failed:', e);
+      console.error('[AUTH] Google Sign-in failed! Detailed exception log:');
+      console.error('Error message:', e?.message || e);
+      console.error('Error code/status:', e?.code || e?.status);
+      if (e?.response) {
+        console.error('Axios error details:');
+        console.error('  Response Status:', e.response.status);
+        console.error('  Response Data:', JSON.stringify(e.response.data));
+        console.error('  Response Headers:', JSON.stringify(e.response.headers));
+      }
       setErr(translateFirebaseError(e));
     } finally { 
+      setIsAuthenticating(false);
       setLoading(false); 
     }
   };
