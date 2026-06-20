@@ -92,6 +92,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError"
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
           if [ "${{ github.ref_name }}" = "stage" ] || [ "${{ github.ref_name }}" = "staging" ]; then
