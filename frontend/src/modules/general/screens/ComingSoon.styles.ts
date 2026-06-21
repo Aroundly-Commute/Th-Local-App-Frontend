@@ -1,0 +1,92 @@
+import { StyleSheet } from 'react-native';
+import { spacing, radius } from '../../../core/theme/theme';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 40,
+  },
+  iconOuterRing: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  iconInnerRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  textContainer: {
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 15,
+    lineHeight: 24,
+    textAlign: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  footer: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+  },
+  backBtn: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  backBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});

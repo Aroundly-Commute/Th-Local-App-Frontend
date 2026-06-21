@@ -61,6 +61,59 @@ export default function Root({ children }: PropsWithChildren) {
             })
           }}
         />
+
+        {/* Structured Data: FAQ Schema Markup to display rich snippets in search results */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "How does hyper-local carpooling work?",
+                  "acceptedAnswer": {
+                    "@type": "AcceptedAnswer",
+                    "text": "Aroundly matches drivers who have empty seats with riders heading in the same direction within your local society or workplace. Drivers post rides, and riders can request a seat."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is there a cost for sharing rides?",
+                  "acceptedAnswer": {
+                    "@type": "AcceptedAnswer",
+                    "text": "Riders share fuel costs with drivers. The cost is calculated transparently based on distance and vehicle type, and is visible before booking."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "How are society and workplace verified?",
+                  "acceptedAnswer": {
+                    "@type": "AcceptedAnswer",
+                    "text": "Aroundly uses local community and corporate email domain checks to verify user associations, ensuring high trust in hyper-local carpools."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "How do I register my vehicle details?",
+                  "acceptedAnswer": {
+                    "@type": "AcceptedAnswer",
+                    "text": "Navigate to your Profile screen, tap 'My Vehicles,' and complete the registration. Once saved, you can immediately begin offering rides."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "What is the cancellation policy?",
+                  "acceptedAnswer": {
+                    "@type": "AcceptedAnswer",
+                    "text": "You can cancel a ride up to 30 minutes before the start time. We recommend coordinating directly with your match via chat before cancelling."
+                  }
+                }
+              ]
+            })
+          }}
+        />
         {/*
           Disable body scrolling on web to make ScrollView components work correctly.
           If you want to enable scrolling, remove `ScrollViewStyleReset` and
