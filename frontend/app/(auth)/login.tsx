@@ -1,15 +1,15 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
-  useColorScheme, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  useColorScheme,
   ActivityIndicator,
   Image
 } from 'react-native';
@@ -37,9 +37,9 @@ export default function Login() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { login, loginWithGoogle, setIsAuthenticating } = useAuth();
-  
-  const [email, setEmail] = useState('sarah.driver@ecoride.app');
-  const [password, setPassword] = useState('password123');
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
@@ -60,9 +60,9 @@ export default function Login() {
     }
 
     tap();
-    setLoading(true); 
+    setLoading(true);
     setErr('');
-    
+
     try {
       await login(email.trim(), password);
       success();
@@ -71,16 +71,16 @@ export default function Login() {
       errorH();
       console.warn('[AUTH] Firebase login failed:', e);
       setErr(translateFirebaseError(e));
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
 
   const onGoogleLogin = async () => {
     tap();
-    setLoading(true); 
+    setLoading(true);
     setErr('');
-    
+
     console.log("=========================================");
     console.log("       FRONTEND GOOGLE LOGIN TRIGGER     ");
     console.log("=========================================");
@@ -101,14 +101,14 @@ export default function Login() {
         const { signInWithPopup, GoogleAuthProvider } = require('firebase/auth');
         const { webAuth } = require('../../src/core/auth/firebaseAdapter.web');
         const provider = new GoogleAuthProvider();
-        
+
         // Force account chooser prompt
         provider.setCustomParameters({ prompt: 'select_account' });
-        
+
         console.log('[AUTH] Calling Firebase signInWithPopup...');
         const userCredential = await signInWithPopup(webAuth, provider);
         console.log('[AUTH] Firebase signInWithPopup succeeded. User:', userCredential.user?.email);
-        
+
         firebaseIdToken = await userCredential.user.getIdToken();
         name = userCredential.user.displayName || 'Google User';
         userEmail = userCredential.user.email || 'google.user@gmail.com';
@@ -117,12 +117,12 @@ export default function Login() {
           throw new Error('Native Google Sign-in module is not loaded');
         }
         console.log('[AUTH] Triggering native Google Sign-in...');
-        
+
         // 1. Check for Play Services on Android
         console.log('[AUTH] Checking Play Services...');
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
         console.log('[AUTH] Play Services are available.');
-        
+
         // 2. Open Google Accounts overlay
         console.log('[AUTH] Calling GoogleSignin.signIn()...');
         const signInResult = await GoogleSignin.signIn();
@@ -131,22 +131,22 @@ export default function Login() {
           console.log('[AUTH] GoogleSignin data keys:', Object.keys(signInResult.data));
           console.log('[AUTH] Google User email:', signInResult.data.user?.email);
         }
-        
+
         const idToken = signInResult.data?.idToken;
         console.log('[AUTH] Google ID Token present?:', !!idToken, idToken ? `(Length: ${idToken.length})` : '');
-        
+
         if (!idToken) {
           throw new Error('Google Sign-in failed to return an ID Token');
         }
 
         console.log('[AUTH] Firebase authenticating Google credential...');
-        
+
         // 3. Build credential and log into Firebase client SDK
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
         console.log('[AUTH] Calling Firebase signInWithCredential...');
         const userCredential = await auth().signInWithCredential(googleCredential);
         console.log('[AUTH] Firebase signInWithCredential success. User:', userCredential.user?.email);
-        
+
         // 4. Extract secure JWT token
         firebaseIdToken = await userCredential.user.getIdToken();
         name = userCredential.user.displayName || 'Google User';
@@ -155,11 +155,11 @@ export default function Login() {
 
       console.log('[AUTH] Syncing Google session with PostgreSQL...');
       console.log(`[AUTH] Calling loginWithGoogle with name: "${name}", email: "${userEmail}", token length: ${firebaseIdToken?.length}`);
-      
+
       // 5. Synchronize with our Postgres database
       await loginWithGoogle(firebaseIdToken, name, userEmail);
       console.log('[AUTH] Google Sign-in and backend sync completed successfully!');
-      
+
       success();
       router.replace('/');
     } catch (e: any) {
@@ -174,26 +174,26 @@ export default function Login() {
         console.error('  Response Headers:', JSON.stringify(e.response.headers));
       }
       setErr(translateFirebaseError(e));
-    } finally { 
+    } finally {
       setIsAuthenticating(false);
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
             <Image
-              source={require('../../assets/images/logo.png')}
-              style={{ width: 220, height: 100, resizeMode: 'contain' }}
+              source={require('../../assets/images/app_Icon_less_padding.png')}
+              style={{ width: 250, height: 200, resizeMode: 'contain' }}
             />
-            <Text style={[styles.tagline, { color: t.textSecondary, textAlign: 'center', marginTop: 12 }]}>Smart carpooling for the modern commuter.</Text>
+            <Text style={[styles.tagline, { color: t.textSecondary, textAlign: 'center', marginTop: 16 }]}>Travel Together, Save Together.</Text>
           </View>
 
           <View style={{ gap: 12 }}>
@@ -275,8 +275,8 @@ export default function Login() {
               <Text style={[styles.socialBtnText, { color: t.textPrimary }]}>Continue with Phone Number</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              testID="goto-signup" 
+            <TouchableOpacity
+              testID="goto-signup"
               disabled={loading}
               onPress={() => { tap(); router.push('/(auth)/signup'); }}
               style={{ marginTop: spacing.md, opacity: loading ? 0.6 : 1 }}

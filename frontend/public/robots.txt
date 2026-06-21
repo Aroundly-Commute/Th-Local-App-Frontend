@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /help
+Disallow: /(auth)/
+Disallow: /(tabs)/
+Disallow: /chat/
+Disallow: /ride/
+Disallow: /coming-soon
+Disallow: /edit-profile
+Disallow: /settings
+Disallow: /delete-account
+
+Sitemap: https://aroundly.in/sitemap.xml

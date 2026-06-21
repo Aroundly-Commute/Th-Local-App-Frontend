@@ -65,7 +65,20 @@ export function translateFirebaseError(error: any): string {
   if (code.includes('auth/invalid-phone-number') || message.includes('invalid-phone-number')) {
     return 'Please enter a valid phone number including country code.';
   }
+  if (
+    code.includes('auth/invalid-app-credential') || 
+    message.includes('invalid-app-credential')
+  ) {
+    console.error('[DEVELOPER ERROR] Firebase SMS OTP dispatch failed with auth/invalid-app-credential. To resolve this, add your current host/IP address (e.g. localhost, 127.0.0.1, or local machine IP) to your Firebase Authentication settings under "Authorized Domains".');
+    return 'Unable to send SMS verification code. Please try again later or use a different login method.';
+  }
+  if (code.includes('auth/captcha-check-failed') || message.includes('captcha-check-failed')) {
+    return 'Security verification check failed. Please try again.';
+  }
 
-  // General Fallback
-  return message || 'Authentication failed. Please try again.';
+  // General Fallback (Sanitizes technical details like "FirebaseError:")
+  if (message && !message.includes('Firebase') && !message.includes('auth/')) {
+    return message;
+  }
+  return 'Authentication failed. Please try again.';
 }
