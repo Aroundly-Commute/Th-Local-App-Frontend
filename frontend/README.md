@@ -45,10 +45,8 @@ To learn more about developing your project with Expo, look at the following res
 ## Join the community
 
 Join our community of developers creating universal apps.
-Just as fascinating as this universe.
-This is well observed.
-
-Commit test: small README edit.
+Just as facinating as this universe .
+This is well observed 
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
