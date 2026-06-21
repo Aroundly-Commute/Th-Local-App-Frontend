@@ -198,6 +198,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('[AUTH] Manual authentication in progress. Skipping duplicate fetch.');
             return;
           }
+
+          // 1. Try to load cached user immediately to hide splash screen fast
+          const cachedVal = await AsyncStorage.getItem('cached_profile_user');
+          if (cachedVal) {
+            try {
+              const parsedUser = JSON.parse(cachedVal);
+              setUser(parsedUser);
+              setLoading(false); // Hide splash screen immediately!
+              console.log('[AUTH] Fast-loaded cached user profile to hide splash screen.');
+            } catch (e) {
+              console.warn('[AUTH] Error fast-loading cached user:', e);
+            }
+          }
+
           const token = await firebaseUser.getIdToken();
           await AsyncStorage.setItem('access_token', token);
           
@@ -207,18 +221,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(data);
           } catch (apiErr: any) {
             console.warn('[AUTH] Failed to fetch profile from PostgreSQL, checking cache...', apiErr?.message);
-            // If offline, check if we have a cached profile user
-            const cachedVal = await AsyncStorage.getItem('cached_profile_user');
-            if (cachedVal) {
-              try {
-                const parsedUser = JSON.parse(cachedVal);
-                console.log('[AUTH] Loaded cached profile user:', parsedUser.email || parsedUser.phoneNumber);
-                setUser(parsedUser);
-              } catch (parseErr) {
-                console.error('[AUTH] Failed to parse cached profile user:', parseErr);
+            // If we didn't have/load a valid cached user, check fallback now
+            if (!cachedVal) {
+              const cachedValFallback = await AsyncStorage.getItem('cached_profile_user');
+              if (cachedValFallback) {
+                try {
+                  const parsedUser = JSON.parse(cachedValFallback);
+                  console.log('[AUTH] Loaded cached profile user as fallback:', parsedUser.email || parsedUser.phoneNumber);
+                  setUser(parsedUser);
+                } catch (parseErr) {
+                  console.error('[AUTH] Failed to parse cached profile user:', parseErr);
+                  setUser(null);
+                }
+              } else {
                 setUser(null);
               }
-            } else {
+            }
+            // Clear session if backend returns Unauthorized or Forbidden
+            if (apiErr.response && (apiErr.response.status === 401 || apiErr.response.status === 403)) {
+              await AsyncStorage.removeItem('access_token');
+              await AsyncStorage.removeItem('cached_profile_user');
               setUser(null);
             }
           }
