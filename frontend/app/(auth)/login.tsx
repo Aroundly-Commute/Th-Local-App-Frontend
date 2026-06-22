@@ -191,9 +191,8 @@ export default function Login() {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
             <Image
               source={require('../../assets/images/app_Icon_less_padding.png')}
-              style={{ width: 250, height: 200, resizeMode: 'contain' }}
+              style={{ width: 200, height: 160, resizeMode: 'contain' }}
             />
-            <Text style={[styles.tagline, { color: t.textSecondary, textAlign: 'center', marginTop: 16 }]}>Travel Together, Save Together.</Text>
           </View>
 
           <View style={{ gap: 12 }}>
