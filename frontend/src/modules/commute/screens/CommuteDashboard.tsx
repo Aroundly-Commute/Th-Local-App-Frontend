@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  RefreshControl, Dimensions, Platform, ActivityIndicator,
+  RefreshControl, Dimensions, Platform, ActivityIndicator, Image,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -51,6 +51,10 @@ const PublicTransportIcon = ({ color, size }: { color: string; size: number }) =
     <Path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z" fill={color} />
   </Svg>
 );
+
+const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.png');
+const carpoolPromoImg = require('../../../../assets/images/carpool_promo.png');
+const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.png');
 
 export default function CommuteDashboard() {
   const { enableRideSharing, enableParking } = useFeatureFlags();
@@ -235,6 +239,36 @@ export default function CommuteDashboard() {
 
   const isDark = false;
 
+  const showEmptyState = !loading && upcomingRides.length === 0 && nearbyRides.length === 0 && buddies.length === 0;
+
+  const promoCards = [
+    {
+      title: 'Cab Buddy',
+      description: 'Matches two strangers going to the same route so they can book a cab and split the fare.',
+      image: cabBuddyPromoImg,
+      buttonLabel: 'Find Cab Buddy',
+      onPress: () => {
+        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } });
+      },
+    },
+    {
+      title: 'Car Pooling',
+      description: 'Going to some place with a vacant seat? Let your acquaintances pool in to save money, energy, and make better bonds.',
+      image: carpoolPromoImg,
+      buttonLabel: 'Find Carpool',
+      onPress: () => {
+        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } });
+      },
+    },
+    {
+      title: 'Offer a Ride',
+      description: 'Register your vehicle, share your empty seats with others heading your way, and split travel costs.',
+      image: offerRidePromoImg,
+      buttonLabel: 'Offer Ride',
+      onPress: handleOfferRide,
+    },
+  ];
+
   return (
     <ScrollView
       contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 24 }}
@@ -313,6 +347,54 @@ export default function CommuteDashboard() {
           );
         })}
       </View>
+
+      {/* Onboarding / Feature Suggestions when empty */}
+      {showEmptyState && (
+        <View style={styles.promoContainer}>
+          <Text style={[styles.promoSectionTitle, { color: t.textPrimary }]}>Get Started with Commute</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={containerWidth * 0.85 + 16}
+            snapToAlignment="start"
+            style={{ marginHorizontal: -spacing.lg, marginTop: spacing.xs }}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 16 }}
+          >
+            {promoCards.map((card, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.promoCard,
+                  {
+                    backgroundColor: t.surface,
+                    borderColor: t.border,
+                    width: containerWidth * 0.85,
+                  }
+                ]}
+              >
+                <Image
+                  source={card.image}
+                  style={styles.promoImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.promoContent}>
+                  <Text style={[styles.promoTitle, { color: t.textPrimary }]}>{card.title}</Text>
+                  <Text style={[styles.promoDesc, { color: t.textSecondary }]}>{card.description}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => { tap(); card.onPress(); }}
+                    style={[styles.promoButton, { backgroundColor: t.primary }]}
+                  >
+                    <Text style={styles.promoButtonText}>{card.buttonLabel}</Text>
+                    <ChevronRight color="#FFFFFF" size={16} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Upcoming ride */}
       {upcomingRides.length > 0 && (
@@ -682,4 +764,54 @@ const styles = StyleSheet.create({
   impactValue: { fontSize: 18, fontWeight: '700' },
   impactLabel: { fontSize: 11, fontWeight: '500' },
   impactPlaceholder: { fontSize: 13, fontWeight: '500', lineHeight: 18, marginTop: 4 },
+  promoContainer: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  promoSectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: spacing.md,
+  },
+  promoCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  promoImage: {
+    width: '100%',
+    height: 140,
+  },
+  promoContent: {
+    padding: spacing.md,
+    gap: 8,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  promoDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  promoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    marginTop: spacing.xs,
+  },
+  promoButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });
