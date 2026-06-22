@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  RefreshControl, Dimensions, Platform, ActivityIndicator,
+  RefreshControl, Dimensions, Platform, ActivityIndicator, Image,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -51,6 +51,15 @@ const PublicTransportIcon = ({ color, size }: { color: string; size: number }) =
     <Path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z" fill={color} />
   </Svg>
 );
+
+const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.png');
+const carpoolPromoImg = require('../../../../assets/images/carpool_promo.png');
+const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.png');
+
+const cabBuddyIconImg = require('../../../../assets/images/cab_buddy_icon.png');
+const carpoolIconImg = require('../../../../assets/images/carpool_icon.png');
+const publicTransportIconImg = require('../../../../assets/images/public_transport_icon.png');
+const offerRideIconImg = require('../../../../assets/images/offer_ride_icon.png');
 
 export default function CommuteDashboard() {
   const { enableRideSharing, enableParking } = useFeatureFlags();
@@ -213,27 +222,57 @@ export default function CommuteDashboard() {
   const services = [
     {
       label: 'Cab Buddy',
-      icon: CabBuddyIcon,
+      icon: cabBuddyIconImg,
       onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
     },
     {
       label: 'Car Pooling',
-      icon: CarPoolingIcon,
+      icon: carpoolIconImg,
       onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
     },
     {
       label: 'Public Transport',
-      icon: PublicTransportIcon,
+      icon: publicTransportIconImg,
       onPress: () => router.push('/commute/public-transport' as any),
     },
     {
       label: 'Offer Ride',
-      icon: OfferRideIcon,
+      icon: offerRideIconImg,
       onPress: handleOfferRide,
     },
   ];
 
   const isDark = false;
+
+  const showEmptyState = !loading && upcomingRides.length === 0 && nearbyRides.length === 0 && buddies.length === 0;
+
+  const promoCards = [
+    {
+      title: 'Cab Buddy',
+      description: 'Matches two strangers going to the same route so they can book a cab and split the fare.',
+      image: cabBuddyPromoImg,
+      buttonLabel: 'Find Cab Buddy',
+      onPress: () => {
+        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } });
+      },
+    },
+    {
+      title: 'Car Pooling',
+      description: 'Going to some place with a vacant seat? Let your acquaintances pool in to save money, energy, and make better bonds.',
+      image: carpoolPromoImg,
+      buttonLabel: 'Find Carpool',
+      onPress: () => {
+        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } });
+      },
+    },
+    {
+      title: 'Offer a Ride',
+      description: 'Register your vehicle, share your empty seats with others heading your way, and split travel costs.',
+      image: offerRidePromoImg,
+      buttonLabel: 'Offer Ride',
+      onPress: handleOfferRide,
+    },
+  ];
 
   return (
     <ScrollView
@@ -297,22 +336,17 @@ export default function CommuteDashboard() {
               testID={`action-${s.label}`}
               onPress={() => { tap(); s.onPress(); }}
               activeOpacity={0.75}
-              style={[
-                styles.actionCard,
-                {
-                  backgroundColor: isDark ? t.surface : '#FFFFFF',
-                  borderColor: isDark ? t.border : '#61f8f8',
-                }
-              ]}
+              style={styles.actionCard}
             >
-              <View style={[styles.actionIconContainer, { backgroundColor: isDark ? t.muted : '#eff4ff' }]}>
-                <Icon color={isDark ? t.primary : '#006a6a'} size={24} />
+              <View style={styles.actionIconContainer}>
+                <Image source={Icon} style={styles.actionIconImage} resizeMode="cover" />
               </View>
               <Text style={[styles.actionLabel, { color: t.textPrimary }]}>{s.label}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
+
 
       {/* Upcoming ride */}
       {upcomingRides.length > 0 && (
@@ -469,6 +503,52 @@ export default function CommuteDashboard() {
           )}
         </>
       )}
+
+      {/* Onboarding / Feature Suggestions */}
+      <View style={styles.promoContainer}>
+        <Text style={[styles.promoSectionTitle, { color: t.textPrimary }]}>Explore Commute Features</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={containerWidth * 0.85 + 16}
+          snapToAlignment="start"
+          style={{ marginHorizontal: -spacing.lg, marginTop: spacing.xs }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 16 }}
+        >
+          {promoCards.map((card, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.promoCard,
+                {
+                  backgroundColor: t.surface,
+                  borderColor: t.border,
+                  width: containerWidth * 0.85,
+                }
+              ]}
+            >
+              <Image
+                source={card.image}
+                style={styles.promoImage}
+                resizeMode="cover"
+              />
+              <View style={styles.promoContent}>
+                <Text style={[styles.promoTitle, { color: t.textPrimary }]}>{card.title}</Text>
+                <Text style={[styles.promoDesc, { color: t.textSecondary }]}>{card.description}</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => { tap(); card.onPress(); }}
+                  style={[styles.promoButton, { backgroundColor: t.primary }]}
+                >
+                  <Text style={styles.promoButtonText}>{card.buttonLabel}</Text>
+                  <ChevronRight color="#FFFFFF" size={16} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Impact stats */}
       <View style={[styles.impact, { backgroundColor: t.successBg }]}>
@@ -639,27 +719,26 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '48%',
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    marginBottom: 16,
   },
   actionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 100,
+    height: 100,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   actionLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -682,4 +761,60 @@ const styles = StyleSheet.create({
   impactValue: { fontSize: 18, fontWeight: '700' },
   impactLabel: { fontSize: 11, fontWeight: '500' },
   impactPlaceholder: { fontSize: 13, fontWeight: '500', lineHeight: 18, marginTop: 4 },
+  actionIconImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  promoContainer: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  promoSectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: spacing.md,
+  },
+  promoCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  promoImage: {
+    width: '100%',
+    height: 140,
+  },
+  promoContent: {
+    padding: spacing.md,
+    gap: 8,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  promoDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  promoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    marginTop: spacing.xs,
+  },
+  promoButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });
