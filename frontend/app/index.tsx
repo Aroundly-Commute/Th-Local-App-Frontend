@@ -65,24 +65,37 @@ export default function Index() {
   // 2. Auth checking & redirects
   useEffect(() => {
     if (loading) return;
-    if (user) {
-      AsyncStorage.getItem(`onboarded_${user.id}`).then((val) => {
+
+    const handleRedirects = async () => {
+      // If we are on mobile, check if the one-time intro is completed first
+      if (Platform.OS !== 'web') {
+        const introCompleted = await AsyncStorage.getItem('intro_completed');
+        if (introCompleted !== 'true') {
+          router.replace('/intro');
+          return;
+        }
+      }
+
+      if (user) {
+        const val = await AsyncStorage.getItem(`onboarded_${user.id}`);
         const isAlreadyConfigured = user.name && !user.name.startsWith('Aroundler') && user.phoneNumber;
         if (val === 'true' || isAlreadyConfigured) {
           if (isAlreadyConfigured) {
-            AsyncStorage.setItem(`onboarded_${user.id}`, 'true').catch(() => { });
+            await AsyncStorage.setItem(`onboarded_${user.id}`, 'true').catch(() => { });
           }
           router.replace('/(tabs)');
         } else {
           router.replace('/onboarding');
         }
-      });
-    } else {
-      // Redirect mobile users to login screen
-      if (Platform.OS !== 'web') {
-        router.replace('/(auth)/login');
+      } else {
+        // Redirect mobile users to login screen
+        if (Platform.OS !== 'web') {
+          router.replace('/(auth)/login');
+        }
       }
-    }
+    };
+
+    handleRedirects().catch(err => console.error('[INDEX] Redirect error:', err));
   }, [user, loading]);
 
   const scrollToSection = (id: string) => {

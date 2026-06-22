@@ -56,6 +56,11 @@ const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.png'
 const carpoolPromoImg = require('../../../../assets/images/carpool_promo.png');
 const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.png');
 
+const cabBuddyIconImg = require('../../../../assets/images/cab_buddy_icon.png');
+const carpoolIconImg = require('../../../../assets/images/carpool_icon.png');
+const publicTransportIconImg = require('../../../../assets/images/public_transport_icon.png');
+const offerRideIconImg = require('../../../../assets/images/offer_ride_icon.png');
+
 export default function CommuteDashboard() {
   const { enableRideSharing, enableParking } = useFeatureFlags();
   const t = lightTheme;
@@ -217,22 +222,22 @@ export default function CommuteDashboard() {
   const services = [
     {
       label: 'Cab Buddy',
-      icon: CabBuddyIcon,
+      icon: cabBuddyIconImg,
       onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
     },
     {
       label: 'Car Pooling',
-      icon: CarPoolingIcon,
+      icon: carpoolIconImg,
       onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
     },
     {
       label: 'Public Transport',
-      icon: PublicTransportIcon,
+      icon: publicTransportIconImg,
       onPress: () => router.push('/commute/public-transport' as any),
     },
     {
       label: 'Offer Ride',
-      icon: OfferRideIcon,
+      icon: offerRideIconImg,
       onPress: handleOfferRide,
     },
   ];
@@ -331,16 +336,10 @@ export default function CommuteDashboard() {
               testID={`action-${s.label}`}
               onPress={() => { tap(); s.onPress(); }}
               activeOpacity={0.75}
-              style={[
-                styles.actionCard,
-                {
-                  backgroundColor: isDark ? t.surface : '#FFFFFF',
-                  borderColor: isDark ? t.border : '#61f8f8',
-                }
-              ]}
+              style={styles.actionCard}
             >
-              <View style={[styles.actionIconContainer, { backgroundColor: isDark ? t.muted : '#eff4ff' }]}>
-                <Icon color={isDark ? t.primary : '#006a6a'} size={24} />
+              <View style={styles.actionIconContainer}>
+                <Image source={Icon} style={styles.actionIconImage} resizeMode="cover" />
               </View>
               <Text style={[styles.actionLabel, { color: t.textPrimary }]}>{s.label}</Text>
             </TouchableOpacity>
@@ -348,53 +347,6 @@ export default function CommuteDashboard() {
         })}
       </View>
 
-      {/* Onboarding / Feature Suggestions when empty */}
-      {showEmptyState && (
-        <View style={styles.promoContainer}>
-          <Text style={[styles.promoSectionTitle, { color: t.textPrimary }]}>Get Started with Commute</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToInterval={containerWidth * 0.85 + 16}
-            snapToAlignment="start"
-            style={{ marginHorizontal: -spacing.lg, marginTop: spacing.xs }}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 16 }}
-          >
-            {promoCards.map((card, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.promoCard,
-                  {
-                    backgroundColor: t.surface,
-                    borderColor: t.border,
-                    width: containerWidth * 0.85,
-                  }
-                ]}
-              >
-                <Image
-                  source={card.image}
-                  style={styles.promoImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.promoContent}>
-                  <Text style={[styles.promoTitle, { color: t.textPrimary }]}>{card.title}</Text>
-                  <Text style={[styles.promoDesc, { color: t.textSecondary }]}>{card.description}</Text>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => { tap(); card.onPress(); }}
-                    style={[styles.promoButton, { backgroundColor: t.primary }]}
-                  >
-                    <Text style={styles.promoButtonText}>{card.buttonLabel}</Text>
-                    <ChevronRight color="#FFFFFF" size={16} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
 
       {/* Upcoming ride */}
       {upcomingRides.length > 0 && (
@@ -551,6 +503,52 @@ export default function CommuteDashboard() {
           )}
         </>
       )}
+
+      {/* Onboarding / Feature Suggestions */}
+      <View style={styles.promoContainer}>
+        <Text style={[styles.promoSectionTitle, { color: t.textPrimary }]}>Explore Commute Features</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={containerWidth * 0.85 + 16}
+          snapToAlignment="start"
+          style={{ marginHorizontal: -spacing.lg, marginTop: spacing.xs }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 16 }}
+        >
+          {promoCards.map((card, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.promoCard,
+                {
+                  backgroundColor: t.surface,
+                  borderColor: t.border,
+                  width: containerWidth * 0.85,
+                }
+              ]}
+            >
+              <Image
+                source={card.image}
+                style={styles.promoImage}
+                resizeMode="cover"
+              />
+              <View style={styles.promoContent}>
+                <Text style={[styles.promoTitle, { color: t.textPrimary }]}>{card.title}</Text>
+                <Text style={[styles.promoDesc, { color: t.textSecondary }]}>{card.description}</Text>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => { tap(); card.onPress(); }}
+                  style={[styles.promoButton, { backgroundColor: t.primary }]}
+                >
+                  <Text style={styles.promoButtonText}>{card.buttonLabel}</Text>
+                  <ChevronRight color="#FFFFFF" size={16} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Impact stats */}
       <View style={[styles.impact, { backgroundColor: t.successBg }]}>
@@ -721,27 +719,26 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '48%',
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    marginBottom: 16,
   },
   actionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 100,
+    height: 100,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   actionLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -764,6 +761,12 @@ const styles = StyleSheet.create({
   impactValue: { fontSize: 18, fontWeight: '700' },
   impactLabel: { fontSize: 11, fontWeight: '500' },
   impactPlaceholder: { fontSize: 13, fontWeight: '500', lineHeight: 18, marginTop: 4 },
+  actionIconImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+  },
   promoContainer: {
     marginTop: spacing.sm,
     marginBottom: spacing.lg,

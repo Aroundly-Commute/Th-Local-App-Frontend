@@ -55,6 +55,7 @@ function AppNavigationWrapper() {
       const isDashboard = 
         pathname === '/' || 
         pathname === '/index' || 
+        pathname === '/intro' || 
         pathname === '/(tabs)' || 
         pathname === '/(tabs)/home' || 
         pathname === '/home' ||
