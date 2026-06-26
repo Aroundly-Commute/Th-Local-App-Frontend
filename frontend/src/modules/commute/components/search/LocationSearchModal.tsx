@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
@@ -10,6 +9,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Search as SearchIcon, ChevronLeft, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { api } from '../../../../core/api/api';
@@ -135,7 +135,7 @@ export function LocationSearchModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.background }} edges={['top', 'bottom']}>
         {/* Header with back and search input */}
         <View
           style={{

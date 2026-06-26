@@ -25,14 +25,14 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:url" content="https://aroundly.in/" />
         <meta property="og:title" content="Aroundly - Smart Carpooling, Public Transit & Cab Share" />
         <meta property="og:description" content="Save on your daily commute. Match with colleagues for carpooling, view live transit data, or use Cab Buddy to share a cab and split the cost." />
-        <meta property="og:image" content="https://aroundly.in/assets/images/app_Icon.png" />
+        <meta property="og:image" content="https://aroundly.in/app_Icon.png" />
 
         {/* Twitter Card Meta Tags */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content="https://aroundly.in/" />
         <meta property="twitter:title" content="Aroundly - Smart Carpooling, Public Transit & Cab Share" />
         <meta property="twitter:description" content="Save on your daily commute. Match with colleagues for carpooling, view live transit data, or use Cab Buddy to share a cab and split the cost." />
-        <meta property="twitter:image" content="https://aroundly.in/assets/images/app_Icon.png" />
+        <meta property="twitter:image" content="https://aroundly.in/app_Icon.png" />
 
         {/* Structured Data: JSON-LD for Software Application (Search Engine Rich Snippet) */}
         <script
@@ -45,7 +45,7 @@ export default function Root({ children }: PropsWithChildren) {
               "operatingSystem": "iOS, Android, Web",
               "applicationCategory": "TravelApplication",
               "url": "https://aroundly.in",
-              "logo": "https://aroundly.in/assets/images/app_Icon.png",
+              "logo": "https://aroundly.in/app_Icon.png",
               "description": "Aroundly is India's premium smart commuting platform. We offer corporate carpooling, real-time public transport tracking, and 'Cab Buddy' - a unique concept matching random passengers traveling to the same destination to share a cab and split the fare.",
               "offers": {
                 "@type": "Offer",

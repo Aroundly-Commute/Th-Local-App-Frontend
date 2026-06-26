@@ -53,6 +53,7 @@ export default function Search() {
   const [rides, setRides] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [showAllLimit, setShowAllLimit] = useState(10);
   const [locLoading, setLocLoading] = useState(false);
 
   const [searchTarget, setSearchTarget] = useState<'from' | 'to' | null>(null);
@@ -75,7 +76,7 @@ export default function Search() {
   useEffect(() => {
     if (params.showAll === 'true') {
       setLoading(true);
-      api.get('/rides?page=1&limit=50')
+      api.get(`/rides?page=1&limit=${showAllLimit}`)
         .then(({ data }) => {
           setRides(data || []);
         })
@@ -86,7 +87,7 @@ export default function Search() {
           setLoading(false);
         });
     }
-  }, [params.showAll]);
+  }, [params.showAll, showAllLimit]);
 
   const saveRecentSearch = async (fromVal: string, toVal: string) => {
     try {
@@ -277,7 +278,7 @@ export default function Search() {
   const handlePostSearch = () => {
     tap();
     Alert.alert(
-      'Post Search Request',
+      'Post Ride Request',
       'Other users will see that you are looking for a ride from ' + (from || '').split(',')[0] + ' to ' + (to || '').split(',')[0] + '. Proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -298,7 +299,7 @@ export default function Search() {
               success();
               Alert.alert(
                 'Success',
-                'Your carpool request has been posted successfully!',
+                'Your Ride request has been posted successfully!',
                 [
                   {
                     text: 'OK',
@@ -310,7 +311,7 @@ export default function Search() {
               );
             } catch (err: any) {
               errorH();
-              Alert.alert('Error', err.response?.data?.message || 'Failed to post search request.');
+              Alert.alert('Error', err.response?.data?.message || 'Failed to post ride request.');
             } finally {
               setLoading(false);
             }
@@ -459,6 +460,25 @@ export default function Search() {
                       <Text style={{ color: t.textSecondary, marginTop: 8 }}>No rides available on campus.</Text>
                     </View>
                   )}
+                  {rides.length >= showAllLimit && (
+                    <TouchableOpacity
+                      onPress={() => { tap(); setShowAllLimit(prev => prev + 10); }}
+                      activeOpacity={0.8}
+                      style={{
+                        height: 48,
+                        borderRadius: radius.md,
+                        borderWidth: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: spacing.md,
+                        marginBottom: spacing.lg,
+                        backgroundColor: t.surface,
+                        borderColor: t.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>Show More</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </>
@@ -567,7 +587,7 @@ export default function Search() {
                         }}
                       >
                         <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
-                          Post as Carpool Request
+                          Post as Ride Request
                         </Text>
                       </TouchableOpacity>
                     </View>
