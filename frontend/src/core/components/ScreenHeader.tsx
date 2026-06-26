@@ -29,19 +29,19 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, onBack, right
 
   return (
     <View style={[styles.header, { backgroundColor: t.surface, borderBottomColor: t.border }]}>
-      <TouchableOpacity 
+      <TouchableOpacity
         testID="header-back-button"
-        onPress={handleBack} 
+        onPress={handleBack}
         style={[styles.backBtn, { backgroundColor: t.isDark ? '#142E58' : '#E8FBF9' }]}
         activeOpacity={0.8}
       >
         <ChevronLeft color={t.isDark ? '#00D4BC' : '#0A1628'} size={20} strokeWidth={2.8} />
       </TouchableOpacity>
-      
+
       <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>
         {title}
       </Text>
-      
+
       <View style={styles.right}>
         {rightComponent || <View style={{ width: 36 }} />}
       </View>
@@ -56,7 +56,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     height: Platform.OS === 'ios' ? 52 : 56,
-    borderBottomWidth: 1,
     zIndex: 100,
   },
   backBtn: {

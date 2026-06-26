@@ -28,7 +28,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      refresh().catch(() => {});
+      refresh().catch(() => { });
     }, [refresh])
   );
 
@@ -73,8 +73,6 @@ export default function ProfileScreen() {
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: spacing.lg,
-        borderBottomWidth: 1,
-        borderBottomColor: t.border,
         backgroundColor: t.surface,
       }}>
         <Text style={{ fontSize: 18, fontWeight: '800', color: t.textPrimary, letterSpacing: -0.5 }}>Profile</Text>

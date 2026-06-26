@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { BadgeCheck } from 'lucide-react-native';
@@ -10,24 +10,43 @@ export const VerifiedAvatar: React.FC<{ uri?: string; size?: number; name?: stri
   name = '?',
   verified,
   t,
-}) => (
-  <View style={{ width: size, height: size }}>
-    {uri ? (
-      <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />
-    ) : (
-      <View style={[s.placeholder, { width: size, height: size, borderRadius: size / 2, backgroundColor: t.muted }]}>
-        <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: size * 0.38 }}>
-          {(name || '?').charAt(0).toUpperCase()}
-        </Text>
-      </View>
-    )}
-    {verified ? (
-      <View style={[s.badge, { backgroundColor: t.background }]}>
-        <BadgeCheck color={t.success} size={size * 0.34} fill={t.background} />
-      </View>
-    ) : null}
-  </View>
-);
+}) => {
+  const [hasError, setHasError] = useState(false);
+  const [prevUri, setPrevUri] = useState(uri);
+
+  // Reset error state if the URI changes
+  if (uri !== prevUri) {
+    setPrevUri(uri);
+    setHasError(false);
+  }
+
+  return (
+    <View style={{ width: size, height: size }}>
+      {uri && !hasError ? (
+        <Image 
+          source={{ uri }} 
+          style={{ width: size, height: size, borderRadius: size / 2 }} 
+          contentFit="cover"
+          onError={(err) => {
+            console.warn(`[VerifiedAvatar] Failed to load avatar from URL "${uri}":`, err.error);
+            setHasError(true);
+          }}
+        />
+      ) : (
+        <View style={[s.placeholder, { width: size, height: size, borderRadius: size / 2, backgroundColor: t.muted }]}>
+          <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: size * 0.38 }}>
+            {(name || '?').charAt(0).toUpperCase()}
+          </Text>
+        </View>
+      )}
+      {verified ? (
+        <View style={[s.badge, { backgroundColor: t.background }]}>
+          <BadgeCheck color={t.success} size={size * 0.34} fill={t.background} />
+        </View>
+      ) : null}
+    </View>
+  );
+};
 
 export const Chip: React.FC<{ label: string; t: Theme; variant?: 'default' | 'success' | 'accent' | 'warning' }> = ({
   label,

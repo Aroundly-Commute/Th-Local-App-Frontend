@@ -2,7 +2,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useCallback, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users, RefreshCw } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
@@ -17,7 +17,8 @@ export default function Rides() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const [tab, setTab] = useState<'upcoming' | 'requested' | 'past'>('upcoming');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<'upcoming' | 'requested' | 'past'>(params.tab === 'requested' ? 'requested' : 'upcoming');
   const [refreshing, setRefreshing] = useState(false);
   const [limit, setLimit] = useState(10);
   const hasInitialFetched = useRef(false);
@@ -286,7 +287,9 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
             {r.isBuddyRequest ? (
-              <Text style={[styles.meta, { color: t.textSecondary }]}>{r.seats_available} buddy seeking</Text>
+              <Text style={[styles.meta, { color: t.textSecondary }]}>
+                {r.seats_available} {r.seats_available === 1 ? 'Buddy' : 'Buddies'} Seeking
+              </Text>
             ) : (
               <>
                 <Star color={t.warning} size={11} fill={t.warning} />
