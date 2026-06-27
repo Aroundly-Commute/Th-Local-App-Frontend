@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Platform } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Platform, Animated, PanResponder, Dimensions } from 'react-native';
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +19,59 @@ export default function RideDetail() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+
+  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+  const SNAP_TOP = 80;
+  const SNAP_MIDDLE = SCREEN_HEIGHT * 0.45;
+  const SNAP_BOTTOM = SCREEN_HEIGHT - 160;
+
+  const lastPosition = useRef(SNAP_MIDDLE);
+  const translateY = useRef(new Animated.Value(SNAP_MIDDLE)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only drag vertically, and ignore minor tremors or horizontal swipes
+        return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dx) < Math.abs(gestureState.dy);
+      },
+      onPanResponderGrant: () => {
+        translateY.setOffset(lastPosition.current);
+        translateY.setValue(0);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const nextValue = lastPosition.current + gestureState.dy;
+        if (nextValue >= SNAP_TOP) {
+          translateY.setValue(gestureState.dy);
+        } else {
+          // Clamp at SNAP_TOP
+          translateY.setValue(SNAP_TOP - lastPosition.current);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        translateY.flattenOffset();
+        const absolutePos = lastPosition.current + gestureState.dy;
+
+        const distTop = Math.abs(absolutePos - SNAP_TOP);
+        const distMiddle = Math.abs(absolutePos - SNAP_MIDDLE);
+        const distBottom = Math.abs(absolutePos - SNAP_BOTTOM);
+
+        let target = SNAP_MIDDLE;
+        const minVal = Math.min(distTop, distMiddle, distBottom);
+        if (minVal === distTop) target = SNAP_TOP;
+        else if (minVal === distBottom) target = SNAP_BOTTOM;
+
+        lastPosition.current = target;
+        Animated.spring(translateY, {
+          toValue: target,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 150,
+          mass: 0.6,
+        }).start();
+      },
+    })
+  ).current;
   
   const params = useLocalSearchParams<{
     id: string;
@@ -324,244 +377,311 @@ export default function RideDetail() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <ScreenHeader title="Ride Details" />
-      <View style={{ height: '35%' }}>
+
+      {/* Absolute Map Background */}
+      <View style={[StyleSheet.absoluteFillObject, { top: Platform.OS === 'ios' ? 90 : 60 }]}>
         <RouteMap
           origin={{ lat: origin_lat ?? 0, lng: origin_lng ?? 0, name: origin }}
           destination={{ lat: dest_lat ?? 0, lng: dest_lng ?? 0, name: destination }}
           t={t}
+          style={{ height: '100%', borderRadius: 0 }}
         />
       </View>
 
-      <ScrollView style={[styles.sheet, { backgroundColor: t.background }]} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}>
-        {/* Driver card */}
-        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <VerifiedAvatar uri={dAvatar} name={dName} verified={true} t={t} size={56} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.driver, { color: t.textPrimary }]}>{dName}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <Star color={t.primary} size={13} fill={t.primary} />
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                  {dRating.toFixed(1)} · {isDriver ? 'Your ride' : 'Verified driver'} · {ride.seatsAvailable ?? 0} {(ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats'} left
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.price, { color: t.primary }]}>₹{Math.round(price || 0)}</Text>
-          </View>
+      {/* Draggable Bottom Sheet */}
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: t.background,
+            transform: [{ translateY }],
+          },
+        ]}
+      >
+        {/* Drag Handle */}
+        <View style={styles.handleContainer}>
+          <View style={[styles.handle, { backgroundColor: t.border }]} />
         </View>
 
-        {/* Route card */}
-        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-          <View style={{ flexDirection: 'row', gap: 14 }}>
-            <View style={{ alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
-              <View style={[styles.dot, { backgroundColor: t.primary }]} />
-              <View style={{ width: 2, flex: 1, backgroundColor: t.border, marginVertical: 4 }} />
-              <View style={[styles.dot, { backgroundColor: t.error }]} />
-            </View>
-            <View style={{ flex: 1, gap: 18 }}>
-              <View>
-                <Text style={[styles.label, { color: t.textSecondary }]}>PICKUP</Text>
-                <Text style={[styles.loc, { color: t.textPrimary }]}>{origin}</Text>
-                <Text style={[styles.time, { color: t.textSecondary }]}>
-                  {isNaN(time.getTime()) ? '???' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
-                </Text>
+        <View
+          style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 240 }}
+        >
+          {/* Driver card */}
+          <View style={[styles.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}>
+                <VerifiedAvatar uri={dAvatar} name={dName} verified={ride.driver_verified || ride.driverVerified} t={t} size={40} />
               </View>
-              <View>
-                <Text style={[styles.label, { color: t.textSecondary }]}>DROPOFF</Text>
-                <Text style={[styles.loc, { color: t.textPrimary }]}>{destination}</Text>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>{dName}</Text>
+                  {ride.driverGender && (
+                    <Text style={{ fontSize: 12, color: t.textSecondary, textTransform: 'capitalize' }}>
+                      ({ride.driverGender})
+                    </Text>
+                  )}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <Star color="#FBBF24" size={11} fill="#FBBF24" />
+                  <Text style={{ fontSize: 12, color: t.textSecondary }}>{dRating.toFixed(1)}</Text>
+                  <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
+                  <Text style={{ fontSize: 12, color: t.textSecondary }}>
+                    {ride.seatsAvailable ?? 0} { (ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats' } available
+                  </Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>
+                  {isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <Clock color={t.textSecondary} size={10} />
+                  <Text style={{ fontSize: 12, color: t.textSecondary }}>
+                    {isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
 
-        {/* Pricing Breakdown Dropdown */}
-        {parsedFare && (
+          {/* Route card */}
           <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-            <TouchableOpacity 
-              onPress={() => { 
-                tap(); 
-                const nextState = !showPricingDetails;
-                setShowPricingDetails(nextState); 
-                if (nextState) {
-                  AnalyticsService.trackEvent('price_breakdown_expanded', {
-                    ride_id: id,
-                    final_fare: parsedFare.finalFare
-                  }).catch(() => {});
-                }
-              }}
-              activeOpacity={0.855}
-              style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-            >
+            <View style={{ flexDirection: 'row', gap: 14 }}>
+              <View style={{ alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                <View style={[styles.dot, { backgroundColor: t.primary }]} />
+                <View style={{ width: 2, flex: 1, backgroundColor: t.border, marginVertical: 4 }} />
+                <View style={[styles.dot, { backgroundColor: t.error }]} />
+              </View>
+              <View style={{ flex: 1, gap: 18 }}>
+                <View>
+                  <Text style={[styles.label, { color: t.textSecondary }]}>PICKUP</Text>
+                  <Text style={[styles.loc, { color: t.textPrimary }]}>{origin}</Text>
+                  <Text style={[styles.time, { color: t.textSecondary }]}>
+                    {isNaN(time.getTime()) ? '???' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={[styles.label, { color: t.textSecondary }]}>DROPOFF</Text>
+                  <Text style={[styles.loc, { color: t.textPrimary }]}>{destination}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Pricing Breakdown Dropdown */}
+          {parsedFare && (
+            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+              <TouchableOpacity 
+                onPress={() => { 
+                  tap(); 
+                  const nextState = !showPricingDetails;
+                  setShowPricingDetails(nextState); 
+                  if (nextState) {
+                    AnalyticsService.trackEvent('price_breakdown_expanded', {
+                      ride_id: id,
+                      final_fare: parsedFare.finalFare
+                    }).catch(() => {});
+                  }
+                }}
+                activeOpacity={0.855}
+                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 16 }}>🏷️</Text>
+                  <Text style={[styles.section, { color: t.textPrimary }]}>Fare Breakdown</Text>
+                </View>
+                <Text style={{ color: t.primary, fontWeight: '700', fontSize: 13 }}>
+                  {showPricingDetails ? 'Hide details' : 'Show details'}
+                </Text>
+              </TouchableOpacity>
+              
+              {showPricingDetails && (
+                <View style={{ marginTop: 12, gap: 10, borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12 }}>
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>Base Fare ({parsedFare.vehicleType})</Text>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>₹{parsedFare.baseFare.toFixed(2)}</Text>
+                  </View>
+                  {parsedFare.locationPremium > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={{ color: t.textSecondary, fontSize: 13 }}>📍 Location NCR Premium</Text>
+                      <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.locationPremium.toFixed(2)}</Text>
+                    </View>
+                  )}
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>🚗 Distance Fare ({parsedFare.distanceKm} km)</Text>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.distanceFare.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>⛽ {parsedFare.fuelType} Fuel Surcharge</Text>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.fuelSurcharge.toFixed(2)}</Text>
+                  </View>
+                  {parsedFare.deviationSurcharge > 0 && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={{ color: t.textSecondary, fontSize: 13 }}>↩️ detours Detour ({parsedFare.deviationKm} km)</Text>
+                      <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.deviationSurcharge.toFixed(2)}</Text>
+                    </View>
+                  )}
+                  <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>Subtotal</Text>
+                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.subtotal.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.breakdownRow}>
+                    <Text style={{ color: t.success, fontSize: 13, fontWeight: '600' }}>♻️ Pooling Discount (40% off)</Text>
+                    <Text style={{ color: t.success, fontSize: 13, fontWeight: '700' }}>-₹{parsedFare.poolingDiscount.toFixed(2)}</Text>
+                  </View>
+                  {parsedFare.poolingFare > parsedFare.cabCapFare && (
+                    <View style={styles.breakdownRow}>
+                      <Text style={{ color: t.error, fontSize: 13, fontWeight: '600' }}>🛡️ Private Cab Safety Surcharge Cap</Text>
+                      <Text style={{ color: t.error, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.cabCapFare.toFixed(2)}</Text>
+                    </View>
+                  )}
+                  <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
+                    <Text style={{ color: t.primary, fontSize: 14, fontWeight: '800' }}>Final Rider Pooling Fare</Text>
+                    <Text style={{ color: t.primary, fontSize: 15, fontWeight: '800' }}>₹{parsedFare.finalFare}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Vehicle */}
+          {vehicle && (
+            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={{ fontSize: 16 }}>🏷️</Text>
-                <Text style={[styles.section, { color: t.textPrimary }]}>Fare Breakdown</Text>
+                <Car color={t.primary} size={18} />
+                <Text style={[styles.section, { color: t.textPrimary }]}>Vehicle</Text>
               </View>
-              <Text style={{ color: t.primary, fontWeight: '700', fontSize: 13 }}>
-                {showPricingDetails ? 'Hide details' : 'Show details'}
+              <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: '700', marginTop: 8 }}>
+                {vehicle.year} {vehicle.make} {vehicle.model}
               </Text>
-            </TouchableOpacity>
-            
-            {showPricingDetails && (
-              <View style={{ marginTop: 12, gap: 10, borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12 }}>
-                <View style={styles.breakdownRow}>
-                  <Text style={{ color: t.textSecondary, fontSize: 13 }}>Base Fare ({parsedFare.vehicleType})</Text>
-                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>₹{parsedFare.baseFare.toFixed(2)}</Text>
-                </View>
-                {parsedFare.locationPremium > 0 && (
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>📍 Location NCR Premium</Text>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.locationPremium.toFixed(2)}</Text>
-                  </View>
-                )}
-                <View style={styles.breakdownRow}>
-                  <Text style={{ color: t.textSecondary, fontSize: 13 }}>🚗 Distance Fare ({parsedFare.distanceKm} km)</Text>
-                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.distanceFare.toFixed(2)}</Text>
-                </View>
-                <View style={styles.breakdownRow}>
-                  <Text style={{ color: t.textSecondary, fontSize: 13 }}>⛽ {parsedFare.fuelType} Fuel Surcharge</Text>
-                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.fuelSurcharge.toFixed(2)}</Text>
-                </View>
-                {parsedFare.deviationSurcharge > 0 && (
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>↩️ detours Detour ({parsedFare.deviationKm} km)</Text>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.deviationSurcharge.toFixed(2)}</Text>
-                  </View>
-                )}
-                <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
-                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>Subtotal</Text>
-                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.subtotal.toFixed(2)}</Text>
-                </View>
-                <View style={styles.breakdownRow}>
-                  <Text style={{ color: t.success, fontSize: 13, fontWeight: '600' }}>♻️ Pooling Discount (40% off)</Text>
-                  <Text style={{ color: t.success, fontSize: 13, fontWeight: '700' }}>-₹{parsedFare.poolingDiscount.toFixed(2)}</Text>
-                </View>
-                {parsedFare.poolingFare > parsedFare.cabCapFare && (
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.error, fontSize: 13, fontWeight: '600' }}>🛡️ Private Cab Safety Surcharge Cap</Text>
-                    <Text style={{ color: t.error, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.cabCapFare.toFixed(2)}</Text>
-                  </View>
-                )}
-                <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
-                  <Text style={{ color: t.primary, fontSize: 14, fontWeight: '800' }}>Final Rider Pooling Fare</Text>
-                  <Text style={{ color: t.primary, fontSize: 15, fontWeight: '800' }}>₹{parsedFare.finalFare}</Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Vehicle */}
-        {vehicle && (
-          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Car color={t.primary} size={18} />
-              <Text style={[styles.section, { color: t.textPrimary }]}>Vehicle</Text>
+              <Text style={{ color: t.textSecondary, fontSize: 13 }}>{vehicle.color} · {vehicle.license_plate}</Text>
             </View>
-            <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: '700', marginTop: 8 }}>
-              {vehicle.year} {vehicle.make} {vehicle.model}
-            </Text>
-            <Text style={{ color: t.textSecondary, fontSize: 13 }}>{vehicle.color} · {vehicle.license_plate}</Text>
-          </View>
-        )}
+          )}
 
-        {/* Eco badge */}
-        <View style={[styles.eco, { backgroundColor: t.isDark ? '#0f1f17' : '#EAF5EC' }]}>
-          <Leaf color={t.primary} size={18} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: t.primary, fontWeight: '800', fontSize: 14 }}>Eco impact</Text>
-            <Text style={{ color: t.primary, fontSize: 12, marginTop: 2 }}>
-              {(co2 || 0).toFixed(1)} kg CO₂ avoided · {(dist || 0).toFixed(0)} km route
-            </Text>
-          </View>
-        </View>
-
-        {/* DRIVER: Passengers / Booking Requests */}
-        {isDriver && (
-          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Users color={t.primary} size={18} />
-              <Text style={[styles.section, { color: t.textPrimary }]}>
-                {passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`}
+          {/* Eco badge */}
+          <View style={[styles.eco, { backgroundColor: t.isDark ? '#0f1f17' : '#EAF5EC' }]}>
+            <Leaf color={t.primary} size={18} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: t.primary, fontWeight: '800', fontSize: 14 }}>Eco impact</Text>
+              <Text style={{ color: t.primary, fontSize: 12, marginTop: 2 }}>
+                {(co2 || 0).toFixed(1)} kg CO₂ avoided · {(dist || 0).toFixed(0)} km route
               </Text>
             </View>
-            {passengers.length === 0 ? (
-              <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                When riders book this ride, they'll appear here.
-              </Text>
-            ) : (
-              passengers.map((p: any) => (
-                <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
-                  {/* Top row: Avatar, Name & Fare, Status */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
-                        {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
-                      </Text>
-                      <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                        {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                      </Text>
+          </View>
+
+          {/* DRIVER: Passengers / Booking Requests */}
+          {isDriver && (
+            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Users color={t.primary} size={18} />
+                <Text style={[styles.section, { color: t.textPrimary }]}>
+                  {passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`}
+                </Text>
+              </View>
+              {passengers.length === 0 ? (
+                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
+                  When riders book this ride, they'll appear here.
+                </Text>
+              ) : (
+                passengers.map((p: any) => (
+                  <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
+                    {/* Top row: Avatar, Name & Fare, Status */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
+                          {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
+                        </Text>
+                        <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                          {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Bottom row: Action Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                      {p.status === 'REQUESTED' && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => onAcceptRequest(p.request_id)}
+                            activeOpacity={0.8}
+                            style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                          >
+                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => onRejectRequest(p.request_id)}
+                            activeOpacity={0.8}
+                            style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                          >
+                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      <TouchableOpacity
+                        onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
+                        activeOpacity={0.8}
+                        style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
+                      >
+                        <MessageCircle color="#fff" size={12} />
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
+                ))
+              )}
+            </View>
+          )}
 
-                  {/* Bottom row: Action Buttons */}
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                    {p.status === 'REQUESTED' && (
-                      <>
-                        <TouchableOpacity
-                          onPress={() => onAcceptRequest(p.request_id)}
-                          activeOpacity={0.8}
-                          style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                        >
-                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => onRejectRequest(p.request_id)}
-                          activeOpacity={0.8}
-                          style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                        >
-                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    <TouchableOpacity
-                      onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
-                      activeOpacity={0.8}
-                      style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
-                    >
-                      <MessageCircle color="#fff" size={12} />
-                      <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            )}
+          {ride.notes ? (
+            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+              <Text style={[styles.section, { color: t.textPrimary }]}>Notes from driver</Text>
+              <Text style={{ color: t.textSecondary, marginTop: 6 }}>{ride.notes}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* FAB inside Bottom Sheet */}
+        {fabContent() !== null && (
+          <View style={[styles.sheetFab, { backgroundColor: t.background, borderColor: t.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              {fabContent()}
+            </View>
           </View>
         )}
-
-        {ride.notes ? (
-          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-            <Text style={[styles.section, { color: t.textPrimary }]}>Notes from driver</Text>
-            <Text style={{ color: t.textSecondary, marginTop: 6 }}>{ride.notes}</Text>
-          </View>
-        ) : null}
-      </ScrollView>
-
-      {/* FAB */}
-      {fabContent() !== null && (
-        <View style={[styles.fab, { backgroundColor: t.background, borderColor: t.border }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            {fabContent()}
-          </View>
-        </View>
-      )}
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   back: { position: 'absolute', top: 12, left: 12, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
-  sheet: { flex: 1, marginTop: -32, borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '100%',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  handleContainer: {
+    width: '100%',
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  handle: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+  },
   card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md },
   driver: { fontSize: 18, fontWeight: '800' },
   price: { fontSize: 24, fontWeight: '800' },
@@ -571,7 +691,15 @@ const styles = StyleSheet.create({
   time: { fontSize: 13, marginTop: 2 },
   section: { fontSize: 16, fontWeight: '700' },
   eco: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md, borderRadius: radius.lg, marginTop: spacing.md },
-  fab: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 32 : 16, borderTopWidth: 1 },
+  sheetFab: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    borderTopWidth: 1,
+  },
   cta: { flex: 1, height: 54, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

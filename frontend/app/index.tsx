@@ -107,8 +107,11 @@ export default function Index() {
     }
   };
 
+  const isServer = Platform.OS === 'web' && typeof window === 'undefined';
+
   // If loading or we are on mobile, show loader (redirection in progress)
-  if (loading || (Platform.OS !== 'web' && !user)) {
+  // On web static build pre-rendering, we bypass this to export the actual landing page content instead of a loader
+  if (!isServer && (loading || (Platform.OS !== 'web' && !user))) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.background }}>
         <ActivityIndicator color={t.primary} size="large" />
@@ -117,7 +120,7 @@ export default function Index() {
   }
 
   // If user is logged in, show loader (redirection in progress)
-  if (user) {
+  if (!isServer && user) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.background }}>
         <ActivityIndicator color={t.primary} size="large" />

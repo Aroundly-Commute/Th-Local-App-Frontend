@@ -260,7 +260,9 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
       testID={`myride-${r.id}`}
       activeOpacity={0.8}
       onPress={() => {
-        if (!r.isBuddyRequest) {
+        if (r.isBuddyRequest) {
+          router.push(`/buddy/${r.id}`);
+        } else {
           router.push(`/ride/${r.id}`);
         }
       }}

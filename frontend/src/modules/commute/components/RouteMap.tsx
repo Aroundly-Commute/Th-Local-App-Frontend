@@ -14,6 +14,7 @@ interface Props {
   origin: Point;
   destination: Point;
   t: Theme;
+  style?: any;
 }
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -51,7 +52,7 @@ function decodePolyline(encoded: string) {
   return points;
 }
 
-export const RouteMap: React.FC<Props> = ({ origin, destination, t }) => {
+export const RouteMap: React.FC<Props> = ({ origin, destination, t, style }) => {
   const [routeCoords, setRouteCoords] = useState<{latitude: number, longitude: number}[]>([]);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t }) => {
 
   if (!origin.lat || !origin.lng || !destination.lat || !destination.lng) {
     return (
-      <View style={[styles.container, { backgroundColor: t.muted, justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, style, { backgroundColor: t.muted, justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={{ color: t.textSecondary }}>Map not available (missing coordinates)</Text>
       </View>
     );
@@ -91,7 +92,7 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <MapView
         style={StyleSheet.absoluteFillObject}
         provider={PROVIDER_GOOGLE}
