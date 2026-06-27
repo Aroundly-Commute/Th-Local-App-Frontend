@@ -13,6 +13,7 @@ import {
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
 import { RideCard } from '../../src/modules/commute/components/RideCard';
+import { BuddyCard } from '../../src/modules/commute/components/BuddyCard';
 import { Shimmer } from '../../src/core/components/Shimmer';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 import * as Location from 'expo-location';
@@ -43,6 +44,7 @@ export default function Search() {
     to?: string;
     fromCoords?: string;
     toCoords?: string;
+    feature?: string;
   }>();
 
   const [mode, setMode] = useState<'find' | 'offer'>('find');
@@ -51,6 +53,7 @@ export default function Search() {
   const [fromCoords, setFromCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [toCoords, setToCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [rides, setRides] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [showAllLimit, setShowAllLimit] = useState(10);
@@ -212,6 +215,42 @@ export default function Search() {
   const dateLabel = datetime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeLabel = datetime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
+  const handlePublishOfferDirectly = useCallback(async () => {
+    if (!from.trim() || !to.trim()) {
+      Alert.alert('Validation Error', 'Please select both source and destination locations.');
+      return;
+    }
+    setLoading(true);
+    const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
+    const dateStr = `${istShifted.getUTCFullYear()}-${String(istShifted.getUTCMonth() + 1).padStart(2, '0')}-${String(istShifted.getUTCDate()).padStart(2, '0')}`;
+    const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
+    try {
+      AnalyticsService.trackEvent('ride_offer_created', {
+        start_place: from,
+        end_place: to,
+        seats_count: seats,
+      }).catch(() => { });
+
+      await api.post('/rides/offer', {
+        startName: from, endName: to,
+        startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
+        endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
+        seats: parseInt(seats) || 1,
+        price: 10,
+        date: dateStr,
+        time: timeStr,
+      });
+      success();
+      Alert.alert('Success', 'Ride offered! It is now visible to other users.');
+      router.push('/commute/rides');
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to create ride offer.');
+    } finally {
+      setLoading(false);
+    }
+  }, [from, to, fromCoords, toCoords, datetime, seats, router]);
+
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
       AnalyticsService.trackWarning('Location Validation Failed', { from, to }).catch(() => { });
@@ -219,45 +258,30 @@ export default function Search() {
       return;
     }
     setLoading(true); setSearched(true);
-    const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
-    const dateStr = `${istShifted.getUTCFullYear()}-${String(istShifted.getUTCMonth() + 1).padStart(2, '0')}-${String(istShifted.getUTCDate()).padStart(2, '0')}`;
-    const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
     try {
       saveRecentSearch(from, to);
-      if (mode === 'offer') {
-        AnalyticsService.trackEvent('ride_offer_created', {
-          start_place: from,
-          end_place: to,
-          seats_count: seats,
-        }).catch(() => { });
+      AnalyticsService.trackEvent('ride_search_initiated', {
+        start_place: from,
+        end_place: to,
+      }).catch(() => { });
 
-        await api.post('/rides/offer', {
-          startName: from, endName: to,
-          startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
-          endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
-          seats: parseInt(seats) || 1,
-          price: 10,
-          date: dateStr,
-          time: timeStr,
-        });
-        success();
-        Alert.alert('Success', 'Ride offered! It is now visible to other users.');
-        router.push('/commute/rides');
-      } else {
-        AnalyticsService.trackEvent('ride_search_initiated', {
-          start_place: from,
-          end_place: to,
-        }).catch(() => { });
+      const searchFeature = params.feature || (mode === 'offer' ? 'offer' : 'main');
 
-        const { data } = await api.post('/matchmaking/search', {
-          start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
-          end: toCoords ? { lng: toCoords.lng, lat: toCoords.lat } : { lng: 77.4, lat: 28.6 },
-          startPlaceName: from || 'Origin',
-          endPlaceName: to || 'Destination',
-          startTime: datetime.toISOString(),
-        });
-        setRides(data.matches || []);
-      }
+      const { data } = await api.post('/matchmaking/search', {
+        start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
+        end: toCoords ? { lng: toCoords.lng, lat: toCoords.lat } : { lng: 77.4, lat: 28.6 },
+        startPlaceName: from || 'Origin',
+        endPlaceName: to || 'Destination',
+        startTime: datetime.toISOString(),
+        feature: searchFeature,
+      });
+
+      const returnedSections = data.sections || [];
+      setSections(returnedSections);
+
+      // Flatten for rides compatibility list (resultsCount counts them all)
+      const flatMatches = returnedSections.reduce((acc: any[], sec: any) => [...acc, ...(sec.data || [])], []);
+      setRides(flatMatches);
     } catch (e: any) {
       errorH();
       AnalyticsService.trackError(e?.response?.data?.message || 'Submit Action Exception', false, { mode }).catch(() => { });
@@ -265,7 +289,7 @@ export default function Search() {
     } finally {
       setLoading(false);
     }
-  }, [mode, from, to, fromCoords, toCoords, datetime, seats, router]);
+  }, [mode, from, to, fromCoords, toCoords, datetime, seats, router, params.feature]);
 
   const quickSearch = (r: any) => {
     tap();
@@ -416,15 +440,46 @@ export default function Search() {
               </View>
             </View>
 
+            {mode === 'offer' && (
+              <TouchableOpacity
+                testID="search-submit"
+                disabled={loading || locLoading}
+                onPress={() => { tap(); submitAction(); }}
+                activeOpacity={0.8}
+                style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+              >
+                <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
+                  Find Matching Passengers
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              testID="search-submit"
+              testID="publish-submit"
               disabled={loading || locLoading}
-              onPress={() => { tap(); submitAction(); }}
+              onPress={() => {
+                tap();
+                if (mode === 'find') {
+                  submitAction();
+                } else {
+                  handlePublishOfferDirectly();
+                }
+              }}
               activeOpacity={0.8}
-              style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+              style={[
+                styles.cta,
+                {
+                  backgroundColor: mode === 'find' ? t.primary : t.surface,
+                  borderColor: t.primary,
+                  borderWidth: mode === 'find' ? 0 : 1.5,
+                  marginTop: mode === 'find' ? spacing.md : spacing.sm,
+                  zIndex: 0,
+                  opacity: (loading || locLoading) ? 0.6 : 1
+                }
+              ]}
             >
-              <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
-                {mode === 'find' ? 'Search Rides' : 'Create Offer'}
+              <Text style={[styles.ctaText, { color: mode === 'find' ? t.primaryContrast : t.primary }]}>
+                {mode === 'find' ? 'Search Rides' : 'Publish Ride Offer Directly'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -549,36 +604,72 @@ export default function Search() {
                 </View>
               ) : (
                 <View style={{ gap: 12 }}>
-                  {rides.map((r) => (
-                    <RideCard key={r.id} ride={r} t={t} testID={`search-ride-${r.id}`}
-                      onPress={() => {
-                        tap();
-                        router.push({
-                          pathname: `/ride/${r.id}`,
-                          params: {
-                            fromName: from,
-                            toName: to,
-                            fromLat: fromCoords?.lat,
-                            fromLng: fromCoords?.lng,
-                            toLat: toCoords?.lat,
-                            toLng: toCoords?.lng,
-                            seats: seats,
-                            estimatedFare: r.estimatedFare ? JSON.stringify(r.estimatedFare) : undefined,
-                          }
-                        } as any);
-                      }} />
-                  ))}
+                  {sections.map((section, idx) => {
+                    if (!section.data || section.data.length === 0) return null;
+                    return (
+                      <View key={section.type || idx} style={{ marginTop: 8, marginBottom: 16 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: t.textPrimary, marginBottom: 10 }}>
+                          {section.title} ({section.data.length})
+                        </Text>
+                        <View style={{ gap: 12 }}>
+                          {section.data.map((item: any) => {
+                            if (section.type === 'offered') {
+                              return (
+                                <RideCard
+                                  key={item.id}
+                                  ride={item}
+                                  t={t}
+                                  testID={`search-ride-${item.id}`}
+                                  onPress={() => {
+                                    tap();
+                                    router.push({
+                                      pathname: `/ride/${item.id}`,
+                                      params: {
+                                        fromName: from,
+                                        toName: to,
+                                        fromLat: fromCoords?.lat,
+                                        fromLng: fromCoords?.lng,
+                                        toLat: toCoords?.lat,
+                                        toLng: toCoords?.lng,
+                                        seats: seats,
+                                        estimatedFare: item.estimatedFare ? JSON.stringify(item.estimatedFare) : undefined,
+                                      }
+                                    } as any);
+                                  }}
+                                />
+                              );
+                            } else {
+                              return (
+                                <BuddyCard
+                                  key={item.id}
+                                  buddy={item}
+                                  t={t}
+                                  onPress={() => {
+                                    tap();
+                                    router.push(`/buddy/${item.id}` as any);
+                                  }}
+                                />
+                              );
+                            }
+                          })}
+                        </View>
+                      </View>
+                    );
+                  })}
+
                   {rides.length === 0 && (
                     <View style={{ padding: 40, alignItems: 'center' }}>
                       <SearchIcon color={t.textTertiary} size={28} />
-                      <Text style={{ color: t.textSecondary, marginTop: 8 }}>No rides match your search.</Text>
+                      <Text style={{ color: t.textSecondary, marginTop: 8 }}>
+                        {mode === 'offer' ? 'No passengers match your offer route.' : 'No rides match your search.'}
+                      </Text>
                       <Text style={{ color: t.textTertiary, marginTop: 4, fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
-                        Try adjusting the time window or search radius.
+                        {mode === 'offer' ? 'You can still publish your offer directly for passenger requests created later.' : 'Try adjusting the time window or search radius.'}
                       </Text>
                       <TouchableOpacity
                         testID="post-search-cta-empty"
                         activeOpacity={0.8}
-                        onPress={handlePostSearch}
+                        onPress={mode === 'offer' ? handlePublishOfferDirectly : handlePostSearch}
                         style={{
                           backgroundColor: t.primary,
                           paddingHorizontal: 20,
@@ -587,7 +678,7 @@ export default function Search() {
                         }}
                       >
                         <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>
-                          Post as Ride Request
+                          {mode === 'offer' ? 'Publish Ride Offer' : 'Post as Ride Request'}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -595,12 +686,12 @@ export default function Search() {
                   {rides.length > 0 && (
                     <View style={{ marginTop: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: t.border, alignItems: 'center', gap: 8 }}>
                       <Text style={{ color: t.textSecondary, fontSize: 13, textAlign: 'center' }}>
-                        Didn't find a matching ride?
+                        {mode === 'offer' ? 'Want to publish the ride offer anyway?' : "Didn't find a matching ride?"}
                       </Text>
                       <TouchableOpacity
                         testID="post-search-cta"
                         activeOpacity={0.8}
-                        onPress={handlePostSearch}
+                        onPress={mode === 'offer' ? handlePublishOfferDirectly : handlePostSearch}
                         style={{
                           backgroundColor: t.muted,
                           paddingHorizontal: 20,
@@ -611,7 +702,7 @@ export default function Search() {
                         }}
                       >
                         <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: 14 }}>
-                          Post Your Search Request
+                          {mode === 'offer' ? 'Publish Ride Offer' : 'Post Your Search Request'}
                         </Text>
                       </TouchableOpacity>
                     </View>

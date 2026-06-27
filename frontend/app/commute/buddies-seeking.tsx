@@ -53,41 +53,7 @@ export default function BuddiesSeeking() {
 
   const handleBuddyPress = (buddy: any) => {
     tap();
-    const startNameShort = buddy.startPlaceName.split(',')[0];
-    const endNameShort = buddy.endPlaceName.split(',')[0];
-    Alert.alert(
-      'Buddy Request',
-      `${buddy.rider?.name || 'A buddy'} is looking for a ride from ${startNameShort} to ${endNameShort}. How would you like to proceed?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Chat Now',
-          onPress: () => {
-            tap();
-            const chatId = `buddy_${buddy.id}_${buddy.riderId}`;
-            router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(buddy.rider?.name || 'Buddy')}` as any);
-          },
-        },
-        {
-          text: 'Offer Ride',
-          onPress: () => {
-            tap();
-            router.push({
-              pathname: '/commute/search' as any,
-              params: {
-                mode: 'offer',
-                from: buddy.startPlaceName,
-                to: buddy.endPlaceName,
-                hideTabs: 'true',
-              },
-            });
-          },
-        },
-      ]
-    );
+    router.push(`/buddy/${buddy.id}` as any);
   };
 
   const hasMore = buddies && buddies.length >= limit;

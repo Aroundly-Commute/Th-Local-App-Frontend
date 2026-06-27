@@ -299,59 +299,25 @@ export default function CommuteDashboard() {
         ]
       );
     } else {
-      router.push({ pathname: '/commute/search' as any, params: { mode: 'offer', hideTabs: 'true' } });
+      router.push({ pathname: '/commute/search' as any, params: { mode: 'offer', feature: 'offer', hideTabs: 'true' } });
     }
   };
 
   const handleBuddyPress = (buddy: any) => {
     tap();
-    const startNameShort = buddy.startPlaceName.split(',')[0];
-    const endNameShort = buddy.endPlaceName.split(',')[0];
-    Alert.alert(
-      'Buddy Request',
-      `${buddy.rider?.name || 'A buddy'} is looking for a ride from ${startNameShort} to ${endNameShort}. How would you like to proceed?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Chat Now',
-          onPress: () => {
-            tap();
-            const chatId = `buddy_${buddy.id}_${user?.id}`;
-            router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(buddy.rider?.name || 'Buddy')}` as any);
-          },
-        },
-        {
-          text: 'Offer Ride',
-          onPress: () => {
-            tap();
-            router.push({
-              pathname: '/commute/search' as any,
-              params: {
-                mode: 'offer',
-                from: buddy.startPlaceName,
-                to: buddy.endPlaceName,
-                hideTabs: 'true',
-              },
-            });
-          },
-        },
-      ]
-    );
+    router.push(`/buddy/${buddy.id}` as any);
   };
 
   const services = [
     {
       label: 'Cab Buddy',
       icon: cabBuddyIconImg,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'buddy', hideTabs: 'true' } }),
     },
     {
       label: 'Car Pooling',
       icon: carpoolIconImg,
-      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }),
+      onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'carpool', hideTabs: 'true' } }),
     },
     {
       label: 'Public Transport',
@@ -376,7 +342,7 @@ export default function CommuteDashboard() {
       image: cabBuddyPromoImg,
       buttonLabel: 'Find Cab Buddy',
       onPress: () => {
-        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } });
+        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'buddy', hideTabs: 'true' } });
       },
     },
     {
@@ -385,7 +351,7 @@ export default function CommuteDashboard() {
       image: carpoolPromoImg,
       buttonLabel: 'Find Carpool',
       onPress: () => {
-        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } });
+        router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'carpool', hideTabs: 'true' } });
       },
     },
     {
@@ -475,7 +441,7 @@ export default function CommuteDashboard() {
         <View style={{ backgroundColor: t.background, paddingTop: spacing.sm, paddingBottom: spacing.sm, marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg, zIndex: 99, opacity: showFloatingSearch ? 0 : 1 }}>
           <TouchableOpacity
             testID="home-search-bar"
-            onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }); }}
+            onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'main', hideTabs: 'true' } }); }}
             activeOpacity={0.7}
             style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
           >
@@ -563,7 +529,14 @@ export default function CommuteDashboard() {
                     ride={r}
                     t={t}
                     testID={`home-requested-${r.id}`}
-                    onPress={() => { tap(); router.push('/commute/rides?tab=requested'); }}
+                    onPress={() => {
+                      tap();
+                      if (r.isBuddyRequest) {
+                        router.push(`/buddy/${r.id}` as any);
+                      } else {
+                        router.push(`/ride/${r.id}` as any);
+                      }
+                    }}
                     style={{ width: requestedCardWidth }}
                   />
                 ))}
@@ -740,7 +713,7 @@ export default function CommuteDashboard() {
         >
           <TouchableOpacity
             testID="floating-home-search-bar"
-            onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', hideTabs: 'true' } }); }}
+            onPress={() => { tap(); router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'main', hideTabs: 'true' } }); }}
             activeOpacity={0.7}
             style={[styles.searchBar, { backgroundColor: t.surface, borderColor: t.border }]}
           >
