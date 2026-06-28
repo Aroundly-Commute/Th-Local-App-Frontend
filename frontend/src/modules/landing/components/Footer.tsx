@@ -38,8 +38,8 @@ export function Footer({ isDesktop }: FooterProps) {
           </View>
           <View style={styles.footerCol}>
             <Text style={styles.footerColTitle}>Legal & SEO</Text>
-            <TouchableOpacity onPress={() => Linking.openURL('https://aroundly.in/robots.txt')}><Text style={styles.footerLink}>Robots.txt</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('https://aroundly.in/sitemap.xml')}><Text style={styles.footerLink}>Sitemap.xml</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.aroundly.in/robots.txt')}><Text style={styles.footerLink}>Robots.txt</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.aroundly.in/sitemap.xml')}><Text style={styles.footerLink}>Sitemap.xml</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/delete-account')}><Text style={styles.footerLink}>Delete Account</Text></TouchableOpacity>
           </View>
           <View style={styles.footerCol}>

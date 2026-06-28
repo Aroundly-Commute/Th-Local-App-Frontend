@@ -11,4 +11,4 @@ Disallow: /edit-profile
 Disallow: /settings
 Disallow: /delete-account
 
-Sitemap: https://aroundly.in/sitemap.xml
+Sitemap: https://www.aroundly.in/sitemap.xml
