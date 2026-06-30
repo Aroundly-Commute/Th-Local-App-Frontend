@@ -193,6 +193,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
       try {
         if (firebaseUser) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            localStorage.setItem('aroundly_logged_in', 'true');
+          }
           console.log(`[AUTH] Firebase User session detected: ${firebaseUser.email || firebaseUser.phoneNumber}`);
           if (isAuthActionInProgress.current) {
             console.log('[AUTH] Manual authentication in progress. Skipping duplicate fetch.');
@@ -245,6 +248,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         } else {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            localStorage.removeItem('aroundly_logged_in');
+          }
           console.log('[AUTH] No active Firebase User session found.');
           await AsyncStorage.removeItem('access_token');
           await AsyncStorage.removeItem('cached_profile_user');
@@ -355,6 +361,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(async () => {
     console.log('[AUTH] Log-out action triggered.');
     
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      localStorage.removeItem('aroundly_logged_in');
+    }
+
     try {
       await api.patch('/auth/fcm-token', { fcmToken: null }).catch((e) => {
         console.warn('[AUTH] Failed to clear FCM token on backend:', e);

@@ -22,7 +22,7 @@ import { RequestedRideCard } from '../components/RequestedRideCard';
 import { NearbyRideCard } from '../components/NearbyRideCard';
 import { BuddyCard } from '../components/BuddyCard';
 import { tap } from '../../../core/utils/haptics';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagContext';
 import { Alert } from '../../../core/components/CustomAlert';
 
@@ -58,16 +58,17 @@ const PublicTransportIcon = ({ color, size }: { color: string; size: number }) =
   </Svg>
 );
 
-const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.png');
-const carpoolPromoImg = require('../../../../assets/images/carpool_promo.png');
-const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.png');
+const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.webp');
+const carpoolPromoImg = require('../../../../assets/images/carpool_promo.webp');
+const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.webp');
 
-const cabBuddyIconImg = require('../../../../assets/images/cab_buddy_icon.png');
-const carpoolIconImg = require('../../../../assets/images/carpool_icon.png');
-const publicTransportIconImg = require('../../../../assets/images/public_transport_icon.png');
-const offerRideIconImg = require('../../../../assets/images/offer_ride_icon.png');
+const cabBuddyIconImg = require('../../../../assets/images/cab_buddy_icon.webp');
+const carpoolIconImg = require('../../../../assets/images/carpool_icon.webp');
+const publicTransportIconImg = require('../../../../assets/images/public_transport_icon.webp');
+const offerRideIconImg = require('../../../../assets/images/offer_ride_icon.webp');
 
 export default function CommuteDashboard() {
+  const queryClient = useQueryClient();
   const { enableRideSharing, enableParking } = useFeatureFlags();
   const t = lightTheme;
   const router = useRouter();
@@ -94,7 +95,8 @@ export default function CommuteDashboard() {
     queryFn: async () => {
       const { data } = await api.get('/sustainability/me');
       return data;
-    }
+    },
+    staleTime: 30000,
   });
 
   const { data: ridesData, isLoading: ridesLoading, refetch: refreshRides } = useQuery({
@@ -102,7 +104,8 @@ export default function CommuteDashboard() {
     queryFn: async () => {
       const { data } = await api.get('/rides?page=1&limit=3');
       return data;
-    }
+    },
+    staleTime: 30000,
   });
 
   const { data: myRidesData, isLoading: myRidesLoading, refetch: refreshMyRides } = useQuery({
@@ -110,7 +113,8 @@ export default function CommuteDashboard() {
     queryFn: async () => {
       const { data } = await api.get('/rides/my?page=1&limit=3');
       return data;
-    }
+    },
+    staleTime: 30000,
   });
 
   const { data: buddiesData, isLoading: buddiesLoading, refetch: refreshBuddies } = useQuery({
@@ -123,7 +127,8 @@ export default function CommuteDashboard() {
         console.error('Failed to fetch buddy requests:', err);
         return [];
       }
-    }
+    },
+    staleTime: 30000,
   });
 
   const { data: savedPlaces = [], refetch: refreshSavedPlaces } = useQuery<any[]>({
@@ -136,7 +141,8 @@ export default function CommuteDashboard() {
         console.error('Failed to fetch saved places on dashboard:', err);
         return [];
       }
-    }
+    },
+    staleTime: 30000,
   });
 
   // Load and cache current location
@@ -233,7 +239,7 @@ export default function CommuteDashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshSavedPlaces().catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['saved-places'] });
       
       AsyncStorage.getItem('@active_location').then((active) => {
         if (active) {
@@ -248,14 +254,13 @@ export default function CommuteDashboard() {
       }).catch((err) => console.error('Failed to load active location:', err));
 
       if (hasInitialFetched.current) {
-        refreshStats().catch(() => { });
-        refreshRides().catch(() => { });
-        refreshMyRides().catch(() => { });
-        refreshBuddies().catch(() => { });
+        queryClient.invalidateQueries({ queryKey: ['sustainability'] });
+        queryClient.invalidateQueries({ queryKey: ['rides'] });
+        queryClient.invalidateQueries({ queryKey: ['buddies'] });
       } else {
         hasInitialFetched.current = true;
       }
-    }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies, refreshSavedPlaces])
+    }, [queryClient])
   );
 
   const upcomingRides = (myRides.upcoming || []).slice(0, 3);
