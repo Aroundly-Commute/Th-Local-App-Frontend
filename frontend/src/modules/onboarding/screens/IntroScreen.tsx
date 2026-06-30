@@ -19,9 +19,9 @@ import { useAuth } from '../../../core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../../core/theme/theme';
 import { tap } from '../../../core/utils/haptics';
 
-const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.png');
-const carpoolPromoImg = require('../../../../assets/images/carpool_promo.png');
-const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.png');
+const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.webp');
+const carpoolPromoImg = require('../../../../assets/images/carpool_promo.webp');
+const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.webp');
 
 export default function IntroScreen() {
   const router = useRouter();

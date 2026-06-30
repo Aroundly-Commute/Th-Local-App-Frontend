@@ -11,7 +11,7 @@ export function ConceptShowcase({ isDesktop }: ConceptShowcaseProps) {
       <View style={[styles.conceptContent, isDesktop ? styles.row : styles.column]}>
         <View style={[styles.conceptLeft, isDesktop ? { width: '45%' } : { width: '100%', marginBottom: 30 }]}>
           <Image
-            source={require('../../../../assets/images/app-image.jpg')}
+            source={require('../../../../assets/images/app-image.webp')}
             style={styles.conceptImage}
           />
         </View>

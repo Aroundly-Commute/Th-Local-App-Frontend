@@ -14,7 +14,7 @@ export function Footer({ isDesktop }: FooterProps) {
       <View style={[styles.footerContent, isDesktop ? styles.row : styles.column]}>
         <View style={[styles.footerLeft, isDesktop ? { width: '40%' } : { width: '100%', marginBottom: 30 }]}>
           <Image
-            source={require('../../../../assets/images/app_Icon.png')}
+            source={require('../../../../assets/images/app_Icon.webp')}
             style={{ 
               width: 50, 
               height: 50, 
@@ -26,7 +26,7 @@ export function Footer({ isDesktop }: FooterProps) {
             }}
           />
           <Text style={styles.footerText}>
-            Aroundly is India's leading commuter ride-sharing and split-fare matching application. Travel smarter, reduce emissions, and split bills seamlessly.
+            {"Aroundly is India's leading commuter ride-sharing and split-fare matching application. Travel smarter, reduce emissions, and split bills seamlessly."}
           </Text>
         </View>
         <View style={[styles.footerRight, isDesktop ? { width: '60%' } : { width: '100%' }]}>

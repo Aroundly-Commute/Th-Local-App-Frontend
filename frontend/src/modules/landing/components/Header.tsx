@@ -23,7 +23,7 @@ export function Header({ t, isDesktop, scrollToSection }: HeaderProps) {
       <View style={styles.headerContent}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../../../assets/images/app_Icon_less_padding.png')}
+            source={require('../../../../assets/images/app_Icon_less_padding.webp')}
             style={styles.logoImage}
           />
         </View>
@@ -57,7 +57,7 @@ export function Header({ t, isDesktop, scrollToSection }: HeaderProps) {
             style={[styles.loginBtn, { backgroundColor: t.primary }]}
           >
             <Text style={[styles.loginBtnText, { color: t.primaryContrast }]}>
-              {isDesktop ? 'Open App / Login' : 'Login'}
+              Login
             </Text>
           </TouchableOpacity>
 
