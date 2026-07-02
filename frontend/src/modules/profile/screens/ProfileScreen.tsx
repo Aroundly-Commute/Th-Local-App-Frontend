@@ -58,7 +58,7 @@ export default function ProfileScreen() {
   menu.push(
     { icon: Wallet, label: 'Payment Methods', badge: null },
     { icon: MapPin, label: 'Saved Places', badge: '4' },
-    { icon: Shield, label: 'Verification', badge: user.is_verified ? 'Verified' : null, badgeVariant: 'success' },
+    { icon: Shield, label: 'Verification', badge: user.is_verified ? 'Verified' : null, badgeVariant: 'success', route: '/verification' },
     { icon: Bell, label: 'Notifications', badge: null },
     { icon: Settings, label: 'Settings', badge: null, route: '/settings' },
     { icon: HelpCircle, label: 'Help & Support', badge: null, route: '/help' }

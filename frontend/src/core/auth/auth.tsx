@@ -37,6 +37,7 @@ export type User = {
   society?: string | null;
   workplace?: string | null;
   bio?: string | null;
+  corporate_email: string | null;
 };
 
 type AuthCtx = {
