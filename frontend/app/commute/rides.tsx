@@ -12,6 +12,7 @@ import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { useQuery } from '@tanstack/react-query';
 import { Alert } from '../../src/core/components/CustomAlert';
+import { ReviewModal } from '../../src/core/components/ReviewModal';
 
 export default function Rides() {
   const cs = useColorScheme();
@@ -22,6 +23,14 @@ export default function Rides() {
   const [refreshing, setRefreshing] = useState(false);
   const [limit, setLimit] = useState(10);
   const hasInitialFetched = useRef(false);
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<{
+    peerName: string;
+    peerAvatar: string | null;
+    rideId: string;
+    toUserId: string;
+  } | null>(null);
 
   // Dynamic cache key that depends on the pagination limit
   const { data: res, isLoading: cacheLoading, refetch: refresh } = useQuery({
@@ -133,7 +142,19 @@ export default function Rides() {
         ) : (
           <>
             {list.map((r: any) => (
-              <RideCardExt key={`${r.id}-${r.role}-${r.request_id || ''}`} r={r} t={t} isPast={tab === 'past'} isRequested={tab === 'requested'} router={router} onRefresh={refresh} />
+              <RideCardExt
+                key={`${r.id}-${r.role}-${r.request_id || ''}`}
+                r={r}
+                t={t}
+                isPast={tab === 'past'}
+                isRequested={tab === 'requested'}
+                router={router}
+                onRefresh={refresh}
+                onRatePeer={(peerName, peerAvatar, rideId, toUserId) => {
+                  setReviewTarget({ peerName, peerAvatar, rideId, toUserId });
+                  setReviewModalVisible(true);
+                }}
+              />
             ))}
             {hasMore && (
               <TouchableOpacity
@@ -147,11 +168,33 @@ export default function Rides() {
           </>
         )}
       </ScrollView>
+
+      {reviewTarget && (
+        <ReviewModal
+          visible={reviewModalVisible}
+          onClose={() => setReviewModalVisible(false)}
+          peerName={reviewTarget.peerName}
+          peerAvatar={reviewTarget.peerAvatar}
+          rideId={reviewTarget.rideId}
+          toUserId={reviewTarget.toUserId}
+          onSubmitSuccess={() => {
+            refresh().catch(() => {});
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: boolean; router: any; onRefresh: () => void }> = ({ r, t, isPast, isRequested, router, onRefresh }) => {
+const RideCardExt: React.FC<{
+  r: any;
+  t: Theme;
+  isPast: boolean;
+  isRequested: boolean;
+  router: any;
+  onRefresh: () => void;
+  onRatePeer: (peerName: string, peerAvatar: string | null, rideId: string, toUserId: string) => void;
+}> = ({ r, t, isPast, isRequested, router, onRefresh, onRatePeer }) => {
   const date = new Date(r.departure_time);
   const dateStr = isNaN(date.getTime()) ? '—' : date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeStr = isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
@@ -413,13 +456,80 @@ const RideCardExt: React.FC<{ r: any; t: Theme; isPast: boolean; isRequested: bo
         </View>
       )}
 
-      {isPast && (
+      {isPast && !isDriver && !r.isBuddyRequest && r.request_status === 'ACCEPTED' && (
         <View style={[styles.rateBox, { borderTopColor: t.border }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 12 }}>Rate this ride</Text>
-          <View style={{ flexDirection: 'row', gap: 3 }}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Star key={i} color={t.textTertiary} size={16} />
-            ))}
+          <Text style={{ color: t.textSecondary, fontSize: 12 }}>
+            {r.my_review_rating !== null && r.my_review_rating !== undefined ? 'You rated the driver' : 'Rate the driver'}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: r.my_review_rating !== null && r.my_review_rating !== undefined ? 3 : 6 }}>
+            {r.my_review_rating !== null && r.my_review_rating !== undefined ? (
+              [1, 2, 3, 4, 5].map((i) => (
+                <Star
+                  key={i}
+                  color={i <= r.my_review_rating ? '#f59e0b' : t.textTertiary}
+                  fill={i <= r.my_review_rating ? '#f59e0b' : 'transparent'}
+                  size={16}
+                />
+              ))
+            ) : (
+              [1, 2, 3, 4, 5].map((i) => (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    tap();
+                    onRatePeer(r.driver_name, r.driver_avatar, r.id, r.driver_id);
+                  }}
+                >
+                  <Star color={t.textTertiary} size={18} />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </View>
+      )}
+
+      {isPast && isDriver && r.passengers && r.passengers.length > 0 && (
+        <View style={{ borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12, gap: 8 }}>
+          <Text style={{ color: t.textSecondary, fontSize: 11, fontWeight: '600', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Rate Passengers
+          </Text>
+          <View style={{ gap: 8 }}>
+            {r.passengers.map((p: any) => {
+              const hasRated = p.my_review_rating !== null && p.my_review_rating !== undefined;
+              return (
+                <View key={p.rider_id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                  <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '500' }}>{p.rider_name}</Text>
+                  <View style={{ flexDirection: 'row', gap: hasRated ? 3 : 6 }}>
+                    {hasRated ? (
+                      [1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          color={i <= p.my_review_rating ? '#f59e0b' : t.textTertiary}
+                          fill={i <= p.my_review_rating ? '#f59e0b' : 'transparent'}
+                          size={14}
+                        />
+                      ))
+                    ) : (
+                      [1, 2, 3, 4, 5].map((i) => (
+                        <TouchableOpacity
+                          key={i}
+                          activeOpacity={0.7}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            tap();
+                            onRatePeer(p.rider_name, p.rider_avatar, r.id, p.rider_id);
+                          }}
+                        >
+                          <Star color={t.textTertiary} size={16} />
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
       )}

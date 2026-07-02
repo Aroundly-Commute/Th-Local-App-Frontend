@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, A
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { useQuery } from '@tanstack/react-query';
+import { ReviewModal } from '../../src/core/components/ReviewModal';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -90,6 +91,14 @@ export default function RideDetail() {
   const { user } = useAuth();
   const [booking, setBooking] = useState(false);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<{
+    peerName: string;
+    peerAvatar: string | null;
+    rideId: string;
+    toUserId: string;
+  } | null>(null);
 
   const { data: ride, refetch: load } = useQuery({
     queryKey: ['ride', id],
@@ -242,6 +251,7 @@ export default function RideDetail() {
   const origin = ride.startPlaceName || ride.origin || 'Unknown';
   const destination = ride.endPlaceName || ride.destination || 'Unknown';
   const departureTime = ride.startTime || ride.departure_time;
+  const isPast = new Date(departureTime) < new Date();
   
   const myFare = ride.my_fare_cents ? ride.my_fare_cents / 100 : null;
   const price = myFare ?? (parsedFare ? parsedFare.finalFare : (ride.chargeCents ? ride.chargeCents / 100 : (ride.price_per_seat ?? 0)));
@@ -276,6 +286,55 @@ export default function RideDetail() {
   // - Rider with REQUESTED (pending): "Awaiting Approval"
   // - Rider with no request: "Book Seat"
   const fabContent = () => {
+    if (ride.status === 'CANCELLED') {
+      return (
+        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
+          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride Cancelled</Text>
+        </View>
+      );
+    }
+    if (isPast) {
+      if (!isDriver && myRequestStatus === 'ACCEPTED') {
+        const hasRated = ride.my_review_rating !== null && ride.my_review_rating !== undefined;
+        return (
+          <View style={{ width: '100%', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: t.textSecondary, fontSize: 13, fontWeight: '600' }}>
+              {hasRated ? 'Your rating for this driver' : 'Rate this ride'}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: hasRated ? 4 : 8 }}>
+              {hasRated ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    color={i <= ride.my_review_rating ? '#f59e0b' : t.textTertiary}
+                    fill={i <= ride.my_review_rating ? '#f59e0b' : 'transparent'}
+                    size={20}
+                  />
+                ))
+              ) : (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <TouchableOpacity
+                    key={i}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setReviewTarget({ peerName: dName, peerAvatar: dAvatar, rideId: id, toUserId: driverId });
+                      setReviewModalVisible(true);
+                    }}
+                  >
+                    <Star color={t.textTertiary} size={24} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </View>
+        );
+      }
+      return (
+        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
+          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride Completed</Text>
+        </View>
+      );
+    }
     if (isDriver) {
       if (ride.status !== 'CANCELLED') {
         return (
@@ -599,35 +658,70 @@ export default function RideDetail() {
                       </View>
                     </View>
 
-                    {/* Bottom row: Action Buttons */}
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                      {p.status === 'REQUESTED' && (
-                        <>
+                    {/* Bottom row: Action Buttons / Ratings */}
+                    {isPast && p.status === 'ACCEPTED' ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}>
+                        <Text style={{ color: t.textSecondary, fontSize: 13 }}>
+                          {p.my_review_rating !== null && p.my_review_rating !== undefined ? 'Your rating' : 'Rate passenger'}
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: p.my_review_rating !== null && p.my_review_rating !== undefined ? 3 : 6 }}>
+                          {p.my_review_rating !== null && p.my_review_rating !== undefined ? (
+                            [1, 2, 3, 4, 5].map((i) => (
+                              <Star
+                                key={i}
+                                color={i <= p.my_review_rating ? '#f59e0b' : t.textTertiary}
+                                fill={i <= p.my_review_rating ? '#f59e0b' : 'transparent'}
+                                size={14}
+                              />
+                            ))
+                          ) : (
+                            [1, 2, 3, 4, 5].map((i) => (
+                              <TouchableOpacity
+                                key={i}
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                  setReviewTarget({ peerName: p.rider_name, peerAvatar: p.rider_avatar, rideId: id, toUserId: p.rider_id });
+                                  setReviewModalVisible(true);
+                                }}
+                              >
+                                <Star color={t.textTertiary} size={18} />
+                              </TouchableOpacity>
+                            ))
+                          )}
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                        {p.status === 'REQUESTED' && !isPast && (
+                          <>
+                            <TouchableOpacity
+                              onPress={() => onAcceptRequest(p.request_id)}
+                              activeOpacity={0.8}
+                              style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                            >
+                              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => onRejectRequest(p.request_id)}
+                              activeOpacity={0.8}
+                              style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                            >
+                              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                        {!isPast && (
                           <TouchableOpacity
-                            onPress={() => onAcceptRequest(p.request_id)}
+                            onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
                             activeOpacity={0.8}
-                            style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                            style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
                           >
-                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
+                            <MessageCircle color="#fff" size={12} />
+                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => onRejectRequest(p.request_id)}
-                            activeOpacity={0.8}
-                            style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                          >
-                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                      <TouchableOpacity
-                        onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
-                        activeOpacity={0.8}
-                        style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
-                      >
-                        <MessageCircle color="#fff" size={12} />
-                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
-                      </TouchableOpacity>
-                    </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                 ))
               )}
@@ -651,6 +745,20 @@ export default function RideDetail() {
           </View>
         )}
       </Animated.View>
+
+      {reviewTarget && (
+        <ReviewModal
+          visible={reviewModalVisible}
+          onClose={() => setReviewModalVisible(false)}
+          peerName={reviewTarget.peerName}
+          peerAvatar={reviewTarget.peerAvatar}
+          rideId={reviewTarget.rideId}
+          toUserId={reviewTarget.toUserId}
+          onSubmitSuccess={() => {
+            load().catch(() => {});
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

@@ -109,7 +109,7 @@ export default function Index() {
 
   const isServer = Platform.OS === 'web' && typeof window === 'undefined';
 
-  const hasLoginIndicator = !isServer && localStorage.getItem('aroundly_logged_in') === 'true';
+  const hasLoginIndicator = Platform.OS === 'web' && !isServer && typeof localStorage !== 'undefined' && localStorage.getItem('aroundly_logged_in') === 'true';
 
   // If loading or we are on mobile, show loader (redirection in progress)
   // On web static build pre-rendering, we bypass this to export the actual landing page content instead of a loader
