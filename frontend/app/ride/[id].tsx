@@ -463,8 +463,10 @@ export default function RideDetail() {
           <View style={[styles.handle, { backgroundColor: t.border }]} />
         </View>
 
-        <View
-          style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 240 }}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
         >
           {/* Driver card */}
           <View style={[styles.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
@@ -629,101 +631,111 @@ export default function RideDetail() {
             </View>
           </View>
 
-          {/* DRIVER: Passengers / Booking Requests */}
-          {isDriver && (
+          {/* DRIVER or ACCEPTED PASSENGER: Passengers / Booking Requests */}
+          {(isDriver || myRequestStatus === 'ACCEPTED') && (
             <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Users color={t.primary} size={18} />
                 <Text style={[styles.section, { color: t.textPrimary }]}>
-                  {passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`}
+                  {isDriver 
+                    ? (passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`)
+                    : `Co-passengers (${passengers.filter(p => p.status === 'ACCEPTED' && p.rider_id !== user?.id).length})`}
                 </Text>
               </View>
-              {passengers.length === 0 ? (
+              {isDriver && passengers.length === 0 ? (
                 <Text style={{ color: t.textSecondary, fontSize: 13 }}>
                   When riders book this ride, they'll appear here.
                 </Text>
+              ) : !isDriver && passengers.filter(p => p.status === 'ACCEPTED' && p.rider_id !== user?.id).length === 0 ? (
+                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
+                  No other passengers have joined this ride yet.
+                </Text>
               ) : (
-                passengers.map((p: any) => (
-                  <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
-                    {/* Top row: Avatar, Name & Fare, Status */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
-                          {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
-                        </Text>
-                        <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                          {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Bottom row: Action Buttons / Ratings */}
-                    {isPast && p.status === 'ACCEPTED' ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}>
-                        <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                          {p.my_review_rating !== null && p.my_review_rating !== undefined ? 'Your rating' : 'Rate passenger'}
-                        </Text>
-                        <View style={{ flexDirection: 'row', gap: p.my_review_rating !== null && p.my_review_rating !== undefined ? 3 : 6 }}>
-                          {p.my_review_rating !== null && p.my_review_rating !== undefined ? (
-                            [1, 2, 3, 4, 5].map((i) => (
-                              <Star
-                                key={i}
-                                color={i <= p.my_review_rating ? '#f59e0b' : t.textTertiary}
-                                fill={i <= p.my_review_rating ? '#f59e0b' : 'transparent'}
-                                size={14}
-                              />
-                            ))
-                          ) : (
-                            [1, 2, 3, 4, 5].map((i) => (
-                              <TouchableOpacity
-                                key={i}
-                                activeOpacity={0.7}
-                                onPress={() => {
-                                  setReviewTarget({ peerName: p.rider_name, peerAvatar: p.rider_avatar, rideId: id, toUserId: p.rider_id });
-                                  setReviewModalVisible(true);
-                                }}
-                              >
-                                <Star color={t.textTertiary} size={18} />
-                              </TouchableOpacity>
-                            ))
-                          )}
+                passengers
+                  .filter(p => isDriver || (p.status === 'ACCEPTED' && p.rider_id !== user?.id))
+                  .map((p: any) => (
+                    <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
+                      {/* Top row: Avatar, Name & Fare, Status */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
+                            {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
+                          </Text>
+                          <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                            {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                          </Text>
                         </View>
                       </View>
-                    ) : (
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                        {p.status === 'REQUESTED' && !isPast && (
-                          <>
-                            <TouchableOpacity
-                              onPress={() => onAcceptRequest(p.request_id)}
-                              activeOpacity={0.8}
-                              style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                            >
-                              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => onRejectRequest(p.request_id)}
-                              activeOpacity={0.8}
-                              style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                            >
-                              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
-                        {!isPast && (
-                          <TouchableOpacity
-                            onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
-                            activeOpacity={0.8}
-                            style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
-                          >
-                            <MessageCircle color="#fff" size={12} />
-                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                ))
+
+                      {/* Bottom row: Action Buttons / Ratings (Driver only) */}
+                      {isDriver && (
+                        isPast && p.status === 'ACCEPTED' ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}>
+                            <Text style={{ color: t.textSecondary, fontSize: 13 }}>
+                              {p.my_review_rating !== null && p.my_review_rating !== undefined ? 'Your rating' : 'Rate passenger'}
+                            </Text>
+                            <View style={{ flexDirection: 'row', gap: p.my_review_rating !== null && p.my_review_rating !== undefined ? 3 : 6 }}>
+                              {p.my_review_rating !== null && p.my_review_rating !== undefined ? (
+                                [1, 2, 3, 4, 5].map((i) => (
+                                  <Star
+                                    key={i}
+                                    color={i <= p.my_review_rating ? '#f59e0b' : t.textTertiary}
+                                    fill={i <= p.my_review_rating ? '#f59e0b' : 'transparent'}
+                                    size={14}
+                                  />
+                                ))
+                              ) : (
+                                [1, 2, 3, 4, 5].map((i) => (
+                                  <TouchableOpacity
+                                    key={i}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                      setReviewTarget({ peerName: p.rider_name, peerAvatar: p.rider_avatar, rideId: id, toUserId: p.rider_id });
+                                      setReviewModalVisible(true);
+                                    }}
+                                  >
+                                    <Star color={t.textTertiary} size={18} />
+                                  </TouchableOpacity>
+                                ))
+                              )}
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                            {p.status === 'REQUESTED' && !isPast && (
+                              <>
+                                <TouchableOpacity
+                                  onPress={() => onAcceptRequest(p.request_id)}
+                                  activeOpacity={0.8}
+                                  style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                                >
+                                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => onRejectRequest(p.request_id)}
+                                  activeOpacity={0.8}
+                                  style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
+                                >
+                                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
+                                </TouchableOpacity>
+                              </>
+                            )}
+                            {!isPast && (
+                              <TouchableOpacity
+                                onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
+                                activeOpacity={0.8}
+                                style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
+                              >
+                                <MessageCircle color="#fff" size={12} />
+                                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )
+                      )}
+                    </View>
+                  ))
               )}
             </View>
           )}
@@ -734,16 +746,13 @@ export default function RideDetail() {
               <Text style={{ color: t.textSecondary, marginTop: 6 }}>{ride.notes}</Text>
             </View>
           ) : null}
-        </View>
-
-        {/* FAB inside Bottom Sheet */}
-        {fabContent() !== null && (
-          <View style={[styles.sheetFab, { backgroundColor: t.background, borderColor: t.border }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Inline FAB Area */}
+          {fabContent() !== null && (
+            <View style={{ marginTop: spacing.md, width: '100%', paddingBottom: 20 }}>
               {fabContent()}
             </View>
-          </View>
-        )}
+          )}
+        </ScrollView>
       </Animated.View>
 
       {reviewTarget && (

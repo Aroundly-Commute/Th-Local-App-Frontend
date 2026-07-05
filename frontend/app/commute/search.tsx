@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   useColorScheme, KeyboardAvoidingView, Platform, TextInput,
+  BackHandler,
 } from 'react-native';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -45,6 +46,7 @@ export default function Search() {
     fromCoords?: string;
     toCoords?: string;
     feature?: string;
+    vehicleType?: string;
   }>();
 
   const [mode, setMode] = useState<'find' | 'offer'>('find');
@@ -58,6 +60,8 @@ export default function Search() {
   const [searched, setSearched] = useState(false);
   const [showAllLimit, setShowAllLimit] = useState(10);
   const [locLoading, setLocLoading] = useState(false);
+  const [vehicleType, setVehicleType] = useState<string>('CAR');
+  const [offeredRideId, setOfferedRideId] = useState<string | null>(null);
 
   const [searchTarget, setSearchTarget] = useState<'from' | 'to' | null>(null);
   const [recentSearches, setRecentSearches] = useState<any[]>([]);
@@ -196,6 +200,7 @@ export default function Search() {
   useEffect(() => {
     if (params.from) setFrom(params.from);
     if (params.to) setTo(params.to);
+    if (params.vehicleType) setVehicleType(params.vehicleType);
     if (params.fromCoords) {
       try {
         setFromCoords(JSON.parse(params.fromCoords));
@@ -210,7 +215,19 @@ export default function Search() {
         console.error('Failed to parse toCoords from params:', e);
       }
     }
-  }, [params.from, params.to, params.fromCoords, params.toCoords]);
+  }, [params.from, params.to, params.fromCoords, params.toCoords, params.vehicleType]);
+
+  useEffect(() => {
+    if (!offeredRideId) return;
+    const backAction = () => {
+      router.push('/(tabs)');
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [offeredRideId]);
+
+
 
   const dateLabel = datetime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeLabel = datetime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
@@ -231,7 +248,7 @@ export default function Search() {
         seats_count: seats,
       }).catch(() => { });
 
-      await api.post('/rides/offer', {
+      const { data: ride } = await api.post('/rides/offer', {
         startName: from, endName: to,
         startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
         endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
@@ -239,17 +256,35 @@ export default function Search() {
         price: 10,
         date: dateStr,
         time: timeStr,
+        vehicleType,
       });
+      setOfferedRideId(ride.id);
       success();
-      Alert.alert('Success', 'Ride offered! It is now visible to other users.');
-      router.push('/commute/rides');
+      Alert.alert('Success', 'Ride offered! Finding matching passengers on your route...');
+
+      saveRecentSearch(from, to);
+      const searchFeature = params.feature || 'offer';
+      const { data: searchData } = await api.post('/matchmaking/search', {
+        start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
+        end: toCoords ? { lng: toCoords.lng, lat: toCoords.lat } : { lng: 77.4, lat: 28.6 },
+        startPlaceName: from || 'Origin',
+        endPlaceName: to || 'Destination',
+        startTime: datetime.toISOString(),
+        feature: searchFeature,
+      });
+
+      const returnedSections = searchData.sections || [];
+      setSections(returnedSections);
+      const flatMatches = returnedSections.reduce((acc: any[], sec: any) => [...acc, ...(sec.data || [])], []);
+      setRides(flatMatches);
+      setSearched(true);
     } catch (e: any) {
       errorH();
       Alert.alert('Error', e?.response?.data?.message || 'Failed to create ride offer.');
     } finally {
       setLoading(false);
     }
-  }, [from, to, fromCoords, toCoords, datetime, seats, router]);
+  }, [from, to, fromCoords, toCoords, datetime, seats, router, vehicleType, params.feature]);
 
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
@@ -347,7 +382,10 @@ export default function Search() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title={params.showAll === 'true' ? 'Rides Near You' : (mode === 'find' ? 'Find a Ride' : 'Offer a Ride')} />
+      <ScreenHeader
+        title={params.showAll === 'true' ? 'Rides Near You' : (mode === 'find' ? 'Find a Ride' : 'Offer a Ride')}
+        onBack={offeredRideId ? () => router.push('/(tabs)') : undefined}
+      />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         {params.showAll !== 'true' && (
@@ -440,20 +478,6 @@ export default function Search() {
               </View>
             </View>
 
-            {mode === 'offer' && (
-              <TouchableOpacity
-                testID="search-submit"
-                disabled={loading || locLoading}
-                onPress={() => { tap(); submitAction(); }}
-                activeOpacity={0.8}
-                style={[styles.cta, { backgroundColor: t.primary, marginTop: spacing.md, zIndex: 0, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
-                  Find Matching Passengers
-                </Text>
-              </TouchableOpacity>
-            )}
-
             <TouchableOpacity
               testID="publish-submit"
               disabled={loading || locLoading}
@@ -469,17 +493,15 @@ export default function Search() {
               style={[
                 styles.cta,
                 {
-                  backgroundColor: mode === 'find' ? t.primary : t.surface,
-                  borderColor: t.primary,
-                  borderWidth: mode === 'find' ? 0 : 1.5,
-                  marginTop: mode === 'find' ? spacing.md : spacing.sm,
+                  backgroundColor: t.primary,
+                  marginTop: spacing.md,
                   zIndex: 0,
                   opacity: (loading || locLoading) ? 0.6 : 1
                 }
               ]}
             >
-              <Text style={[styles.ctaText, { color: mode === 'find' ? t.primaryContrast : t.primary }]}>
-                {mode === 'find' ? 'Search Rides' : 'Publish Ride Offer Directly'}
+              <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
+                {mode === 'find' ? 'Search Rides' : 'Offer Ride'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -613,7 +635,7 @@ export default function Search() {
                         </Text>
                         <View style={{ gap: 12 }}>
                           {section.data.map((item: any) => {
-                            if (section.type === 'offered') {
+                            if (item.driverId) {
                               return (
                                 <RideCard
                                   key={item.id}
@@ -646,7 +668,10 @@ export default function Search() {
                                   t={t}
                                   onPress={() => {
                                     tap();
-                                    router.push(`/buddy/${item.id}` as any);
+                                    router.push({
+                                      pathname: `/buddy/${item.id}`,
+                                      params: offeredRideId ? { rideId: offeredRideId } : {}
+                                    } as any);
                                   }}
                                 />
                               );

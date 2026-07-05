@@ -18,18 +18,15 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="description" content="Aroundly is India's premium smart transport platform. Save money with corporate and daily carpooling, track public transport, and use Cab Buddy to match with random passengers heading your way to share a cab and split the fare." />
         <meta name="keywords" content="Aroundly, Aroundly India, aroundly.in, carpool, carpooling India, cab sharing, split cab bill, split fare, cab buddy, shared ride, taxi sharing, public transport tracker, corporate carpool Bangalore, ride sharing app Delhi NCR, commute, green travel, save travel cost" />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://www.aroundly.in/" />
 
         {/* Open Graph / Facebook Meta Tags */}
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://www.aroundly.in/" />
         <meta property="og:title" content="Aroundly - Smart Carpooling, Public Transit & Cab Share" />
         <meta property="og:description" content="Save on your daily commute. Match with colleagues for carpooling, view live transit data, or use Cab Buddy to share a cab and split the cost." />
         <meta property="og:image" content="https://www.aroundly.in/app_Icon.png" />
 
         {/* Twitter Card Meta Tags */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://www.aroundly.in/" />
         <meta property="twitter:title" content="Aroundly - Smart Carpooling, Public Transit & Cab Share" />
         <meta property="twitter:description" content="Save on your daily commute. Match with colleagues for carpooling, view live transit data, or use Cab Buddy to share a cab and split the cost." />
         <meta property="twitter:image" content="https://www.aroundly.in/app_Icon.png" />

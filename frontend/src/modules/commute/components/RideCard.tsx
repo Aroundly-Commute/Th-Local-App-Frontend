@@ -38,7 +38,7 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
  
   return (
     <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.7}
-      style={[s.card, { backgroundColor: t.surface, borderColor: t.border }, style]}>
+      style={[s.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }, style]}>
       <View style={s.row}>
         <VerifiedAvatar uri={driverAvatar} name={driverName} verified={driverVerified} t={t} size={44} />
         <View style={{ flex: 1, marginLeft: 12 }}>

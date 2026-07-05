@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import { ChevronLeft } from 'lucide-react-native';
 import { tap } from '../../../core/utils/haptics';
 import { privacyHtml } from '../../../core/utils/privacyHtml';
@@ -32,6 +33,15 @@ export default function PrivacyScreen() {
   if (Platform.OS === 'web') {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <Head>
+          <title>Privacy Policy - Aroundly</title>
+          <meta name="description" content="Read the Privacy Policy of Aroundly. Learn how we protect your information, account details, and commute data." />
+          <link rel="canonical" href="https://www.aroundly.in/privacy" />
+          <meta property="og:title" content="Privacy Policy - Aroundly" />
+          <meta property="og:url" content="https://www.aroundly.in/privacy" />
+          <meta property="twitter:title" content="Privacy Policy - Aroundly" />
+          <meta property="twitter:url" content="https://www.aroundly.in/privacy" />
+        </Head>
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
             <ChevronLeft color="#000000" size={24} />
