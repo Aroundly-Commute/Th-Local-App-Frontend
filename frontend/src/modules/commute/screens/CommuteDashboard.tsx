@@ -131,6 +131,8 @@ export default function CommuteDashboard() {
     staleTime: 30000,
   });
 
+
+
   const { data: savedPlaces = [], refetch: refreshSavedPlaces } = useQuery<any[]>({
     queryKey: ['saved-places'],
     queryFn: async () => {

@@ -8,6 +8,7 @@ import {
   useWindowDimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { useAuth } from '../src/core/auth/auth';
@@ -140,6 +141,13 @@ export default function Index() {
   // Render Web Landing Page (Web Guest View)
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {Platform.OS === 'web' && (
+        <Head>
+          <link rel="canonical" href="https://www.aroundly.in/" />
+          <meta property="og:url" content="https://www.aroundly.in/" />
+          <meta property="twitter:url" content="https://www.aroundly.in/" />
+        </Head>
+      )}
       <Header t={t} isDesktop={isDesktop} scrollToSection={scrollToSection} />
       <Hero isDesktop={isDesktop} />
       <Features t={t} isDesktop={isDesktop} />

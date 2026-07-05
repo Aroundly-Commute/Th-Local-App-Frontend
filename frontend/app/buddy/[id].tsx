@@ -20,8 +20,9 @@ export default function BuddyDetail() {
   const router = useRouter();
   const { user } = useAuth();
   
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; rideId?: string }>();
   const id = params.id;
+  const rideId = params.rideId;
 
   const [updating, setUpdating] = useState(false);
 
@@ -171,11 +172,53 @@ export default function BuddyDetail() {
       pathname: '/commute/search' as any,
       params: {
         mode: 'offer',
+        vehicleType: 'CAR',
         from: buddy.startPlaceName,
         to: buddy.endPlaceName,
         hideTabs: 'true',
       },
     });
+  };
+
+  const handleOfferCab = () => {
+    tap();
+    router.push({
+      pathname: '/commute/search' as any,
+      params: {
+        mode: 'offer',
+        vehicleType: 'CAB',
+        from: buddy.startPlaceName,
+        to: buddy.endPlaceName,
+        hideTabs: 'true',
+      },
+    });
+  };
+
+  const handleInviteBuddy = async () => {
+    if (!rideId) return;
+    tap();
+    setUpdating(true);
+    try {
+      await api.post('/matchmaking/invite', { rideId, buddyRequestId: id });
+      success();
+      Alert.alert(
+        'Success',
+        'Passenger has been successfully added to your ride!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.push('/(tabs)');
+            }
+          }
+        ]
+      );
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to add passenger to ride.');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const fabContent = () => {
@@ -202,22 +245,48 @@ export default function BuddyDetail() {
       );
     }
 
+    if (rideId) {
+      return (
+        <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
+          <TouchableOpacity
+            onPress={handleInviteBuddy}
+            disabled={updating}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
+          >
+            {updating ? <ActivityIndicator color="#fff" /> : (
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Confirm & Add Passenger</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
-      <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+      <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity
+            onPress={handleChat}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary }]}
+          >
+            <MessageCircle color={t.primaryContrast} size={18} />
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleOfferRide}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary }]}
+          >
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
-          onPress={handleChat}
+          onPress={handleOfferCab}
           activeOpacity={0.85}
-          style={[styles.cta, { backgroundColor: t.primary, flex: 1 }]}
+          style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
         >
-          <MessageCircle color={t.primaryContrast} size={18} />
-          <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleOfferRide}
-          activeOpacity={0.85}
-          style={[styles.cta, { backgroundColor: t.primary, flex: 1.2 }]}
-        >
-          <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+          <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Offer to Book Cab Together</Text>
         </TouchableOpacity>
       </View>
     );
@@ -225,7 +294,7 @@ export default function BuddyDetail() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title="Buddy Request Details" />
+      <ScreenHeader title={isOwnRequest ? "Requested Ride Detail" : "Buddy Request Details"} />
 
       {/* Absolute Map Background */}
       <View style={[StyleSheet.absoluteFillObject, { top: Platform.OS === 'ios' ? 90 : 60 }]}>
@@ -253,8 +322,10 @@ export default function BuddyDetail() {
           <View style={[styles.handle, { backgroundColor: t.border }]} />
         </View>
 
-        <View
-          style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 240 }}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
         >
           {/* Passenger card */}
           <View style={[styles.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
@@ -331,16 +402,14 @@ export default function BuddyDetail() {
               </Text>
             </View>
           </View>
-        </View>
 
-        {/* FAB inside Bottom Sheet */}
-        {fabContent() !== null && (
-          <View style={[styles.sheetFab, { backgroundColor: t.background, borderColor: t.border }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Inline FAB Area */}
+          {fabContent() !== null && (
+            <View style={{ marginTop: spacing.md, width: '100%', paddingBottom: 20 }}>
               {fabContent()}
             </View>
-          </View>
-        )}
+          )}
+        </ScrollView>
       </Animated.View>
     </SafeAreaView>
   );

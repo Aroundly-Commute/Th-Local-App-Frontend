@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import { ChevronDown, ChevronUp, Mail, Shield, HelpCircle, AlertTriangle, Send } from 'lucide-react-native';
 import { lightTheme, spacing } from '../../../core/theme/theme';
 import { tap, success as successHaptic } from '../../../core/utils/haptics';
@@ -90,6 +91,17 @@ export default function HelpScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
+      {Platform.OS === 'web' && (
+        <Head>
+          <title>Help & Support - Aroundly</title>
+          <meta name="description" content="Get support for Aroundly. Find frequently asked questions (FAQs), safety guidelines, and customer contact options." />
+          <link rel="canonical" href="https://www.aroundly.in/help" />
+          <meta property="og:title" content="Help & Support - Aroundly" />
+          <meta property="og:url" content="https://www.aroundly.in/help" />
+          <meta property="twitter:title" content="Help & Support - Aroundly" />
+          <meta property="twitter:url" content="https://www.aroundly.in/help" />
+        </Head>
+      )}
       <ScreenHeader title="Help & Support" onBack={handleBack} />
 
       {/* Tabs Selector */}
