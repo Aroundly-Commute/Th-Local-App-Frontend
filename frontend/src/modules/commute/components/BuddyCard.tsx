@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Users, Clock, Star } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { Theme, spacing, radius } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 
@@ -17,6 +18,7 @@ export const BuddyCard: React.FC<BuddyCardProps> = ({
   onPress,
   style,
 }) => {
+  const router = useRouter();
   const riderName = buddy.rider?.name || 'Unknown';
   const riderAvatar = buddy.rider?.profilePic;
   const riderRating = buddy.rider_rating ?? buddy.riderRating ?? buddy.rider?.rating ?? 5.0;
@@ -42,9 +44,19 @@ export const BuddyCard: React.FC<BuddyCardProps> = ({
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            const rId = buddy.riderId || buddy.rider?.id;
+            if (rId) {
+              router.push(`/user/${rId}` as any);
+            }
+          }}
+          activeOpacity={0.8}
+          style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}
+        >
           <VerifiedAvatar uri={riderAvatar} name={riderName} verified={false} t={t} size={40} />
-        </View>
+        </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>
@@ -58,7 +70,7 @@ export const BuddyCard: React.FC<BuddyCardProps> = ({
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
             <Star color="#FBBF24" size={11} fill="#FBBF24" />
-            <Text style={{ fontSize: 12, color: t.textSecondary }}>{riderRating.toFixed(1)}</Text>
+            <Text style={{ fontSize: 12, color: t.textSecondary }}>{riderRating % 1 === 0 ? riderRating.toFixed(0) : riderRating.toFixed(1)}</Text>
             <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
             <Users color={t.textSecondary} size={11} style={{ marginRight: -2 }} />
             <Text style={{ fontSize: 12, color: t.textSecondary }}>

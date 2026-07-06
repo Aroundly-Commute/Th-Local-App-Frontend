@@ -9,7 +9,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   MapPin, Search as SearchIcon, Calendar, Clock, Users,
-  ArrowDownUp, SlidersHorizontal,
+  ArrowDownUp, SlidersHorizontal, ChevronDown, ArrowUpDown
 } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
@@ -72,7 +72,9 @@ export default function Search() {
       try {
         const saved = await AsyncStorage.getItem('@commute_recent_searches');
         if (saved) {
-          setRecentSearches(JSON.parse(saved));
+          const parsed = JSON.parse(saved) || [];
+          const valid = parsed.filter((r: any) => r.fromCoords && r.toCoords);
+          setRecentSearches(valid);
         }
       } catch (err) {
         console.error('Failed to load recent searches:', err);
@@ -97,6 +99,7 @@ export default function Search() {
   }, [params.showAll, showAllLimit]);
 
   const saveRecentSearch = async (fromVal: string, toVal: string) => {
+    if (!fromCoords || !toCoords) return;
     try {
       const saved = await AsyncStorage.getItem('@commute_recent_searches');
       let list = saved ? JSON.parse(saved) : [];
@@ -232,9 +235,23 @@ export default function Search() {
   const dateLabel = datetime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
   const timeLabel = datetime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
 
+  const handleSwapLocations = () => {
+    tap();
+    const tempFrom = from;
+    const tempFromCoords = fromCoords;
+    setFrom(to);
+    setFromCoords(toCoords);
+    setTo(tempFrom);
+    setToCoords(tempFromCoords);
+  };
+
   const handlePublishOfferDirectly = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
-      Alert.alert('Validation Error', 'Please select both source and destination locations.');
+      Alert.alert('Locations Needed', "Please select both 'From' and 'To' locations.");
+      return;
+    }
+    if (!fromCoords || !toCoords) {
+      Alert.alert('Selection Required', 'Please select both locations from the suggestions list.');
       return;
     }
     setLoading(true);
@@ -289,7 +306,11 @@ export default function Search() {
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
       AnalyticsService.trackWarning('Location Validation Failed', { from, to }).catch(() => { });
-      Alert.alert('Validation Error', 'Please select both source (From) and destination (To) locations.');
+      Alert.alert('Locations Needed', "Please select both 'From' and 'To' locations.");
+      return;
+    }
+    if (!fromCoords || !toCoords) {
+      Alert.alert('Selection Required', 'Please select both locations from the suggestions list.');
       return;
     }
     setLoading(true); setSearched(true);
@@ -335,6 +356,10 @@ export default function Search() {
   };
 
   const handlePostSearch = () => {
+    if (!fromCoords || !toCoords) {
+      Alert.alert('Selection Required', 'Please select both locations from the suggestions list.');
+      return;
+    }
     tap();
     Alert.alert(
       'Post Ride Request',
@@ -390,120 +415,146 @@ export default function Search() {
         {/* Header */}
         {params.showAll !== 'true' && (
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
-            {/* Tabs */}
-            {params.hideTabs !== 'true' && (
-              <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-                <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
-                <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
+            {offeredRideId ? (
+              <View style={{ backgroundColor: t.surface, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: t.border }}>
+                <Text style={{ fontWeight: '700', fontSize: 16, color: t.textPrimary }}>Active Ride Offer Published</Text>
+                <Text style={{ color: t.textSecondary, marginTop: 6, fontSize: 13 }}>From: {from}</Text>
+                <Text style={{ color: t.textSecondary, marginTop: 2, fontSize: 13 }}>To: {to}</Text>
+                <Text style={{ color: t.textSecondary, marginTop: 2, fontSize: 13 }}>Departure: {dateLabel} at {timeLabel}</Text>
+                <Text style={{ color: t.success, marginTop: 8, fontSize: 13, fontWeight: '600' }}>Showing matching passenger requests below...</Text>
               </View>
+            ) : (
+              <>
+                {/* Tabs */}
+                {params.hideTabs !== 'true' && (
+                  <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
+                    <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
+                    <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
+                  </View>
+                )}
+
+                {/* From / To inputs (Metro style card) */}
+                <View style={[styles.inputCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md, zIndex: 10 }]}>
+                  <View style={styles.dropdownsContainer}>
+                    <TouchableOpacity
+                      disabled={loading || locLoading}
+                      onPress={() => { tap(); setSearchTarget('from'); }}
+                      activeOpacity={0.8}
+                      style={[styles.dropdownTrigger, { borderBottomWidth: 1, borderBottomColor: t.border, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+                    >
+                      <MapPin color={t.primary} size={16} />
+                      <Text
+                        style={[
+                          styles.dropdownLabel,
+                          { color: from ? t.textPrimary : t.textSecondary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {from || 'From (Origin)'}
+                      </Text>
+                      <ChevronDown color={t.textSecondary} size={16} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      disabled={loading || locLoading}
+                      onPress={() => { tap(); setSearchTarget('to'); }}
+                      activeOpacity={0.8}
+                      style={[styles.dropdownTrigger, { opacity: (loading || locLoading) ? 0.6 : 1 }]}
+                    >
+                      <MapPin color="#D81B60" size={16} />
+                      <Text
+                        style={[
+                          styles.dropdownLabel,
+                          { color: to ? t.textPrimary : t.textSecondary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {to || 'To (Destination)'}
+                      </Text>
+                      <ChevronDown color={t.textSecondary} size={16} />
+                    </TouchableOpacity>
+
+                    {/* Swap Button */}
+                    <TouchableOpacity
+                      disabled={loading || locLoading}
+                      style={[styles.swapButton, { backgroundColor: t.primary, borderColor: t.background, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+                      onPress={handleSwapLocations}
+                      activeOpacity={0.85}
+                    >
+                      <ArrowUpDown color="#FFFFFF" size={18} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Date / Time / Seats row */}
+                <View style={[styles.filters, { marginTop: spacing.sm, zIndex: 0 }]}>
+                  {/* Date picker trigger */}
+                  <TouchableOpacity
+                    testID="date-picker-btn"
+                    disabled={loading || locLoading}
+                    onPress={() => { tap(); setShowDatePicker(true); }}
+                    style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+                  >
+                    <Calendar color={t.textSecondary} size={13} />
+                    <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{dateLabel}</Text>
+                  </TouchableOpacity>
+
+                  {/* Time picker trigger */}
+                  <TouchableOpacity
+                    testID="time-picker-btn"
+                    disabled={loading || locLoading}
+                    onPress={() => { tap(); setShowTimePicker(true); }}
+                    style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
+                  >
+                    <Clock color={t.textSecondary} size={13} />
+                    <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{timeLabel}</Text>
+                  </TouchableOpacity>
+
+                  {/* Seats manual input */}
+                  <View style={[styles.filterChip, { borderColor: t.border, width: 72, opacity: (loading || locLoading) ? 0.6 : 1 }]}>
+                    <Users color={t.textSecondary} size={13} />
+                    <TextInput
+                      testID="seats-input"
+                      editable={!loading && !locLoading}
+                      value={seats}
+                      onChangeText={setSeats}
+                      keyboardType="numeric"
+                      maxLength={1}
+                      style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1, padding: 0 }}
+                      placeholderTextColor={t.textSecondary}
+                      placeholder="1"
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  testID="publish-submit"
+                  disabled={loading || locLoading}
+                  onPress={() => {
+                    tap();
+                    if (mode === 'find') {
+                      submitAction();
+                    } else {
+                      handlePublishOfferDirectly();
+                    }
+                  }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.cta,
+                    {
+                      backgroundColor: t.primary,
+                      marginTop: spacing.md,
+                      zIndex: 0,
+                      opacity: (loading || locLoading) ? 0.6 : 1
+                    }
+                  ]}
+                >
+                  <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
+                    {mode === 'find' ? 'Search Rides' : 'Offer Ride'}
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
-
-            {/* From / To inputs */}
-            <View style={{ gap: 8, marginTop: spacing.md, zIndex: 10 }}>
-              <TouchableOpacity
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setSearchTarget('from'); }}
-                activeOpacity={0.8}
-                style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <View style={[styles.dot, { backgroundColor: t.textPrimary }]} />
-                <Text
-                  style={[
-                    styles.fakeInputText,
-                    { color: from ? t.textPrimary : t.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {from || 'From (Origin)'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setSearchTarget('to'); }}
-                activeOpacity={0.8}
-                style={[styles.fakeInputRow, { backgroundColor: t.muted, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <View style={[styles.dot, { borderColor: t.textPrimary, borderWidth: 2, backgroundColor: t.background }]} />
-                <Text
-                  style={[
-                    styles.fakeInputText,
-                    { color: to ? t.textPrimary : t.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {to || 'To (Destination)'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Date / Time / Seats row */}
-            <View style={[styles.filters, { marginTop: spacing.sm, zIndex: 0 }]}>
-              {/* Date picker trigger */}
-              <TouchableOpacity
-                testID="date-picker-btn"
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setShowDatePicker(true); }}
-                style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <Calendar color={t.textSecondary} size={13} />
-                <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{dateLabel}</Text>
-              </TouchableOpacity>
-
-              {/* Time picker trigger */}
-              <TouchableOpacity
-                testID="time-picker-btn"
-                disabled={loading || locLoading}
-                onPress={() => { tap(); setShowTimePicker(true); }}
-                style={[styles.filterChip, { borderColor: t.border, flex: 1, opacity: (loading || locLoading) ? 0.6 : 1 }]}
-              >
-                <Clock color={t.textSecondary} size={13} />
-                <Text style={[styles.filterChipText, { color: t.textPrimary }]} numberOfLines={1}>{timeLabel}</Text>
-              </TouchableOpacity>
-
-              {/* Seats manual input */}
-              <View style={[styles.filterChip, { borderColor: t.border, width: 72, opacity: (loading || locLoading) ? 0.6 : 1 }]}>
-                <Users color={t.textSecondary} size={13} />
-                <TextInput
-                  testID="seats-input"
-                  editable={!loading && !locLoading}
-                  value={seats}
-                  onChangeText={setSeats}
-                  keyboardType="numeric"
-                  maxLength={1}
-                  style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1, padding: 0 }}
-                  placeholderTextColor={t.textSecondary}
-                  placeholder="1"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              testID="publish-submit"
-              disabled={loading || locLoading}
-              onPress={() => {
-                tap();
-                if (mode === 'find') {
-                  submitAction();
-                } else {
-                  handlePublishOfferDirectly();
-                }
-              }}
-              activeOpacity={0.8}
-              style={[
-                styles.cta,
-                {
-                  backgroundColor: t.primary,
-                  marginTop: spacing.md,
-                  zIndex: 0,
-                  opacity: (loading || locLoading) ? 0.6 : 1
-                }
-              ]}
-            >
-              <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
-                {mode === 'find' ? 'Search Rides' : 'Offer Ride'}
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -576,11 +627,15 @@ export default function Search() {
                         <View style={[styles.recentIcon, { backgroundColor: t.muted }]}>
                           <MapPin color={t.textPrimary} size={14} />
                         </View>
-                        <Text style={[styles.recentText, { color: t.textPrimary }]} numberOfLines={1}>
-                          <Text style={{ fontWeight: '600' }}>{r.from}</Text>
-                          <Text style={{ color: t.textSecondary }}>  →  </Text>
-                          <Text style={{ fontWeight: '600' }}>{r.to}</Text>
-                        </Text>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">
+                            {r.from}
+                          </Text>
+                          <Text style={{ color: t.textSecondary, marginHorizontal: 8 }}>→</Text>
+                          <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">
+                            {r.to}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -670,7 +725,10 @@ export default function Search() {
                                     tap();
                                     router.push({
                                       pathname: `/buddy/${item.id}`,
-                                      params: offeredRideId ? { rideId: offeredRideId } : {}
+                                      params: {
+                                        mode,
+                                        ...(offeredRideId ? { rideId: offeredRideId } : {})
+                                      }
                                     } as any);
                                   }}
                                 />

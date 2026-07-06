@@ -106,7 +106,7 @@ export const ReviewModal: React.FC<Props> = ({
 
               {/* Header / Avatar */}
               <View style={styles.header}>
-                <VerifiedAvatar uri={peerAvatar} name={peerName} verified={false} t={t} size={64} />
+                <VerifiedAvatar uri={peerAvatar || undefined} name={peerName} verified={false} t={t} size={64} />
                 <Text style={[styles.title, { color: t.textPrimary }]}>Rate Your Experience</Text>
                 <Text style={[styles.subtitle, { color: t.textSecondary }]}>
                   How was your commute with {peerName}?
