@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
-import { BackHandler, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { BackHandler, LogBox, View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
 export { ErrorBoundary };
@@ -36,6 +36,15 @@ function AppNavigationWrapper() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [loading]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const styleEl = document.getElementById('prevent-landing-flash');
+      if (styleEl) {
+        styleEl.remove();
+      }
+    }
+  }, [pathname]);
 
   useEffect(() => {
     // Initialize Google Analytics on app boot

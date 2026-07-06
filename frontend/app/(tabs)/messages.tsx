@@ -69,7 +69,7 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }} edges={['top']}>
-      <ScreenHeader title="Messages" showBack={false} />
+      <ScreenHeader title="Messages" />
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -89,7 +89,7 @@ export default function MessagesScreen() {
               onPress={() => handleChatPress(item.chat_id, item.other_user.name)}
               style={[styles.chatCard, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}
             >
-              <VerifiedAvatar uri={null} name={item.other_user.name} verified={false} t={t} size={48} />
+              <VerifiedAvatar uri={undefined} name={item.other_user.name} verified={false} t={t} size={48} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ color: t.textPrimary, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>

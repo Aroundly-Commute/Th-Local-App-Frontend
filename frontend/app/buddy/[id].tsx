@@ -20,9 +20,10 @@ export default function BuddyDetail() {
   const router = useRouter();
   const { user } = useAuth();
   
-  const params = useLocalSearchParams<{ id: string; rideId?: string }>();
+  const params = useLocalSearchParams<{ id: string; rideId?: string; mode?: string }>();
   const id = params.id;
   const rideId = params.rideId;
+  const viewMode = params.mode;
 
   const [updating, setUpdating] = useState(false);
 
@@ -162,7 +163,8 @@ export default function BuddyDetail() {
 
   const handleChat = () => {
     tap();
-    const chatId = `buddy_${buddy.id}_${user?.id}`;
+    const sorted = [buddy.riderId, user?.id || ''].sort();
+    const chatId = `chat_${sorted[0]}_${sorted[1]}`;
     router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(riderName)}` as any);
   };
 
@@ -180,18 +182,31 @@ export default function BuddyDetail() {
     });
   };
 
-  const handleOfferCab = () => {
+  const handleOfferCab = async () => {
+    if (!buddy?.riderId || !user?.id) return;
     tap();
-    router.push({
-      pathname: '/commute/search' as any,
-      params: {
-        mode: 'offer',
-        vehicleType: 'CAB',
-        from: buddy.startPlaceName,
-        to: buddy.endPlaceName,
-        hideTabs: 'true',
-      },
-    });
+    setUpdating(true);
+    try {
+      await api.post('/matchmaking/buddies/request', { buddyRequestId: id });
+      success();
+      Alert.alert(
+        'Request Sent',
+        `Your request to book a cab with ${riderName} has been successfully sent. You can track this request on your Requests page.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.push('/(tabs)/rides' as any);
+            }
+          }
+        ]
+      );
+    } catch (err: any) {
+      errorH();
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to send cab match request.');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleInviteBuddy = async () => {
@@ -203,7 +218,7 @@ export default function BuddyDetail() {
       success();
       Alert.alert(
         'Success',
-        'Passenger has been successfully added to your ride!',
+        'Your ride offer has been successfully sent to the passenger!',
         [
           {
             text: 'OK',
@@ -255,16 +270,53 @@ export default function BuddyDetail() {
             style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
           >
             {updating ? <ActivityIndicator color="#fff" /> : (
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Confirm & Add Passenger</Text>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Send Ride Offer</Text>
             )}
           </TouchableOpacity>
         </View>
       );
     }
 
-    return (
-      <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+    const showOfferRide = viewMode !== 'find';
+    const showOfferCab = buddy.type === 'buddy' && viewMode !== 'offer';
+
+    if (showOfferRide && showOfferCab) {
+      return (
+        <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={handleChat}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: t.primary }]}
+            >
+              <MessageCircle color={t.primaryContrast} size={18} />
+              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleOfferRide}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: t.primary }]}
+            >
+              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            onPress={handleOfferCab}
+            disabled={updating}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
+          >
+            {updating ? <ActivityIndicator color="#fff" /> : (
+              <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Offer to Book Cab Together</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (showOfferRide) {
+      return (
+        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
           <TouchableOpacity
             onPress={handleChat}
             activeOpacity={0.85}
@@ -281,14 +333,43 @@ export default function BuddyDetail() {
             <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={handleOfferCab}
-          activeOpacity={0.85}
-          style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
-        >
-          <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Offer to Book Cab Together</Text>
-        </TouchableOpacity>
-      </View>
+      );
+    }
+
+    if (showOfferCab) {
+      return (
+        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+          <TouchableOpacity
+            onPress={handleChat}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary }]}
+          >
+            <MessageCircle color={t.primaryContrast} size={18} />
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleOfferCab}
+            disabled={updating}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
+          >
+            {updating ? <ActivityIndicator color="#fff" /> : (
+              <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Offer to Book Cab Together</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        onPress={handleChat}
+        activeOpacity={0.85}
+        style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
+      >
+        <MessageCircle color={t.primaryContrast} size={18} />
+        <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
+      </TouchableOpacity>
     );
   };
 
@@ -330,9 +411,16 @@ export default function BuddyDetail() {
           {/* Passenger card */}
           <View style={[styles.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}>
+              <TouchableOpacity
+                onPress={() => {
+                  tap();
+                  router.push(`/user/${buddy.riderId}` as any);
+                }}
+                activeOpacity={0.8}
+                style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}
+              >
                 <VerifiedAvatar uri={riderAvatar} name={riderName} verified={false} t={t} size={40} />
-              </View>
+              </TouchableOpacity>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>
@@ -346,7 +434,7 @@ export default function BuddyDetail() {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Star color="#FBBF24" size={11} fill="#FBBF24" />
-                  <Text style={{ fontSize: 12, color: t.textSecondary }}>{riderRating.toFixed(1)}</Text>
+                  <Text style={{ fontSize: 12, color: t.textSecondary }}>{riderRating % 1 === 0 ? riderRating.toFixed(0) : riderRating.toFixed(1)}</Text>
                   <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
                   <Users color={t.textSecondary} size={11} style={{ marginRight: -2 }} />
                   <Text style={{ fontSize: 12, color: t.textSecondary }}>

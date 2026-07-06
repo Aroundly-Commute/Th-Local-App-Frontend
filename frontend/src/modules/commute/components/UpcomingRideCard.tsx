@@ -19,11 +19,12 @@ export const UpcomingRideCard: React.FC<UpcomingRideCardProps> = ({
   testID,
   style,
 }) => {
-  const driverName = ride.driver_name || ride.driverName || 'Unknown';
-  const driverAvatar = ride.driver_avatar || ride.driverAvatar;
-  const driverVerified = ride.driver_verified || ride.driverVerified;
+  const isCab = ride.vehicle_type === 'CAB';
+  const driverName = isCab ? (ride.peer_name || 'Cab Buddy') : (ride.driver_name || ride.driverName || 'Unknown');
+  const driverAvatar = isCab ? (ride.peer_avatar || null) : (ride.driver_avatar || ride.driverAvatar);
+  const driverVerified = isCab ? false : (ride.driver_verified || ride.driverVerified);
   const driverRating = ride.driver_rating ?? ride.driverRating ?? 5.0;
-  const driverGender = ride.driver_gender || ride.driverGender || ride.driver?.gender;
+  const driverGender = isCab ? null : (ride.driver_gender || ride.driverGender || ride.driver?.gender);
   
   const origin = ride.origin || ride.startPlaceName || 'Unknown';
   const destination = ride.destination || ride.endPlaceName || 'Unknown';

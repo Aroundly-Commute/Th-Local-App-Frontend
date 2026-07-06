@@ -32,7 +32,8 @@ import {
   ChevronUp,
   Plus,
   Minus,
-  Maximize2
+  Maximize2,
+  Zap
 } from 'lucide-react-native';
 import Svg, { Circle, Line, Polyline, G, Text as SvgText } from 'react-native-svg';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
@@ -570,6 +571,27 @@ export default function PublicTransportScreen() {
               </View>
               <Text style={[styles.modeCardDesc, { color: t.textTertiary }]}>
                 Bus schedules, route directories, and live timings are under construction.
+              </Text>
+            </View>
+            <ChevronRight color={t.textTertiary} size={20} />
+          </View>
+
+          {/* E-Rickshaw Card (Placeholder) */}
+          <View
+            style={[styles.modeCard, styles.disabledCard, { backgroundColor: isDark ? t.surface : '#FAFAFA', borderColor: t.border }]}
+          >
+            <View style={[styles.modeIconContainer, { backgroundColor: '#ECEFF1' }]}>
+              <Zap color="#546E7A" size={32} />
+            </View>
+            <View style={styles.modeTextContainer}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={[styles.modeCardTitle, { color: t.textSecondary }]}>E-Rickshaw</Text>
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+                </View>
+              </View>
+              <Text style={[styles.modeCardDesc, { color: t.textTertiary }]}>
+                E-rickshaw zones, fixed route fares, and driver booking matches are under construction.
               </Text>
             </View>
             <ChevronRight color={t.textTertiary} size={20} />

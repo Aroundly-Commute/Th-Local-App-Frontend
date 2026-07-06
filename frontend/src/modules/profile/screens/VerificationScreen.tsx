@@ -47,7 +47,7 @@ export default function VerificationScreen() {
 
   // Countdown timer for OTP resend
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (step === 2 && timer > 0) {
       interval = setInterval(() => {
         setTimer((prev) => prev - 1);

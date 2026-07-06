@@ -62,10 +62,23 @@ const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.webp
 const carpoolPromoImg = require('../../../../assets/images/carpool_promo.webp');
 const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.webp');
 
-const cabBuddyIconImg = require('../../../../assets/images/cab_buddy_icon.webp');
-const carpoolIconImg = require('../../../../assets/images/carpool_icon.webp');
-const publicTransportIconImg = require('../../../../assets/images/public_transport_icon.webp');
-const offerRideIconImg = require('../../../../assets/images/offer_ride_icon.webp');
+const cabBuddyIconImg = Platform.select({
+  web: require('../../../../assets/images/cab_buddy_icon.webp'),
+  default: require('../../../../assets/images/cab_buddy_icon.png'),
+});
+const carpoolIconImg = Platform.select({
+  web: require('../../../../assets/images/carpool_icon.webp'),
+  default: require('../../../../assets/images/carpool_icon.png'),
+});
+const publicTransportIconImg = Platform.select({
+  web: require('../../../../assets/images/public_transport_icon.webp'),
+  default: require('../../../../assets/images/public_transport_icon.png'),
+});
+const offerRideIconImg = Platform.select({
+  web: require('../../../../assets/images/offer_ride_icon.webp'),
+  default: require('../../../../assets/images/offer_ride_icon.png'),
+});
+
 
 export default function CommuteDashboard() {
   const queryClient = useQueryClient();
@@ -379,8 +392,8 @@ export default function CommuteDashboard() {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* Location Selector */}
-        <View style={{ marginBottom: spacing.md, zIndex: 100 }}>
+        {/* Top Header Row: Location on Left, Profile + Refresh on Right */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, zIndex: 100 }}>
           <TouchableOpacity
             testID="location-selector"
             onPress={() => {
@@ -391,7 +404,6 @@ export default function CommuteDashboard() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              alignSelf: 'flex-start',
             }}
           >
             <MapPin size={16} color={t.primary} style={{ marginRight: spacing.xs }} />
@@ -401,7 +413,7 @@ export default function CommuteDashboard() {
                 fontWeight: '600',
                 color: t.textPrimary,
                 marginRight: spacing.xs,
-                width: screenWidth * 0.4,
+                maxWidth: screenWidth * 0.5,
               }}
               numberOfLines={1}
               ellipsizeMode="tail"
@@ -410,38 +422,63 @@ export default function CommuteDashboard() {
             </Text>
             <ChevronDown size={14} color={t.textSecondary} />
           </TouchableOpacity>
-        </View>
 
-        {/* Greeting & Header Sync for Web */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
-            <Text style={[styles.title, { color: t.textPrimary, marginBottom: 0 }]}>Where to today?</Text>
-          </View>
-          {Platform.OS === 'web' && (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {Platform.OS === 'web' && (
+              <TouchableOpacity
+                onPress={handleRefresh}
+                disabled={refreshing}
+                activeOpacity={0.7}
+                style={{
+                  padding: 10,
+                  borderRadius: 20,
+                  backgroundColor: t.muted,
+                  borderColor: t.border,
+                  borderWidth: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  width: 40,
+                  height: 40,
+                }}
+              >
+                {refreshing ? (
+                  <ActivityIndicator size="small" color={t.primary} />
+                ) : (
+                  <RefreshCw color={t.textPrimary} size={16} />
+                )}
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
-              onPress={handleRefresh}
-              disabled={refreshing}
-              activeOpacity={0.7}
+              onPress={() => {
+                tap();
+                router.push('/profile');
+              }}
+              activeOpacity={0.75}
               style={{
-                padding: 10,
-                borderRadius: 20,
-                backgroundColor: t.muted,
-                borderColor: t.border,
-                borderWidth: 1,
-                justifyContent: 'center',
+                marginLeft: spacing.sm,
+                borderWidth: 2,
+                borderColor: t.primary,
+                borderRadius: 9999,
+                padding: 2,
                 alignItems: 'center',
-                width: 40,
-                height: 40,
+                justifyContent: 'center',
               }}
             >
-              {refreshing ? (
-                <ActivityIndicator size="small" color={t.primary} />
-              ) : (
-                <RefreshCw color={t.textPrimary} size={16} />
-              )}
+              <VerifiedAvatar
+                uri={user?.profilePic}
+                name={user?.name || 'User'}
+                verified={user?.isVerified}
+                t={t}
+                size={36}
+              />
             </TouchableOpacity>
-          )}
+          </View>
+        </View>
+
+        {/* Greeting & Header Subtitle */}
+        <View style={{ marginBottom: spacing.lg }}>
+          <Text style={[styles.greet, { color: t.textSecondary }]}>{greeting}</Text>
+          <Text style={[styles.title, { color: t.textPrimary, marginBottom: 0 }]}>Where to today?</Text>
         </View>
 
         {/* Quick search */}

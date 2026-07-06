@@ -131,6 +131,17 @@ export default function Root({ children }: PropsWithChildren) {
             `,
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (typeof window !== 'undefined' && localStorage.getItem('aroundly_logged_in') === 'true' && (window.location.pathname === '/' || window.location.pathname === '/index')) {
+                  document.write('<style id=\"prevent-landing-flash\">body { display: none !important; }</style>');
+                }
+              } catch (e) {}
+            `
+          }}
+        />
       </head>
       <body
         style={{

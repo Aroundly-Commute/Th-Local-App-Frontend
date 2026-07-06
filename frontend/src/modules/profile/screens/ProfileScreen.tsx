@@ -115,7 +115,7 @@ export default function ProfileScreen() {
 
           <View style={styles.metaRow}>
             <Star color={t.warning} size={13} fill={t.warning} />
-            <Text style={[styles.metaText, { color: t.textPrimary }]}>{user.rating.toFixed(1)}</Text>
+            <Text style={[styles.metaText, { color: t.textPrimary }]}>{user.rating % 1 === 0 ? user.rating.toFixed(0) : user.rating.toFixed(1)}</Text>
             <Text style={[styles.metaDot, { color: t.textTertiary }]}>·</Text>
             <Text style={[styles.metaText, { color: t.textSecondary }]}>{user.rides_count} rides</Text>
             {user.is_verified && (

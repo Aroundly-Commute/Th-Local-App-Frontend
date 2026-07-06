@@ -210,6 +210,38 @@ export default function RideDetail() {
     );
   };
 
+  const onAcceptInvite = async () => {
+    tap();
+    setBooking(true);
+    try {
+      await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'ACCEPTED' });
+      success();
+      Alert.alert('Accepted', "You have accepted the driver's ride offer!");
+      load();
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to accept invitation');
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const onRejectInvite = async () => {
+    tap();
+    setBooking(true);
+    try {
+      await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'REJECTED' });
+      success();
+      Alert.alert('Rejected', 'You have rejected the ride offer.');
+      load();
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to reject invitation');
+    } finally {
+      setBooking(false);
+    }
+  };
+
   const onWithdrawRide = () => {
     tap();
     Alert.alert(
@@ -243,10 +275,24 @@ export default function RideDetail() {
     </View>
   );
 
+  // Determine user's role on this ride
+  const driverId = ride.driverId || ride.driver_id;
+  const isDriver = user?.id === driverId;
+  const passengers: any[] = ride.passengers || [];
+
+  const isCab = ride.vehicleType === 'CAB';
+  const firstPassenger = passengers?.[0];
+
   // Normalize variables for CarPool backend
-  const dName = ride.driverName || ride.driver_name || 'Unknown';
-  const dAvatar = ride.driverAvatar || ride.driver_avatar;
-  const dRating = ride.driverRating ?? ride.driver_rating ?? 5.0;
+  const dName = isCab && isDriver && firstPassenger
+    ? (firstPassenger.rider_name || 'Cab Buddy')
+    : (ride.driverName || ride.driver_name || 'Unknown');
+  const dAvatar = isCab && isDriver && firstPassenger
+    ? firstPassenger.rider_avatar
+    : (ride.driverAvatar || ride.driver_avatar);
+  const dRating = isCab && isDriver && firstPassenger
+    ? 5.0
+    : (ride.driverRating ?? ride.driver_rating ?? 5.0);
   
   const origin = ride.startPlaceName || ride.origin || 'Unknown';
   const destination = ride.endPlaceName || ride.destination || 'Unknown';
@@ -268,13 +314,8 @@ export default function RideDetail() {
   
   const co2 = ride.co2_saved_kg ?? 0;
   const dist = ride.distance_km ?? 0;
-  const vehicle = ride.driver_vehicle || ride.vehicle;
+  const vehicle = isCab ? null : (ride.driver_vehicle || ride.vehicle);
   const time = new Date(departureTime);
-
-  // Determine user's role on this ride
-  const driverId = ride.driverId || ride.driver_id;
-  const isDriver = user?.id === driverId;
-  const passengers: any[] = ride.passengers || [];
 
   // Rider's own request state
   const myRequestStatus = ride.my_request_status; // 'REQUESTED' | 'ACCEPTED' | undefined
@@ -344,7 +385,9 @@ export default function RideDetail() {
             activeOpacity={0.85}
             style={[styles.cta, { backgroundColor: '#ef4444', width: '100%' }]}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Withdraw Offered Ride</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+              {isCab ? 'Cancel Match' : 'Withdraw Offered Ride'}
+            </Text>
           </TouchableOpacity>
         );
       }
@@ -368,12 +411,42 @@ export default function RideDetail() {
             activeOpacity={0.85}
             style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Cancel Booking</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+              {isCab ? 'Cancel Match' : 'Cancel Booking'}
+            </Text>
           </TouchableOpacity>
         </View>
       );
     }
     if (myRequestStatus === 'REQUESTED') {
+      if ((ride as any).my_request_is_invitation) {
+        return (
+          <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+            <TouchableOpacity
+              testID="accept-invite"
+              onPress={onAcceptInvite}
+              disabled={booking}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: t.primary, flex: 1 }]}
+            >
+              {booking ? <ActivityIndicator color="#fff" /> : (
+                <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Accept Offer</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="reject-invite"
+              onPress={onRejectInvite}
+              disabled={booking}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
+            >
+              {booking ? <ActivityIndicator color="#fff" /> : (
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Reject</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        );
+      }
       return (
         <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
           <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 2 }]}>
@@ -386,7 +459,9 @@ export default function RideDetail() {
             activeOpacity={0.85}
             style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
           >
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Withdraw</Text>
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+              {isCab ? 'Cancel Match' : 'Withdraw'}
+            </Text>
           </TouchableOpacity>
         </View>
       );
@@ -471,9 +546,16 @@ export default function RideDetail() {
           {/* Driver card */}
           <View style={[styles.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}>
+              <TouchableOpacity
+                onPress={() => {
+                  tap();
+                  router.push(`/user/${ride.driverId}` as any);
+                }}
+                activeOpacity={0.8}
+                style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}
+              >
                 <VerifiedAvatar uri={dAvatar} name={dName} verified={ride.driver_verified || ride.driverVerified} t={t} size={40} />
-              </View>
+              </TouchableOpacity>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>{dName}</Text>
@@ -485,7 +567,7 @@ export default function RideDetail() {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   <Star color="#FBBF24" size={11} fill="#FBBF24" />
-                  <Text style={{ fontSize: 12, color: t.textSecondary }}>{dRating.toFixed(1)}</Text>
+                  <Text style={{ fontSize: 12, color: t.textSecondary }}>{dRating % 1 === 0 ? dRating.toFixed(0) : dRating.toFixed(1)}</Text>
                   <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
                   <Text style={{ fontSize: 12, color: t.textSecondary }}>
                     {ride.seatsAvailable ?? 0} { (ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats' } available
@@ -637,9 +719,11 @@ export default function RideDetail() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Users color={t.primary} size={18} />
                 <Text style={[styles.section, { color: t.textPrimary }]}>
-                  {isDriver 
-                    ? (passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`)
-                    : `Co-passengers (${passengers.filter(p => p.status === 'ACCEPTED' && p.rider_id !== user?.id).length})`}
+                  {isCab
+                    ? 'Cab Buddy Match'
+                    : (isDriver 
+                      ? (passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`)
+                      : `Co-passengers (${passengers.filter(p => p.status === 'ACCEPTED' && p.rider_id !== user?.id).length})`)}
                 </Text>
               </View>
               {isDriver && passengers.length === 0 ? (
@@ -657,7 +741,15 @@ export default function RideDetail() {
                     <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
                       {/* Top row: Avatar, Name & Fare, Status */}
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                        <TouchableOpacity
+                          onPress={() => {
+                            tap();
+                            router.push(`/user/${p.rider_id}` as any);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
+                        </TouchableOpacity>
                         <View style={{ flex: 1 }}>
                           <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
                             {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
