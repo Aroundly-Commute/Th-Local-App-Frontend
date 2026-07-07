@@ -206,9 +206,6 @@ export default function CommunityScreen() {
             </Text>
             <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>Community Hub</Text>
           </View>
-          <View style={[styles.compassIcon, { backgroundColor: t.muted }]}>
-            <Users color={t.primary} size={22} strokeWidth={2.5} />
-          </View>
         </View>
 
         {/* Custom Segmented Control Tab Switcher */}
@@ -348,7 +345,7 @@ export default function CommunityScreen() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() => { tap(); router.push('/parking/register'); }}
-                  style={[styles.primaryActionBtn, { backgroundColor: t.primary }]}
+                  style={[styles.primaryActionBtn, { backgroundColor: t.primary, flex: 1, width: 'auto' }]}
                 >
                   <PlusCircle size={16} color={t.primaryContrast} style={{ marginRight: 4 }} />
                   <Text style={[styles.primaryActionBtnText, { color: t.primaryContrast }]}>Register Spot</Text>

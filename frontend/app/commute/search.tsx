@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   useColorScheme, KeyboardAvoidingView, Platform, TextInput,
@@ -61,7 +61,7 @@ export default function Search() {
   const [showAllLimit, setShowAllLimit] = useState(10);
   const [locLoading, setLocLoading] = useState(false);
   const [vehicleType, setVehicleType] = useState<string>('CAR');
-  const [offeredRideId, setOfferedRideId] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   const [searchTarget, setSearchTarget] = useState<'from' | 'to' | null>(null);
   const [recentSearches, setRecentSearches] = useState<any[]>([]);
@@ -220,15 +220,7 @@ export default function Search() {
     }
   }, [params.from, params.to, params.fromCoords, params.toCoords, params.vehicleType]);
 
-  useEffect(() => {
-    if (!offeredRideId) return;
-    const backAction = () => {
-      router.push('/(tabs)');
-      return true;
-    };
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-    return () => backHandler.remove();
-  }, [offeredRideId]);
+
 
 
 
@@ -254,6 +246,8 @@ export default function Search() {
       Alert.alert('Selection Required', 'Please select both locations from the suggestions list.');
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
     const dateStr = `${istShifted.getUTCFullYear()}-${String(istShifted.getUTCMonth() + 1).padStart(2, '0')}-${String(istShifted.getUTCDate()).padStart(2, '0')}`;
@@ -275,33 +269,32 @@ export default function Search() {
         time: timeStr,
         vehicleType,
       });
-      setOfferedRideId(ride.id);
       success();
-      Alert.alert('Success', 'Ride offered! Finding matching passengers on your route...');
-
       saveRecentSearch(from, to);
-      const searchFeature = params.feature || 'offer';
-      const { data: searchData } = await api.post('/matchmaking/search', {
-        start: fromCoords ? { lng: fromCoords.lng, lat: fromCoords.lat } : { lng: 77.3910, lat: 28.5355 },
-        end: toCoords ? { lng: toCoords.lng, lat: toCoords.lat } : { lng: 77.4, lat: 28.6 },
-        startPlaceName: from || 'Origin',
-        endPlaceName: to || 'Destination',
-        startTime: datetime.toISOString(),
-        feature: searchFeature,
-      });
 
-      const returnedSections = searchData.sections || [];
-      setSections(returnedSections);
-      const flatMatches = returnedSections.reduce((acc: any[], sec: any) => [...acc, ...(sec.data || [])], []);
-      setRides(flatMatches);
-      setSearched(true);
+      Alert.alert(
+        'Success',
+        'Ride offered! Finding matching passengers on your route...',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace({
+                pathname: '/commute/matching-results' as any,
+                params: { rideId: ride.id },
+              });
+            }
+          }
+        ]
+      );
     } catch (e: any) {
       errorH();
       Alert.alert('Error', e?.response?.data?.message || 'Failed to create ride offer.');
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
-  }, [from, to, fromCoords, toCoords, datetime, seats, router, vehicleType, params.feature]);
+  }, [from, to, fromCoords, toCoords, datetime, seats, router, vehicleType]);
 
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
@@ -313,6 +306,8 @@ export default function Search() {
       Alert.alert('Selection Required', 'Please select both locations from the suggestions list.');
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true); setSearched(true);
     try {
       saveRecentSearch(from, to);
@@ -344,6 +339,7 @@ export default function Search() {
       Alert.alert('Error', e?.response?.data?.message || 'Action failed. Please check your connection.');
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   }, [mode, from, to, fromCoords, toCoords, datetime, seats, router, params.feature]);
 
@@ -409,29 +405,19 @@ export default function Search() {
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <ScreenHeader
         title={params.showAll === 'true' ? 'Rides Near You' : (mode === 'find' ? 'Find a Ride' : 'Offer a Ride')}
-        onBack={offeredRideId ? () => router.push('/(tabs)') : undefined}
       />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         {params.showAll !== 'true' && (
           <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12, zIndex: 100 }}>
-            {offeredRideId ? (
-              <View style={{ backgroundColor: t.surface, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: t.border }}>
-                <Text style={{ fontWeight: '700', fontSize: 16, color: t.textPrimary }}>Active Ride Offer Published</Text>
-                <Text style={{ color: t.textSecondary, marginTop: 6, fontSize: 13 }}>From: {from}</Text>
-                <Text style={{ color: t.textSecondary, marginTop: 2, fontSize: 13 }}>To: {to}</Text>
-                <Text style={{ color: t.textSecondary, marginTop: 2, fontSize: 13 }}>Departure: {dateLabel} at {timeLabel}</Text>
-                <Text style={{ color: t.success, marginTop: 8, fontSize: 13, fontWeight: '600' }}>Showing matching passenger requests below...</Text>
-              </View>
-            ) : (
-              <>
-                {/* Tabs */}
-                {params.hideTabs !== 'true' && (
-                  <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
-                    <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
-                    <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
-                  </View>
-                )}
+            <>
+              {/* Tabs */}
+              {params.hideTabs !== 'true' && (
+                <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
+                  <TabBtn testID="tab-find" disabled={loading || locLoading} label="Find a Ride" active={mode === 'find'} t={t} onPress={() => { tap(); setMode('find'); }} />
+                  <TabBtn testID="tab-offer" disabled={loading || locLoading} label="Offer a Ride" active={mode === 'offer'} t={t} onPress={() => { tap(); setMode('offer'); }} />
+                </View>
+              )}
 
                 {/* From / To inputs (Metro style card) */}
                 <View style={[styles.inputCard, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md, zIndex: 10 }]}>
@@ -553,8 +539,7 @@ export default function Search() {
                     {mode === 'find' ? 'Search Rides' : 'Offer Ride'}
                   </Text>
                 </TouchableOpacity>
-              </>
-            )}
+            </>
           </View>
         )}
 
@@ -726,8 +711,7 @@ export default function Search() {
                                     router.push({
                                       pathname: `/buddy/${item.id}`,
                                       params: {
-                                        mode,
-                                        ...(offeredRideId ? { rideId: offeredRideId } : {})
+                                        mode
                                       }
                                     } as any);
                                   }}

@@ -448,30 +448,7 @@ export default function CommuteDashboard() {
                 )}
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              onPress={() => {
-                tap();
-                router.push('/profile');
-              }}
-              activeOpacity={0.75}
-              style={{
-                marginLeft: spacing.sm,
-                borderWidth: 2,
-                borderColor: t.primary,
-                borderRadius: 9999,
-                padding: 2,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <VerifiedAvatar
-                uri={user?.profilePic}
-                name={user?.name || 'User'}
-                verified={user?.isVerified}
-                t={t}
-                size={36}
-              />
-            </TouchableOpacity>
+
           </View>
         </View>
 

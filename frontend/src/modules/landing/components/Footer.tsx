@@ -14,7 +14,7 @@ export function Footer({ isDesktop }: FooterProps) {
       <View style={[styles.footerContent, isDesktop ? styles.row : styles.column]}>
         <View style={[styles.footerLeft, isDesktop ? { width: '40%' } : { width: '100%', marginBottom: 30 }]}>
           <Image
-            source={require('../../../../assets/images/app_Icon.webp')}
+            source={require('../../../../assets/images/app_Icon.png')}
             style={{ 
               width: 50, 
               height: 50, 
