@@ -23,7 +23,7 @@ export function Header({ t, isDesktop, scrollToSection }: HeaderProps) {
       <View style={styles.headerContent}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../../../assets/images/app_Icon_less_padding.webp')}
+            source={require('../../../../assets/images/app_Icon_less_padding.png')}
             style={styles.logoImage}
           />
         </View>

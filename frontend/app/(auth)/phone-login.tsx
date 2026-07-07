@@ -9,9 +9,7 @@ import {
   Platform,
   ScrollView,
   useColorScheme,
-  ActivityIndicator,
-  PermissionsAndroid,
-  DeviceEventEmitter
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -53,29 +51,7 @@ export default function PhoneLogin() {
     }
   };
 
-  // Request SMS permissions on Android
-  const requestSmsPermission = async () => {
-    if (Platform.OS !== 'android') return;
-    try {
-      const hasReceive = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
-      const hasRead = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
 
-      if (!hasReceive || !hasRead) {
-        await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
-          PermissionsAndroid.PERMISSIONS.READ_SMS,
-        ]);
-      }
-    } catch (err) {
-      console.warn('[SMS] Permission request error:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (mode === 'otp') {
-      requestSmsPermission();
-    }
-  }, [mode]);
 
   useEffect(() => {
     let interval: any;
@@ -169,30 +145,33 @@ export default function PhoneLogin() {
   // Handles confirming the OTP digits
   const onVerifyOtp = () => verifyCode(otp.join(''));
 
-  // Listen to incoming SMS when OTP mode is active
-  useEffect(() => {
-    if (mode !== 'otp') return;
 
-    const subscription = DeviceEventEmitter.addListener('onSmsReceived', (event) => {
-      console.log('[SMS] Received SMS event:', event);
-      const message = event.messageBody;
-      const match = message.match(/\b\d{6}\b/);
-      if (match) {
-        const otpCode = match[0];
-        console.log('[SMS] Extracted OTP code:', otpCode);
-        setOtp(otpCode.split(''));
-        verifyCode(otpCode);
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [mode, confirmResult]);
 
   // Auto focus shift as user types digit character
   const handleOtpChange = (text: string, index: number) => {
     const numericVal = text.replace(/[^0-9]/g, '');
+    
+    // Check if a full 6-digit OTP code is pasted or auto-filled
+    if (numericVal.length > 1) {
+      const digits = numericVal.slice(0, 6).split('');
+      const newOtp = [...otp];
+      for (let i = 0; i < 6; i++) {
+        if (digits[i] !== undefined) {
+          newOtp[i] = digits[i];
+        }
+      }
+      setOtp(newOtp);
+      
+      // Focus the last input filled
+      otpInputsRef.current[Math.min(digits.length - 1, 5)]?.focus();
+      
+      // Auto-verify if code is complete (6 digits)
+      if (digits.length === 6) {
+        verifyCode(digits.join(''));
+      }
+      return;
+    }
+
     const newOtp = [...otp];
     newOtp[index] = numericVal;
     setOtp(newOtp);
@@ -296,6 +275,8 @@ export default function PhoneLogin() {
                     keyboardType="number-pad"
                     maxLength={1}
                     selectTextOnFocus
+                    textContentType="oneTimeCode"
+                    autoComplete="sms-otp"
                     style={[
                       styles.otpBox,
                       {

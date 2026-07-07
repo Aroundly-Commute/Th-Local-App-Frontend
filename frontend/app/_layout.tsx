@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {});
-import { BackHandler, LogBox, View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { BackHandler, LogBox, View, TouchableOpacity, StyleSheet, Platform, PermissionsAndroid } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/core/components/ErrorBoundary';
 export { ErrorBoundary };
@@ -49,6 +49,30 @@ function AppNavigationWrapper() {
   useEffect(() => {
     // Initialize Google Analytics on app boot
     AnalyticsService.initialize().catch(() => {});
+
+    // Request notification permission on app mount
+    if (Platform.OS !== 'web') {
+      (async () => {
+        try {
+          // On Android 13+ (SDK 33+), check and request POST_NOTIFICATIONS runtime permission
+          if (Platform.OS === 'android') {
+            const sdkInt = typeof Platform.Version === 'number' ? Platform.Version : parseInt(Platform.Version, 10);
+            if (sdkInt >= 33) {
+              const hasPermission = await PermissionsAndroid.check('android.permission.POST_NOTIFICATIONS');
+              if (!hasPermission) {
+                await PermissionsAndroid.request('android.permission.POST_NOTIFICATIONS');
+              }
+            }
+          }
+
+          // Request Firebase messaging permission
+          const { default: messaging } = require('@react-native-firebase/messaging');
+          await messaging().requestPermission().catch(() => {});
+        } catch (err) {
+          console.warn('[NOTIFICATION PERMISSION] Failed to request permission:', err);
+        }
+      })();
+    }
   }, []);
 
   useEffect(() => {

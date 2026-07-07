@@ -383,9 +383,9 @@ export default function RideDetail() {
             testID="withdraw-ride"
             onPress={onWithdrawRide}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ef4444', width: '100%' }]}
+            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+            <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>
               {isCab ? 'Cancel Match' : 'Withdraw Offered Ride'}
             </Text>
           </TouchableOpacity>
@@ -409,9 +409,9 @@ export default function RideDetail() {
             testID="cancel-booking"
             onPress={onCancelBooking}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
+            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
           >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+            <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>
               {isCab ? 'Cancel Match' : 'Cancel Booking'}
             </Text>
           </TouchableOpacity>
@@ -438,10 +438,10 @@ export default function RideDetail() {
               onPress={onRejectInvite}
               disabled={booking}
               activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
+              style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
             >
-              {booking ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Reject</Text>
+              {booking ? <ActivityIndicator color="#ef4444" /> : (
+                <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>Reject</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -457,9 +457,9 @@ export default function RideDetail() {
             testID="withdraw-request"
             onPress={onCancelBooking}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ef4444', flex: 1 }]}
+            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
           >
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+            <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>
               {isCab ? 'Cancel Match' : 'Withdraw'}
             </Text>
           </TouchableOpacity>

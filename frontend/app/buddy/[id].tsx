@@ -251,10 +251,10 @@ export default function BuddyDetail() {
           onPress={handleWithdrawRequest}
           disabled={updating}
           activeOpacity={0.85}
-          style={[styles.cta, { backgroundColor: '#ef4444', width: '100%' }]}
+          style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
         >
-          {updating ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Withdraw Buddy Request</Text>
+          {updating ? <ActivityIndicator color="#ef4444" /> : (
+            <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>Withdraw Buddy Request</Text>
           )}
         </TouchableOpacity>
       );
@@ -267,7 +267,7 @@ export default function BuddyDetail() {
             onPress={handleInviteBuddy}
             disabled={updating}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
+            style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
           >
             {updating ? <ActivityIndicator color="#fff" /> : (
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Send Ride Offer</Text>
@@ -304,10 +304,10 @@ export default function BuddyDetail() {
             onPress={handleOfferCab}
             disabled={updating}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
+            style={[styles.cta, { backgroundColor: t.primary, marginTop: 8, width: '100%' }]}
           >
             {updating ? <ActivityIndicator color="#fff" /> : (
-              <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Offer to Book Cab Together</Text>
+              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer to Book Cab Together</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -351,10 +351,10 @@ export default function BuddyDetail() {
             onPress={handleOfferCab}
             disabled={updating}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, height: 48, flex: 0 }]}
+            style={[styles.cta, { backgroundColor: t.primary }]}
           >
             {updating ? <ActivityIndicator color="#fff" /> : (
-              <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Offer to Book Cab Together</Text>
+              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer to Book Cab Together</Text>
             )}
           </TouchableOpacity>
         </View>

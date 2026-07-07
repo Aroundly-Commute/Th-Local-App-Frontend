@@ -177,7 +177,7 @@ export default function Signup() {
             <View style={{ gap: spacing.sm, alignItems: 'stretch' }}>
               <View style={{ alignItems: 'center' }}>
                 <Image
-                  source={require('../../assets/images/app_Icon_less_padding.webp')}
+                  source={require('../../assets/images/app_Icon_less_padding.png')}
                   style={{ width: 200, height: 160, resizeMode: 'contain', marginBottom: 8 }}
                 />
                 <Text style={[styles.h1, { color: t.textPrimary, textAlign: 'center' }]}>Join the green movement</Text>

@@ -190,7 +190,7 @@ export default function Login() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
             <Image
-              source={require('../../assets/images/app_Icon_less_padding.webp')}
+              source={require('../../assets/images/app_Icon_less_padding.png')}
               style={{ width: 200, height: 160, resizeMode: 'contain' }}
             />
           </View>
