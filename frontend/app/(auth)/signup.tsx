@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User as UserIcon, ChevronLeft, ShieldAlert, MailCheck } from 'lucide-react-native';
+import { Mail, Lock, User as UserIcon, ChevronLeft, ShieldAlert, MailCheck, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
@@ -32,6 +32,7 @@ export default function Signup() {
   // Details Entry State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<'passenger' | 'driver'>('passenger');
 
@@ -221,9 +222,21 @@ export default function Signup() {
                   onChangeText={setPassword}
                   placeholder="Password (min 6)"
                   placeholderTextColor={t.textSecondary}
-                  secureTextEntry
+                  secureTextEntry={!showPassword}
                   style={[styles.field, { color: t.textPrimary }]}
                 />
+                <TouchableOpacity
+                  onPress={() => { tap(); setShowPassword(!showPassword); }}
+                  style={{ padding: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff color={t.textSecondary} size={18} />
+                  ) : (
+                    <Eye color={t.textSecondary} size={18} />
+                  )}
+                </TouchableOpacity>
               </View>
 
               {err ? <Text style={[styles.err, { color: t.error }]} testID="signup-error">{err}</Text> : null}
