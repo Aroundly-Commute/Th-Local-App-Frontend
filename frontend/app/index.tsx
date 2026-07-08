@@ -108,29 +108,15 @@ export default function Index() {
     }
   };
 
-  const isServer = Platform.OS === 'web' && typeof window === 'undefined';
-
-  const hasLoginIndicator = Platform.OS === 'web' && !isServer && typeof localStorage !== 'undefined' && localStorage.getItem('aroundly_logged_in') === 'true';
-
-  // If loading or we are on mobile, show loader (redirection in progress)
-  // On web static build pre-rendering, we bypass this to export the actual landing page content instead of a loader
-  // On web client, we only show loader if we have a login indicator (meaning the user is expected to be logged in)
-  const showLoader = !isServer && (
-    Platform.OS !== 'web'
-      ? (loading || !user)
-      : (loading && hasLoginIndicator)
-  );
+  // Loader logic:
+  // 1. On mobile (iOS/Android): show loader while auth is loading or if we don't have a user session (to redirect to login/intro)
+  // 2. On web client: only show loader if the user is logged in (to redirect to the dashboard/(tabs))
+  // 3. During server-side rendering / static export: user is null, so it will NOT show loader and instead export the full landing page content
+  const showLoader = Platform.OS !== 'web'
+    ? (loading || !user)
+    : (user !== null);
 
   if (showLoader) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.background }}>
-        <ActivityIndicator color={t.primary} size="large" />
-      </View>
-    );
-  }
-
-  // If user is logged in, show loader (redirection in progress)
-  if (!isServer && user) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.background }}>
         <ActivityIndicator color={t.primary} size="large" />
