@@ -408,6 +408,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
+    minWidth: 0,
   },
   resendRow: {
     alignItems: 'center',

@@ -112,9 +112,18 @@ export default function Index() {
   // 1. On mobile (iOS/Android): show loader while auth is loading or if we don't have a user session (to redirect to login/intro)
   // 2. On web client: only show loader if the user is logged in (to redirect to the dashboard/(tabs))
   // 3. During server-side rendering / static export: user is null, so it will NOT show loader and instead export the full landing page content
-  const showLoader = Platform.OS !== 'web'
-    ? (loading || !user)
-    : (user !== null);
+  // Always render loader/spinner on mobile to allow routing redirect to complete
+  if (Platform.OS !== 'web') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.background }}>
+        <ActivityIndicator color={t.primary} size="large" />
+      </View>
+    );
+  }
+
+  // Loader logic for Web:
+  // Show loader if the user is logged in (to redirect to the dashboard/(tabs))
+  const showLoader = user !== null;
 
   if (showLoader) {
     return (

@@ -283,31 +283,21 @@ export default function BuddyDetail() {
     if (showOfferRide && showOfferCab) {
       return (
         <View style={{ flexDirection: 'column', gap: 8, width: '100%' }}>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity
-              onPress={handleChat}
-              activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: t.primary }]}
-            >
-              <MessageCircle color={t.primaryContrast} size={18} />
-              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleOfferRide}
-              activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: t.primary }]}
-            >
-              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={handleOfferRide}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary, width: '100%', flex: 0 }]}
+          >
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={handleOfferCab}
             disabled={updating}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, marginTop: 8, width: '100%' }]}
+            style={[styles.cta, { backgroundColor: t.primary, width: '100%', flex: 0 }]}
           >
             {updating ? <ActivityIndicator color="#fff" /> : (
-              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer to Book Cab Together</Text>
+              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Share Cab</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -316,61 +306,32 @@ export default function BuddyDetail() {
 
     if (showOfferRide) {
       return (
-        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-          <TouchableOpacity
-            onPress={handleChat}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary }]}
-          >
-            <MessageCircle color={t.primaryContrast} size={18} />
-            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleOfferRide}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary }]}
-          >
-            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={handleOfferRide}
+          activeOpacity={0.85}
+          style={[styles.cta, { backgroundColor: t.primary, width: '100%', flex: 0 }]}
+        >
+          <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+        </TouchableOpacity>
       );
     }
 
     if (showOfferCab) {
       return (
-        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-          <TouchableOpacity
-            onPress={handleChat}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary }]}
-          >
-            <MessageCircle color={t.primaryContrast} size={18} />
-            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleOfferCab}
-            disabled={updating}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary }]}
-          >
-            {updating ? <ActivityIndicator color="#fff" /> : (
-              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer to Book Cab Together</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={handleOfferCab}
+          disabled={updating}
+          activeOpacity={0.85}
+          style={[styles.cta, { backgroundColor: t.primary, width: '100%', flex: 0 }]}
+        >
+          {updating ? <ActivityIndicator color="#fff" /> : (
+            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Share Cab</Text>
+          )}
+        </TouchableOpacity>
       );
     }
 
-    return (
-      <TouchableOpacity
-        onPress={handleChat}
-        activeOpacity={0.85}
-        style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
-      >
-        <MessageCircle color={t.primaryContrast} size={18} />
-        <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-      </TouchableOpacity>
-    );
+    return null;
   };
 
   return (

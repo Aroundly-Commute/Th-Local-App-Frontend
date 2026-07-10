@@ -3,13 +3,13 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   useColorScheme, KeyboardAvoidingView, Platform, TextInput,
-  BackHandler,
+  BackHandler, ActivityIndicator,
 } from 'react-native';
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   MapPin, Search as SearchIcon, Calendar, Clock, Users,
-  ArrowDownUp, SlidersHorizontal, ChevronDown, ArrowUpDown
+  ArrowDownUp, SlidersHorizontal, ChevronDown, ArrowUpDown, Check, Send
 } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
@@ -64,6 +64,10 @@ export default function Search() {
   const submittingRef = useRef(false);
 
   const [searchTarget, setSearchTarget] = useState<'from' | 'to' | null>(null);
+  const [requestingRideId, setRequestingRideId] = useState<string | null>(null);
+  const [requestedRideIds, setRequestedRideIds] = useState<string[]>([]);
+  const [sharingCabId, setSharingCabId] = useState<string | null>(null);
+  const [sharedCabIds, setSharedCabIds] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<any[]>([]);
   const { enablePopularRoutes } = useFeatureFlags();
 
@@ -235,6 +239,50 @@ export default function Search() {
     setFromCoords(toCoords);
     setTo(tempFrom);
     setToCoords(tempFromCoords);
+  };
+
+  const handleRequestRide = async (ride: any) => {
+    tap();
+    setRequestingRideId(ride.id);
+    try {
+      const payload = {
+        seats: parseInt(seats) || 1,
+        riderStartName: from,
+        riderEndName: to,
+        riderStartCoords: fromCoords?.lng && fromCoords?.lat ? [Number(fromCoords.lng), Number(fromCoords.lat)] : undefined,
+        riderEndCoords: toCoords?.lng && toCoords?.lat ? [Number(toCoords.lng), Number(toCoords.lat)] : undefined,
+        riderStartTime: ride.startTime
+      };
+
+      await api.post(`/rides/${ride.id}/book`, payload);
+      success();
+      setRequestedRideIds(prev => [...prev, ride.id]);
+      Alert.alert('Request Sent!', 'Your booking request has been sent successfully. You will be notified once the driver accepts.');
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Failed', e?.response?.data?.message || e?.response?.data?.detail || 'Try again');
+    } finally {
+      setRequestingRideId(null);
+    }
+  };
+
+  const handleShareCab = async (buddyRequest: any) => {
+    tap();
+    setSharingCabId(buddyRequest.id);
+    try {
+      await api.post('/matchmaking/buddies/request', { buddyRequestId: buddyRequest.id });
+      success();
+      setSharedCabIds(prev => [...prev, buddyRequest.id]);
+      Alert.alert(
+        'Request Sent',
+        `Your request to book a cab with ${buddyRequest.riderName || buddyRequest.rider?.name || 'Buddy'} has been successfully sent. You can track this request on your Requests page.`
+      );
+    } catch (err: any) {
+      errorH();
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to send cab match request.');
+    } finally {
+      setSharingCabId(null);
+    }
   };
 
   const handlePublishOfferDirectly = useCallback(async () => {
@@ -676,46 +724,157 @@ export default function Search() {
                         <View style={{ gap: 12 }}>
                           {section.data.map((item: any) => {
                             if (item.driverId) {
+                              const isRequested = requestedRideIds.includes(item.id);
+                              const isRequesting = requestingRideId === item.id;
                               return (
-                                <RideCard
+                                <View
                                   key={item.id}
-                                  ride={item}
-                                  t={t}
-                                  testID={`search-ride-${item.id}`}
-                                  onPress={() => {
-                                    tap();
-                                    router.push({
-                                      pathname: `/ride/${item.id}`,
-                                      params: {
-                                        fromName: from,
-                                        toName: to,
-                                        fromLat: fromCoords?.lat,
-                                        fromLng: fromCoords?.lng,
-                                        toLat: toCoords?.lat,
-                                        toLng: toCoords?.lng,
-                                        seats: seats,
-                                        estimatedFare: item.estimatedFare ? JSON.stringify(item.estimatedFare) : undefined,
-                                      }
-                                    } as any);
+                                  style={{
+                                    borderRadius: radius.lg,
+                                    padding: spacing.md,
+                                    borderWidth: 1,
+                                    gap: 10,
+                                    elevation: 2,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 1 },
+                                    shadowOpacity: 0.05,
+                                    shadowRadius: 4,
+                                    backgroundColor: t.surface,
+                                    borderColor: t.border
                                   }}
-                                />
+                                >
+                                  <RideCard
+                                    ride={item}
+                                    t={t}
+                                    compact
+                                    style={{ borderWidth: 0, padding: 0, backgroundColor: 'transparent' }}
+                                    testID={`search-ride-${item.id}`}
+                                    onPress={() => {
+                                      tap();
+                                      router.push({
+                                        pathname: `/ride/${item.id}`,
+                                        params: {
+                                          fromName: from,
+                                          toName: to,
+                                          fromLat: fromCoords?.lat,
+                                          fromLng: fromCoords?.lng,
+                                          toLat: toCoords?.lat,
+                                          toLng: toCoords?.lng,
+                                          seats: seats,
+                                          estimatedFare: item.estimatedFare ? JSON.stringify(item.estimatedFare) : undefined,
+                                        }
+                                      } as any);
+                                    }}
+                                  />
+
+                                  {/* Request Ride Action Button */}
+                                  <TouchableOpacity
+                                    disabled={isRequested || isRequesting}
+                                    onPress={() => handleRequestRide(item)}
+                                    activeOpacity={0.8}
+                                    style={{
+                                      height: 40,
+                                      borderRadius: radius.md,
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderWidth: 1,
+                                      backgroundColor: isRequested ? t.successBg : t.primary,
+                                      borderColor: isRequested ? t.success : t.primary,
+                                      marginTop: spacing.xs
+                                    }}
+                                  >
+                                    {isRequesting ? (
+                                      <ActivityIndicator size="small" color="#FFFFFF" />
+                                    ) : isRequested ? (
+                                      <>
+                                        <Check size={14} color={t.success} />
+                                        <Text style={{ color: t.success, fontWeight: '700', fontSize: 13, marginLeft: 6 }}>
+                                          Request Sent
+                                        </Text>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Send size={13} color={t.primaryContrast} />
+                                        <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 13, marginLeft: 6 }}>
+                                          Request Ride
+                                        </Text>
+                                      </>
+                                    )}
+                                  </TouchableOpacity>
+                                </View>
                               );
                             } else {
+                              const isShared = sharedCabIds.includes(item.id);
+                              const isSharing = sharingCabId === item.id;
                               return (
-                                <BuddyCard
+                                <View
                                   key={item.id}
-                                  buddy={item}
-                                  t={t}
-                                  onPress={() => {
-                                    tap();
-                                    router.push({
-                                      pathname: `/buddy/${item.id}`,
-                                      params: {
-                                        mode
-                                      }
-                                    } as any);
+                                  style={{
+                                    borderRadius: radius.lg,
+                                    padding: spacing.md,
+                                    borderWidth: 1,
+                                    gap: 10,
+                                    elevation: 2,
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 1 },
+                                    shadowOpacity: 0.05,
+                                    shadowRadius: 4,
+                                    backgroundColor: t.surface,
+                                    borderColor: t.border
                                   }}
-                                />
+                                >
+                                  <BuddyCard
+                                    buddy={item}
+                                    t={t}
+                                    style={{ borderWidth: 0, padding: 0, backgroundColor: 'transparent' }}
+                                    onPress={() => {
+                                      tap();
+                                      router.push({
+                                        pathname: `/buddy/${item.id}`,
+                                        params: {
+                                          mode
+                                        }
+                                      } as any);
+                                    }}
+                                  />
+
+                                  {/* Share Cab Action Button */}
+                                  <TouchableOpacity
+                                    disabled={isShared || isSharing}
+                                    onPress={() => handleShareCab(item)}
+                                    activeOpacity={0.8}
+                                    style={{
+                                      height: 40,
+                                      borderRadius: radius.md,
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderWidth: 1,
+                                      backgroundColor: isShared ? t.successBg : t.primary,
+                                      borderColor: isShared ? t.success : t.primary,
+                                      marginTop: spacing.xs
+                                    }}
+                                  >
+                                    {isSharing ? (
+                                      <ActivityIndicator size="small" color="#FFFFFF" />
+                                    ) : isShared ? (
+                                      <>
+                                        <Check size={14} color={t.success} />
+                                        <Text style={{ color: t.success, fontWeight: '700', fontSize: 13, marginLeft: 6 }}>
+                                          Request Sent
+                                        </Text>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Send size={13} color={t.primaryContrast} />
+                                        <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 13, marginLeft: 6 }}>
+                                          Share Cab
+                                        </Text>
+                                      </>
+                                    )}
+                                  </TouchableOpacity>
+                                </View>
                               );
                             }
                           })}

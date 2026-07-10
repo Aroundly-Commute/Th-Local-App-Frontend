@@ -120,6 +120,10 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginVertical: spacing.md,
     gap: 8,
+    position: 'relative',
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
   },
   otpBox: {
     flex: 1,
