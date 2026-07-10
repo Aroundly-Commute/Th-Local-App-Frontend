@@ -371,7 +371,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="rides"
         options={{
-          title: 'Requests',
+          title: 'My Ride',
           tabBarBadge: hasPendingRequests ? '' : undefined,
           tabBarBadgeStyle: {
             backgroundColor: '#ef4444',
@@ -380,7 +380,7 @@ export default function TabsLayout() {
             borderRadius: 4,
             marginTop: Platform.OS === 'ios' ? -2 : 0,
           },
-          tabBarIcon: ({ color, size }) => <Inbox color={color} size={size - 2} strokeWidth={2} />
+          tabBarIcon: ({ color, size }) => <Car color={color} size={size - 2} strokeWidth={2} />
         }}
       />
       <Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} strokeWidth={2} /> }} />

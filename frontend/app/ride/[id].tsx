@@ -8,7 +8,7 @@ import { ReviewModal } from '../../src/core/components/ReviewModal';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Star, Leaf, Car, MessageCircle, Users, Clock } from 'lucide-react-native';
+import { Star, Leaf, Car, MessageCircle, Users, Clock, Send } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
@@ -87,7 +87,6 @@ export default function RideDetail() {
   }>();
 
   const id = params.id;
-  const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : null;
   const { user } = useAuth();
   const [booking, setBooking] = useState(false);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
@@ -120,6 +119,8 @@ export default function RideDetail() {
     },
     enabled: !!id,
   });
+
+  const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : (ride?.estimatedFare ?? null);
 
   const requestedSeats = params.seats ? parseInt(params.seats) : 1;
 
@@ -498,9 +499,9 @@ export default function RideDetail() {
       >
         {booking ? <ActivityIndicator color={t.primaryContrast} /> : (
           <>
-            <MessageCircle color={t.primaryContrast} size={18} />
+            <Send color={t.primaryContrast} size={15} />
             <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>
-              {`Request ${requestedSeats} ${requestedSeats === 1 ? 'Seat' : 'Seats'} · ₹${Math.round((price || 0) * requestedSeats)}`}
+              Request Ride
             </Text>
           </>
         )}

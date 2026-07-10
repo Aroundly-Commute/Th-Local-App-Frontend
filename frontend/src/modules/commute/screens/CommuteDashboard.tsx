@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme,
-  RefreshControl, Dimensions, Platform, ActivityIndicator, Image,
+  RefreshControl, Dimensions, Platform, ActivityIndicator, Image, Linking,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -55,6 +55,15 @@ const OfferRideIcon = ({ color, size }: { color: string; size: number }) => (
 const PublicTransportIcon = ({ color, size }: { color: string; size: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM18 11H6V6h12v5z" fill={color} />
+  </Svg>
+);
+
+const GooglePlayIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M3 2.6C2.8 2.8 2.7 3.1 2.7 3.5v17c0 .4.1.7.3.9l.1.1 9.6-9.6v-.2L3.1 2.5l-.1.1z" fill="#3FCCFF" />
+    <Path d="M16.1 15.7l-3.4-3.4v-.2l3.4-3.4.1.1 3.8 2.2c1.1.6 1.1 1.6 0 2.2l-3.8 2.2-.1.3z" fill="#FFDF00" />
+    <Path d="M12.7 12.1L3.1 21.7c.3.3.8.3 1.4 0l8.2-4.7-3-4.9z" fill="#FF3A44" />
+    <Path d="M12.7 11.9L3.1 2.3c.3-.3.8-.3 1.4 0l8.2 4.7-3-4.9z" fill="#00F57C" />
   </Svg>
 );
 
@@ -121,14 +130,6 @@ export default function CommuteDashboard() {
     staleTime: 30000,
   });
 
-  const { data: myRidesData, isLoading: myRidesLoading, refetch: refreshMyRides } = useQuery({
-    queryKey: ['rides', 'my', 3],
-    queryFn: async () => {
-      const { data } = await api.get('/rides/my?page=1&limit=3');
-      return data;
-    },
-    staleTime: 30000,
-  });
 
   const { data: buddiesData, isLoading: buddiesLoading, refetch: refreshBuddies } = useQuery({
     queryKey: ['buddies', 3],
@@ -229,9 +230,8 @@ export default function CommuteDashboard() {
   }, []);
 
   const rides = ridesData || [];
-  const myRides = myRidesData || { upcoming: [] };
   const buddies = buddiesData || [];
-  const loading = statsLoading && ridesLoading && myRidesLoading && buddiesLoading && !stats && !ridesData && !myRidesData && !buddiesData;
+  const loading = statsLoading && ridesLoading && buddiesLoading && !stats && !ridesData && !buddiesData;
 
   const greeting = (() => {
     const d = new Date();
@@ -246,11 +246,11 @@ export default function CommuteDashboard() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshStats(), refreshRides(), refreshMyRides(), refreshBuddies(), refreshSavedPlaces()]);
+      await Promise.all([refreshStats(), refreshRides(), refreshBuddies(), refreshSavedPlaces()]);
     } catch { } finally {
       setRefreshing(false);
     }
-  }, [refreshStats, refreshRides, refreshMyRides, refreshBuddies, refreshSavedPlaces]);
+  }, [refreshStats, refreshRides, refreshBuddies, refreshSavedPlaces]);
 
   useFocusEffect(
     useCallback(() => {
@@ -278,19 +278,11 @@ export default function CommuteDashboard() {
     }, [queryClient])
   );
 
-  const upcomingRides = (myRides.upcoming || []).slice(0, 3);
-  const requestedRides = (myRides.requested || []).slice(0, 3);
   const nearbyRides = (rides || []).slice(0, 3);
   const buddiesList = (buddies || []).slice(0, 3);
 
   const { width: screenWidth } = Dimensions.get('window');
   const containerWidth = screenWidth - spacing.lg * 2;
-
-  const hasMultipleUpcoming = upcomingRides.length > 1;
-  const upcomingCardWidth = hasMultipleUpcoming ? containerWidth * 0.95 : containerWidth;
-
-  const hasMultipleRequested = requestedRides.length > 1;
-  const requestedCardWidth = hasMultipleRequested ? containerWidth * 0.95 : containerWidth;
 
   const hasMultipleNearby = nearbyRides.length > 1;
   const nearbyCardWidth = hasMultipleNearby ? containerWidth * 0.95 : containerWidth;
@@ -353,7 +345,7 @@ export default function CommuteDashboard() {
 
   const isDark = false;
 
-  const showEmptyState = !loading && upcomingRides.length === 0 && nearbyRides.length === 0 && buddies.length === 0;
+  const showEmptyState = !loading && nearbyRides.length === 0 && buddies.length === 0;
 
   const promoCards = [
     {
@@ -493,78 +485,7 @@ export default function CommuteDashboard() {
         </View>
 
 
-        {/* Upcoming ride */}
-        {upcomingRides.length > 0 && (
-          <>
-            <SectionHeader t={t} title="Upcoming Rides" actionLabel="See all" onAction={() => router.push('/commute/rides')} />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              snapToInterval={upcomingCardWidth + 12}
-              snapToAlignment="start"
-              style={{ marginHorizontal: -spacing.lg }}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
-            >
-              {upcomingRides.map((rideItem: any) => (
-                <UpcomingRideCard
-                  key={rideItem.id}
-                  ride={rideItem}
-                  t={t}
-                  testID={`home-upcoming-${rideItem.id}`}
-                  onPress={() => { tap(); router.push(`/ride/${rideItem.id}` as any); }}
-                  style={{ width: upcomingCardWidth }}
-                />
-              ))}
-            </ScrollView>
-          </>
-        )}
 
-        {/* My Requested rides */}
-        {(loading || (requestedRides && requestedRides.length > 0)) && (
-          <>
-            <SectionHeader t={t} title="My Requested Rides" actionLabel="See all" onAction={() => router.push('/commute/rides?tab=requested')} />
-            {loading ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginHorizontal: -spacing.lg }}
-                contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
-              >
-                <Shimmer style={{ width: requestedCardWidth, height: 150, borderRadius: radius.lg }} />
-                <Shimmer style={{ width: requestedCardWidth, height: 150, borderRadius: radius.lg }} />
-              </ScrollView>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                decelerationRate="fast"
-                snapToInterval={requestedCardWidth + 12}
-                snapToAlignment="start"
-                style={{ marginHorizontal: -spacing.lg }}
-                contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
-              >
-                {requestedRides.map((r: any) => (
-                  <RequestedRideCard
-                    key={r.id}
-                    ride={r}
-                    t={t}
-                    testID={`home-requested-${r.id}`}
-                    onPress={() => {
-                      tap();
-                      if (r.isBuddyRequest) {
-                        router.push(`/buddy/${r.id}` as any);
-                      } else {
-                        router.push(`/ride/${r.id}` as any);
-                      }
-                    }}
-                    style={{ width: requestedCardWidth }}
-                  />
-                ))}
-              </ScrollView>
-            )}
-          </>
-        )}
 
         {/* Rides Near You */}
         {(loading || (nearbyRides && nearbyRides.length > 0)) && (
@@ -715,6 +636,34 @@ export default function CommuteDashboard() {
             </View>
           )}
         </View>
+
+        {/* Play Store download option for web users */}
+        {Platform.OS === 'web' && (
+          <View style={[styles.downloadBanner, { backgroundColor: t.successBg, borderColor: t.border }]}>
+            <View style={styles.downloadBannerLeft}>
+              <Text style={[styles.downloadBannerTitle, { color: t.textPrimary }]}>
+                Experience Aroundly on Android
+              </Text>
+              <Text style={[styles.downloadBannerDesc, { color: t.textSecondary }]}>
+                Get real-time commute updates, cab buddy match notifications, and offline access by downloading our app directly from the Google Play Store.
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => {
+                tap();
+                Linking.openURL('https://play.google.com/store/apps/details?id=com.bpandey690.frontend');
+              }}
+              style={styles.googlePlayBadge}
+            >
+              <GooglePlayIcon size={24} />
+              <View style={styles.googlePlayBadgeTextContainer}>
+                <Text style={styles.googlePlayBadgeSub}>GET IT ON</Text>
+                <Text style={styles.googlePlayBadgeMain}>Google Play</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Floating Sticky Search Bar (Positioned outside ScrollView, resolving Android touch bugs) */}
@@ -909,5 +858,56 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
+  },
+  downloadBanner: {
+    marginTop: spacing.xl,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  downloadBannerLeft: {
+    flex: 1,
+    minWidth: 260,
+    gap: 4,
+  },
+  downloadBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  downloadBannerDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  googlePlayBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 12,
+    alignSelf: 'flex-start',
+  },
+  googlePlayBadgeTextContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  googlePlayBadgeSub: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  googlePlayBadgeMain: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: -2,
   },
 });

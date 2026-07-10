@@ -40,7 +40,7 @@ export function Hero({ isDesktop }: HeroProps) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => Linking.openURL('https://play.google.com/store')}
+              onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.bpandey690.frontend')}
               style={styles.ctaSecondary}
             >
               <Smartphone size={18} color="#FFFFFF" />

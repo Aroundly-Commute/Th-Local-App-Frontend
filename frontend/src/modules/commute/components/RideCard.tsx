@@ -74,15 +74,9 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
         </View>
       </View>
 
-      {!compact && (
-        <View style={[s.row, { justifyContent: 'space-between' }]}>
-          <View style={[s.row, { gap: 6 }]}>
-            <Leaf color={t.success} size={12} />
-            <Text style={[s.ecoText, { color: t.success }]}>{co2.toFixed(1)} kg CO₂</Text>
-          </View>
-          {vehicle?.model && (
-            <Text style={[s.meta, { color: t.textTertiary }]}>{vehicle.make} {vehicle.model}</Text>
-          )}
+      {!compact && vehicle?.model && (
+        <View style={[s.row, { justifyContent: 'flex-end' }]}>
+          <Text style={[s.meta, { color: t.textTertiary }]}>{vehicle.make} {vehicle.model}</Text>
         </View>
       )}
     </TouchableOpacity>

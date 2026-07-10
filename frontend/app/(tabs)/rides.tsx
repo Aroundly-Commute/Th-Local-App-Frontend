@@ -10,6 +10,7 @@ import { MessageCircle, Check, X, Clock, Car, MapPin, ArrowRight, Inbox } from '
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { useRouter } from 'expo-router';
 import { Alert } from '../../src/core/components/CustomAlert';
+import { UpcomingRideCard } from '../../src/modules/commute/components/UpcomingRideCard';
 
 export default function RequestsScreen() {
   const t = lightTheme;
@@ -17,7 +18,17 @@ export default function RequestsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'sent' | 'received'>('sent');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'sent' | 'received'>('upcoming');
+
+  // Fetch My Rides (Upcoming)
+  const { data: myRidesData, isLoading: loadingMyRides, refetch: refetchMyRides, isRefetching: refetchingMyRides } = useQuery({
+    queryKey: ['rides', 'my', 20],
+    queryFn: async () => {
+      const { data } = await api.get('/rides/my?page=1&limit=20');
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   // Fetch Sent Requests (Requested by me)
   const { data: sentRequests, isLoading: loadingSent, refetch: refetchSent, isRefetching: refetchingSent } = useQuery({
@@ -236,21 +247,57 @@ export default function RequestsScreen() {
       </View>
     );
   };
-
   const hasPendingSent = (sentRequests || []).some((r: any) => r.status === 'REQUESTED');
   const hasPendingReceived = (receivedRequests || []).some((r: any) => r.status === 'REQUESTED');
 
-  const currentList = activeTab === 'sent' ? sentRequests : receivedRequests;
-  const currentLoading = activeTab === 'sent' ? loadingSent : loadingReceived;
-  const currentRefetching = activeTab === 'sent' ? refetchingSent : refetchingReceived;
-  const currentRefetch = activeTab === 'sent' ? refetchSent : refetchReceived;
+  const currentList = activeTab === 'upcoming'
+    ? (myRidesData?.upcoming || [])
+    : (activeTab === 'sent' ? sentRequests : receivedRequests);
+  const currentLoading = activeTab === 'upcoming'
+    ? loadingMyRides
+    : (activeTab === 'sent' ? loadingSent : loadingReceived);
+  const currentRefetching = activeTab === 'upcoming'
+    ? refetchingMyRides
+    : (activeTab === 'sent' ? refetchingSent : refetchingReceived);
+  const currentRefetch = activeTab === 'upcoming'
+    ? refetchMyRides
+    : (activeTab === 'sent' ? refetchSent : refetchReceived);
+
+  const renderItem = ({ item }: { item: any }) => {
+    if (activeTab === 'upcoming') {
+      return (
+        <UpcomingRideCard
+          ride={item}
+          t={t}
+          onPress={() => { tap(); router.push(`/ride/${item.id}` as any); }}
+          style={{ marginBottom: spacing.md }}
+        />
+      );
+    }
+    return renderRequestCard({ item });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title="Requests" />
+      <ScreenHeader title="My Ride" />
 
       {/* Custom Segmented Control Tab Switcher */}
       <View style={[styles.tabContainer, { backgroundColor: t.surfaceElevated }]}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => { tap(); setActiveTab('upcoming'); }}
+          style={[styles.tabButton, activeTab === 'upcoming' && styles.activeTabButton]}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[
+              styles.tabButtonText,
+              { color: activeTab === 'upcoming' ? t.textPrimary : t.textSecondary },
+              activeTab === 'upcoming' && styles.activeTabButtonText
+            ]}>
+              Upcoming Ride
+            </Text>
+          </View>
+        </TouchableOpacity>
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => { tap(); setActiveTab('sent'); }}
@@ -296,7 +343,7 @@ export default function RequestsScreen() {
       ) : (
         <FlatList
           data={currentList}
-          renderItem={renderRequestCard}
+          renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120 }}
           refreshControl={
@@ -304,13 +351,25 @@ export default function RequestsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Inbox size={48} color={t.textTertiary} />
-              <Text style={[styles.emptyTitle, { color: t.textPrimary }]}>No Requests Found</Text>
-              <Text style={[styles.emptySub, { color: t.textSecondary }]}>
-                {activeTab === 'sent'
-                  ? "You haven't requested any rides or buddy pairings yet."
-                  : "You haven't received any matching requests from other users."}
-              </Text>
+              {activeTab === 'upcoming' ? (
+                <>
+                  <Car size={48} color={t.textTertiary} />
+                  <Text style={[styles.emptyTitle, { color: t.textPrimary }]}>No Upcoming Rides</Text>
+                  <Text style={[styles.emptySub, { color: t.textSecondary }]}>
+                    You don't have any confirmed rides scheduled. Find a ride or offer one to get started!
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Inbox size={48} color={t.textTertiary} />
+                  <Text style={[styles.emptyTitle, { color: t.textPrimary }]}>No Requests Found</Text>
+                  <Text style={[styles.emptySub, { color: t.textSecondary }]}>
+                    {activeTab === 'sent'
+                      ? "You haven't requested any rides or buddy pairings yet."
+                      : "You haven't received any matching requests from other users."}
+                  </Text>
+                </>
+              )}
             </View>
           }
         />
@@ -350,7 +409,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabButtonText: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: '600',
   },
   activeTabButtonText: {
