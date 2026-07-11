@@ -63,6 +63,15 @@ export default function PhoneLogin() {
     return () => clearInterval(interval);
   }, [mode, timer]);
 
+  const handleEditNumber = () => {
+    tap();
+    setMode('phone');
+    setConfirmResult(null);
+    setOtp(['', '', '', '', '', '']);
+    setErr('');
+    setSuccessMsg('');
+  };
+
   // Handles requesting the Firebase SMS OTP
   const onRequestOtp = async () => {
     let formattedPhone = phoneNumber.trim();
@@ -123,6 +132,7 @@ export default function PhoneLogin() {
     tap();
     setLoading(true);
     setErr('');
+    setSuccessMsg('');
 
     try {
       console.log(`[AUTH] Verifying code: ${code} with Firebase...`);
@@ -255,12 +265,17 @@ export default function PhoneLogin() {
             // OTP CODE VERIFICATION LAYOUT
             <View style={{ gap: spacing.md, marginTop: spacing.lg }}>
               <Text style={[styles.h1, { color: t.textPrimary }]}>Enter OTP Code</Text>
-              <Text style={[styles.sub, { color: t.textSecondary }]}>
-                A 6-digit verification code has been dispatched to{' '}
-                <Text style={{ fontWeight: '700', color: t.textPrimary }}>
-                  {phoneNumber.startsWith('+') ? phoneNumber : `+91 ${phoneNumber}`}
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md }}>
+                <Text style={[styles.sub, { color: t.textSecondary, marginBottom: 0 }]}>
+                  A 6-digit verification code has been dispatched to{' '}
+                  <Text style={{ fontWeight: '700', color: t.textPrimary }}>
+                    {phoneNumber.startsWith('+') ? phoneNumber : `+91 ${phoneNumber}`}
+                  </Text>
                 </Text>
-              </Text>
+                <TouchableOpacity onPress={handleEditNumber}>
+                  <Text style={{ fontSize: 13, color: t.primary, fontWeight: '700', textDecorationLine: 'underline' }}>Edit Number</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* 6 individual OTP input boxes */}
               <View style={styles.otpInputRow}>

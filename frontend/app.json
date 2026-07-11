@@ -4,7 +4,7 @@
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app_Icon.png",
+    "icon": "./assets/images/app_icon_ios.png",
     "scheme": "frontend",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -31,8 +31,8 @@
         }
       },
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app_Icon.png",
-        "backgroundColor": "#FDFDFD"
+        "foregroundImage": "./assets/images/adaptive_foreground.png",
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true
     },

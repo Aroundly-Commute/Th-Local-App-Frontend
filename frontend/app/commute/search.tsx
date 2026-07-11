@@ -551,7 +551,10 @@ export default function Search() {
                       testID="seats-input"
                       editable={!loading && !locLoading}
                       value={seats}
-                      onChangeText={setSeats}
+                      onChangeText={(val) => {
+                        const cleaned = val.replace(/[^1-9]/g, '');
+                        setSeats(cleaned ? cleaned[0] : '');
+                      }}
                       keyboardType="numeric"
                       maxLength={1}
                       style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1, padding: 0 }}

@@ -10,6 +10,7 @@ import {
   sendEmailVerification,
   GoogleAuthProvider,
   signInWithCredential,
+  PhoneAuthProvider,
 } from '@react-native-firebase/auth';
 
 const authNative = () => {
@@ -36,6 +37,9 @@ const authNative = () => {
         },
         sendEmailVerification: async () => {
           await sendEmailVerification(user);
+        },
+        linkWithCredential: async (credential: any) => {
+          await user.linkWithCredential(credential);
         }
       };
     },
@@ -62,6 +66,9 @@ const authNative = () => {
             },
             sendEmailVerification: async () => {
               await sendEmailVerification(user);
+            },
+            linkWithCredential: async (credential: any) => {
+              await user.linkWithCredential(credential);
             }
           });
         }
@@ -120,6 +127,7 @@ const authNative = () => {
     signInWithPhoneNumber: async (phoneNumber: string) => {
       const confirmationResult = await signInWithPhoneNumber(nativeAuth, phoneNumber);
       return {
+        verificationId: confirmationResult.verificationId,
         confirm: async (code: string) => {
           const res = await confirmationResult.confirm(code);
           if (!res || !res.user) throw new Error('Failed to confirm OTP');
@@ -141,6 +149,12 @@ const authNative = () => {
 authNative.GoogleAuthProvider = {
   credential: (idToken: string) => {
     return GoogleAuthProvider.credential(idToken);
+  }
+};
+
+authNative.PhoneAuthProvider = {
+  credential: (verificationId: string, code: string) => {
+    return PhoneAuthProvider.credential(verificationId, code);
   }
 };
 

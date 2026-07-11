@@ -47,6 +47,7 @@ type AuthCtx = {
   signup: (email: string, password: string, name: string, role: string) => Promise<void>;
   sendPhoneOtp: (phoneNumber: string) => Promise<any>;
   verifyPhoneOtp: (confirmationResult: any, code: string) => Promise<void>;
+  linkPhoneOtp: (confirmationResult: any, code: string) => Promise<void>;
   loginWithGoogle: (firebaseIdToken: string, name?: string, email?: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -339,6 +340,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const linkPhoneOtp = useCallback(async (confirmationResult: any, code: string) => {
+    isAuthActionInProgress.current = true;
+    try {
+      console.log(`[AUTH] Linking Phone SMS OTP code ${code} to current user...`);
+      const currentUser = auth().currentUser;
+      if (!currentUser) throw new Error('No logged in user found to link');
+
+      const credential = auth.PhoneAuthProvider.credential(confirmationResult.verificationId, code);
+      console.log('[AUTH] Created credential object:', credential);
+      
+      try {
+        await currentUser.linkWithCredential(credential);
+        console.log('[AUTH] linkWithCredential resolved successfully.');
+      } catch (linkErr: any) {
+        console.error('[AUTH] linkWithCredential threw error:', linkErr);
+        throw linkErr;
+      }
+      
+      console.log('[AUTH] Phone linked in Firebase. Forcing token refresh...');
+      const token = await currentUser.getIdToken(true);
+      console.log('[AUTH] Token refreshed successfully.');
+      await AsyncStorage.setItem('access_token', token);
+      
+      console.log('[AUTH] Syncing linked session with Postgres...');
+      const { data } = await api.get('/auth/me');
+      console.log('[AUTH] Postgres sync response user:', data);
+      await AsyncStorage.setItem('cached_profile_user', JSON.stringify(data));
+      setUser(data);
+      console.log(`[AUTH] Phone number successfully linked to Firebase user and synced to Postgres.`);
+    } catch (err: any) {
+      console.error('[AUTH] linkPhoneOtp failed overall:', err);
+      throw err;
+    } finally {
+      isAuthActionInProgress.current = false;
+    }
+  }, []);
+
   const loginWithGoogle = useCallback(async (firebaseIdToken: string, name?: string, email?: string) => {
     isAuthActionInProgress.current = true;
     try {
@@ -403,7 +441,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <Ctx.Provider value={{ user, loading, login, signup, sendPhoneOtp, verifyPhoneOtp, loginWithGoogle, logout, refresh, setIsAuthenticating }}>
+    <Ctx.Provider value={{ user, loading, login, signup, sendPhoneOtp, verifyPhoneOtp, linkPhoneOtp, loginWithGoogle, logout, refresh, setIsAuthenticating }}>
       {children}
     </Ctx.Provider>
   );
