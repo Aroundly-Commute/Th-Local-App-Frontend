@@ -21,6 +21,7 @@ import { ScreenHeader } from '../../../core/components/ScreenHeader';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 import { Alert } from '../../../core/components/CustomAlert';
 import { validatePhoneNumber } from '../../../core/utils/validation';
+import { translateFirebaseError } from '../../../core/utils/firebaseErrorHandler';
 import { styles } from './EditProfile.styles';
 
 const AVATARS = {
@@ -47,7 +48,7 @@ const AVATARS = {
 export default function EditProfileScreen() {
   const t = lightTheme;
   const router = useRouter();
-  const { user, refresh } = useAuth();
+  const { user, refresh, sendPhoneOtp, linkPhoneOtp } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
@@ -67,6 +68,20 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [confirmResult, setConfirmResult] = useState<any>(null);
+
+  const cleanCurrentPhone = (user?.phoneNumber || '').trim();
+  const cleanInputPhone = (() => {
+    const trimmed = phoneNumber.trim();
+    if (!trimmed) return '';
+    return trimmed.startsWith('+') ? trimmed : `+91${trimmed}`;
+  })();
+  const needsVerification = cleanInputPhone !== cleanCurrentPhone;
+
   const handleNameChange = (text: string) => {
     const cleaned = text.replace(/[^A-Za-z\s]/g, '');
     if (cleaned.length <= 50) {
@@ -79,8 +94,74 @@ export default function EditProfileScreen() {
     const maxLength = cleaned.startsWith('+') ? 13 : 10;
     if (cleaned.length <= maxLength) {
       setPhoneNumber(cleaned);
+      setIsOtpSent(false);
+      setOtpError('');
     }
   };
+
+  const handleSendOtp = async () => {
+    let formattedPhone = phoneNumber.trim();
+    if (!formattedPhone) return;
+    if (!formattedPhone.startsWith('+')) {
+      formattedPhone = `+91${formattedPhone}`;
+    }
+    if (!validatePhoneNumber(formattedPhone)) {
+      setErrorMsg('Please enter a valid mobile number');
+      errorH();
+      return;
+    }
+
+    tap();
+    setVerifying(true);
+    setOtpError('');
+    setErrorMsg('');
+
+    try {
+      // 1. Check in our Postgres database first if the number is already taken by another account
+      const checkRes = await api.get(`/auth/check-phone?phoneNumber=${encodeURIComponent(formattedPhone)}`);
+      if (checkRes.data && checkRes.data.exists) {
+        throw new Error('This phone number is already registered with another account');
+      }
+
+      // 2. Dispatch real Firebase OTP
+      const confirmation = await sendPhoneOtp(formattedPhone);
+      setConfirmResult(confirmation);
+      setIsOtpSent(true);
+      success();
+    } catch (err: any) {
+      errorH();
+      setOtpError(translateFirebaseError(err) || 'Failed to send OTP code. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!confirmResult) {
+      setOtpError('No active verification transaction found. Please restart.');
+      return;
+    }
+
+    tap();
+    setVerifying(true);
+    setOtpError('');
+    setErrorMsg('');
+
+    try {
+      await linkPhoneOtp(confirmResult, otpCode);
+      success();
+      setIsOtpSent(false);
+      setOtpCode('');
+      Alert.alert('Verified', 'Phone number verified and updated successfully!');
+    } catch (err: any) {
+      console.error('[EDIT_PROFILE] handleVerifyOtp failed:', err);
+      errorH();
+      setOtpError(translateFirebaseError(err) || 'Invalid or expired OTP verification code');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
 
   const handleGenderChange = (selectedGender: 'Male' | 'Female' | 'Other') => {
     tap();
@@ -100,8 +181,12 @@ export default function EditProfileScreen() {
       errorH();
       return;
     }
-    if (!validatePhoneNumber(phoneNumber)) {
-      setErrorMsg('Please enter a valid mobile number');
+    let formattedPhone = phoneNumber.trim();
+    if (!formattedPhone.startsWith('+')) {
+      formattedPhone = `+91${formattedPhone}`;
+    }
+    if (formattedPhone !== (user?.phoneNumber || '').trim()) {
+      setErrorMsg('Please verify your phone number via OTP first');
       errorH();
       return;
     }
@@ -234,7 +319,75 @@ export default function EditProfileScreen() {
                   keyboardType="phone-pad"
                   style={[styles.inputField, { color: t.textPrimary }]}
                 />
+                {needsVerification && !isOtpSent && (
+                  <TouchableOpacity
+                    onPress={handleSendOtp}
+                    disabled={verifying || !phoneNumber.trim()}
+                    style={{
+                      backgroundColor: t.primary,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 100,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {verifying ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>Verify</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
+
+              {/* Show OTP sending/verification errors here so they are visible even if OTP box is not shown yet */}
+              {needsVerification && otpError ? (
+                <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '500', marginTop: 6 }}>{otpError}</Text>
+              ) : null}
+
+              {/* OTP Entry Field */}
+              {needsVerification && isOtpSent && (
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <Text style={{ fontSize: 12, color: t.textSecondary }}>
+                      A 6-digit verification code has been dispatched to {phoneNumber.trim().startsWith('+') ? phoneNumber.trim() : `+91${phoneNumber.trim()}`}
+                    </Text>
+                    <TouchableOpacity onPress={() => { tap(); setIsOtpSent(false); setOtpCode(''); setOtpError(''); setConfirmResult(null); }}>
+                      <Text style={{ fontSize: 12, color: t.primary, fontWeight: '700', textDecorationLine: 'underline' }}>Edit Number</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={[styles.inputFieldWrapper, { flex: 1, backgroundColor: t.surface, borderColor: t.border }]}>
+                      <TextInput
+                        placeholder="OTP Code"
+                        placeholderTextColor={t.textSecondary}
+                        value={otpCode}
+                        onChangeText={setOtpCode}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        style={[styles.inputField, { color: t.textPrimary }]}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleVerifyOtp}
+                      disabled={verifying || otpCode.length < 6}
+                      style={{
+                        backgroundColor: '#10B981',
+                        paddingHorizontal: 16,
+                        borderRadius: 100,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {verifying ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Confirm</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Gender Selection */}

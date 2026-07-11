@@ -1,6 +1,24 @@
 export function translateFirebaseError(error: any): string {
   if (!error) return 'An unexpected error occurred. Please try again.';
 
+  // Handle Axios / Network / HTTP Errors
+  if (error.response) {
+    const status = error.response.status;
+    if (status === 401 || status === 403) {
+      return 'Authentication failed. Please check your credentials or try another login method.';
+    }
+    if (error.response.data && error.response.data.message) {
+      const apiMsg = error.response.data.message;
+      if (typeof apiMsg === 'string' && !apiMsg.includes('Prisma') && !apiMsg.includes('database')) {
+        return apiMsg;
+      }
+    }
+    return `Server returned an error (${status}). Please try again.`;
+  }
+  if (error.message && error.message.includes('Network Error')) {
+    return 'Network connection issue. Please check your internet connection.';
+  }
+
   const code = error.code || error.message || '';
   const message = typeof error === 'string' ? error : (error.message || '');
 
@@ -46,7 +64,7 @@ export function translateFirebaseError(error: any): string {
     code.includes('auth/invalid-credentials') ||
     message.includes('invalid-credentials')
   ) {
-    return 'Invalid email or password entered. Please try again.';
+    return 'Invalid credentials or verification code. Please try again.';
   }
   if (code.includes('auth/email-already-in-use') || message.includes('email-already-in-use')) {
     return 'This email is already registered. Please log in instead.';
@@ -64,6 +82,14 @@ export function translateFirebaseError(error: any): string {
   }
   if (code.includes('auth/invalid-phone-number') || message.includes('invalid-phone-number')) {
     return 'Please enter a valid phone number including country code.';
+  }
+  if (
+    code.includes('auth/credential-already-in-use') ||
+    message.includes('credential-already-in-use') ||
+    code.includes('auth/phone-number-already-exists') ||
+    message.includes('phone-number-already-exists')
+  ) {
+    return 'This phone number is already linked to another account.';
   }
   if (
     code.includes('auth/invalid-app-credential') || 

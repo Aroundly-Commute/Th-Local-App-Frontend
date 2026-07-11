@@ -41,6 +41,12 @@ export default function IntroScreen() {
 
   const slides = [
     {
+      title: 'Aroundly',
+      description: 'Ride Together , Save together with Aroundly',
+      image: require('../../../../assets/images/app_Icon_less_padding.png'),
+      isLogo: true,
+    },
+    {
       title: 'Cab Buddy',
       description: 'Matches two strangers going to the same route, so that they can book a cab and split the fare.',
       image: cabBuddyPromoImg,
@@ -137,8 +143,8 @@ export default function IntroScreen() {
             <View style={styles.imageContainer}>
               <Image
                 source={slide.image}
-                style={styles.image}
-                resizeMode="cover"
+                style={slide.isLogo ? { width: 220, height: 180 } : styles.image}
+                resizeMode={slide.isLogo ? 'contain' : 'cover'}
               />
             </View>
             <View style={styles.content}>
@@ -170,20 +176,23 @@ export default function IntroScreen() {
         </View>
 
         {/* CTA Button */}
-        {activeIndex === slides.length - 1 ? (
-          <TouchableOpacity
-            testID="intro-next-btn"
-            onPress={handleNext}
-            activeOpacity={0.85}
-            style={[styles.ctaButton, { backgroundColor: t.primary }]}
-          >
+        <TouchableOpacity
+          testID="intro-next-btn"
+          onPress={handleNext}
+          activeOpacity={0.85}
+          style={[styles.ctaButton, { backgroundColor: t.primary }]}
+        >
+          {activeIndex === slides.length - 1 ? (
             <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
               {"Let's GO"}
             </Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ height: 54 }} />
-        )}
+          ) : (
+            <>
+              <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Next</Text>
+              <ChevronRight color={t.primaryContrast} size={18} />
+            </>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

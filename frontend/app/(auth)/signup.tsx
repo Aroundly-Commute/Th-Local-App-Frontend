@@ -181,10 +181,7 @@ export default function Signup() {
                   source={require('../../assets/images/app_Icon_less_padding.png')}
                   style={{ width: 200, height: 160, resizeMode: 'contain', marginBottom: 8 }}
                 />
-                <Text style={[styles.h1, { color: t.textPrimary, textAlign: 'center' }]}>Join the green movement</Text>
-                <Text style={[styles.sub, { color: t.textSecondary, textAlign: 'center', marginBottom: spacing.md }]}>
-                  Save money. Cut emissions. Meet your community.
-                </Text>
+                <Text style={[styles.h1, { color: t.textPrimary, textAlign: 'center', marginBottom: spacing.md }]}>Ride Together, Save Together</Text>
               </View>
 
               <View style={[styles.input, { backgroundColor: t.surface, borderColor: t.border }]}>
@@ -323,7 +320,7 @@ export default function Signup() {
 
 const styles = StyleSheet.create({
   back: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  h1: { fontSize: 30, fontWeight: '800', letterSpacing: -1, marginBottom: 6 },
+  h1: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5, marginBottom: 6 },
   sub: { fontSize: 15, marginBottom: spacing.lg },
   input: {
     flexDirection: 'row',
