@@ -81,6 +81,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const syncFcmToken = async () => {
+    try {
+      const localCached = await AsyncStorage.getItem('@fcm_token');
+      
+      // If server already has a token, and it matches our local cache, skip fetching
+      if (user?.fcmToken && user.fcmToken === localCached) {
+        console.log('[FCM] Token matches server. Skipping fetch.');
+        return;
+      }
+
+      // If server has it but we don't have it locally, cache it
+      if (user?.fcmToken && !localCached) {
+        await AsyncStorage.setItem('@fcm_token', user.fcmToken);
+        console.log('[FCM] Cached server token locally.');
+        return;
+      }
+
+      // If we have it locally but server doesn't, sync local to server
+      if (localCached && !user?.fcmToken) {
+        console.log('[FCM] Syncing local token to server...');
+        await api.patch('/auth/fcm-token', { fcmToken: localCached });
+        // Optionally update the context user
+        setUser(prev => prev ? { ...prev, fcmToken: localCached } : null);
+        return;
+      }
+    } catch (e) {
+      console.warn('[FCM] Error checking local token cache:', e);
+    }
+
     if (Platform.OS === 'web') {
       try {
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window) {
@@ -119,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('[FCM Web] Retrieved token:', token);
             if (token) {
               await api.patch('/auth/fcm-token', { fcmToken: token });
+              await AsyncStorage.setItem('@fcm_token', token);
             }
           }
         }
@@ -142,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('[FCM] Retrieved token:', token);
         if (token) {
           await api.patch('/auth/fcm-token', { fcmToken: token });
+          await AsyncStorage.setItem('@fcm_token', token);
         }
       }
     } catch (err) {

@@ -1,6 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { api } from '../../../core/api/api';
 
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
@@ -25,10 +26,20 @@ export default function ProfileScreen() {
   const t = lightTheme;
   const router = useRouter();
   const { user, logout, refresh } = useAuth();
+  const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
       refresh().catch(() => { });
+
+      // Fetch user's scheduled/upcoming rides count dynamically
+      api.get('/rides/my?limit=1')
+        .then(({ data }) => {
+          setUpcomingCount(data.totalUpcomingCount ?? 0);
+        })
+        .catch(err => {
+          console.error('[PROFILE] Failed to fetch scheduled rides count:', err);
+        });
     }, [refresh])
   );
 
@@ -51,15 +62,15 @@ export default function ProfileScreen() {
   if (enableRideSharing) {
     menu.push(
       { icon: Car, label: 'My Vehicles', badge: user.vehicle ? 'Registered' : 'Not Set', badgeVariant: user.vehicle ? 'success' : undefined, route: '/commute/vehicles' },
-      { icon: Calendar, label: 'Scheduled Rides', badge: '1', route: '/commute/rides' }
+      { icon: Calendar, label: 'Scheduled Rides', badge: upcomingCount && upcomingCount > 0 ? upcomingCount.toString() : null, route: '/commute/rides' }
     );
   }
 
   menu.push(
-    { icon: Wallet, label: 'Payment Methods', badge: null },
-    { icon: MapPin, label: 'Saved Places', badge: '4' },
+    { icon: Wallet, label: 'Payment Methods', badge: null, route: '/payments' },
+    { icon: MapPin, label: 'Saved Places', badge: null, route: '/commute/saved-places' },
     { icon: Shield, label: 'Verification', badge: user.is_verified ? 'Verified' : null, badgeVariant: 'success', route: '/verification' },
-    { icon: Bell, label: 'Notifications', badge: null },
+    { icon: Bell, label: 'Notifications', badge: null, route: '/notifications' },
     { icon: Settings, label: 'Settings', badge: null, route: '/settings' },
     { icon: HelpCircle, label: 'Help & Support', badge: null, route: '/help' }
   );
@@ -82,7 +93,9 @@ export default function ProfileScreen() {
         <View style={[styles.header, { backgroundColor: t.surface, borderColor: t.border }]}>
           <VerifiedAvatar uri={user.avatar_url || undefined} name={user.name} verified={user.is_verified} t={t} size={88} />
           <Text numberOfLines={1} style={[styles.name, { color: t.textPrimary }]}>{user.name}</Text>
-          <Text numberOfLines={1} style={[styles.email, { color: t.textSecondary }]}>{user.email}</Text>
+          {user.email ? (
+            <Text numberOfLines={1} style={[styles.email, { color: t.textSecondary }]}>{user.email}</Text>
+          ) : null}
 
           {/* User Bio */}
           {user.bio ? (

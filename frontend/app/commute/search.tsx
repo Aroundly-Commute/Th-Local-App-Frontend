@@ -251,7 +251,8 @@ export default function Search() {
         riderEndName: to,
         riderStartCoords: fromCoords?.lng && fromCoords?.lat ? [Number(fromCoords.lng), Number(fromCoords.lat)] : undefined,
         riderEndCoords: toCoords?.lng && toCoords?.lat ? [Number(toCoords.lng), Number(toCoords.lat)] : undefined,
-        riderStartTime: ride.startTime
+        riderStartTime: ride.startTime,
+        fareCents: ride.estimatedFare ? Math.round(ride.estimatedFare.finalFare * 100) : undefined
       };
 
       await api.post(`/rides/${ride.id}/book`, payload);

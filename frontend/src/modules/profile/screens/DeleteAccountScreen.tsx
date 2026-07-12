@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, BackHandler, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronLeft, ShieldAlert, CheckCircle2, Trash2, Mail, User } from 'lucide-react-native';
 import { tap, success as successHaptic } from '../../../core/utils/haptics';
+import { useAuth } from '../../../core/auth/auth';
+import { api } from '../../../core/api/api';
 import { styles } from './DeleteAccount.styles';
 
 export default function DeleteAccountScreen() {
   const router = useRouter();
+  const { user, logout } = useAuth();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
@@ -31,6 +35,12 @@ export default function DeleteAccountScreen() {
       return;
     }
 
+    // Verify entered email matches the logged-in user's registered email
+    if (email.trim().toLowerCase() !== user?.email?.toLowerCase()) {
+      setErrorMsg('The email address entered does not match your registered email address.');
+      return;
+    }
+
     if (!confirmed) {
       setErrorMsg('Please check the confirmation box to proceed.');
       return;
@@ -41,12 +51,40 @@ export default function DeleteAccountScreen() {
     setErrorMsg('');
 
     try {
-      // We simulate a secure submission. In production, this can fire a webhook, support email, or queue a delete event.
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // 1. Delete user data and account from the server
+      await api.post('/auth/delete-account');
+
+      // 2. Clear all local AsyncStorage data completely
+      await AsyncStorage.clear();
+
+      // 3. Clear auth context state and Firebase session
+      await logout();
+
       successHaptic();
       setSuccess(true);
-    } catch (err) {
-      setErrorMsg('Something went wrong. Please try again or contact support@aroundly.in');
+
+      // 4. Alert user and exit/redirect
+      Alert.alert(
+        'Account Deleted',
+        'Your account and all associated data have been permanently deleted.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (Platform.OS === 'android') {
+                BackHandler.exitApp();
+              } else {
+                router.replace('/(auth)/login');
+              }
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    } catch (err: any) {
+      console.error('[DELETE_ACCOUNT] Failed:', err);
+      const msg = err?.response?.data?.message || err?.message || 'Something went wrong.';
+      setErrorMsg(`${msg} Please try again or contact support@aroundly.in`);
     } finally {
       setLoading(false);
     }
@@ -62,8 +100,12 @@ export default function DeleteAccountScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.cardWrapper}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.cardWrapper}>
           {!success ? (
             <>
               <View style={styles.iconContainer}>
@@ -173,6 +215,7 @@ export default function DeleteAccountScreen() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

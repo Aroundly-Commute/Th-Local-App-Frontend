@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Home, Briefcase, MapPin, Trash2, Plus } from 'lucide-react-native';
@@ -21,6 +23,7 @@ import { ScreenHeader } from '../../../core/components/ScreenHeader';
 import { LocationSearchModal } from '../components/search/LocationSearchModal';
 import { tap, success, errorH } from '../../../core/utils/haptics';
 import { Alert } from '../../../core/components/CustomAlert';
+import { WebPermissionModal } from '../../../core/components/WebPermissionModal';
 
 interface SavedPlace {
   id: string;
@@ -34,6 +37,8 @@ export default function SavedPlacesScreen() {
   const t = lightTheme;
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { selectMode } = useLocalSearchParams<{ selectMode?: string }>();
+  const isSelectMode = selectMode === 'true';
   
   const [selectedType, setSelectedType] = useState<'Home' | 'Work' | 'Other'>('Home');
   const [label, setLabel] = useState('Home');
@@ -42,6 +47,69 @@ export default function SavedPlacesScreen() {
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+
+  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
+  const [currentLocationStr, setCurrentLocationStr] = useState<string | null>(null);
+  const [webPermissionModalVisible, setWebPermissionModalVisible] = useState(false);
+
+  const checkPermission = async () => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      const granted = status === 'granted';
+      setHasLocationPermission(granted);
+      if (granted) {
+        const cached = await AsyncStorage.getItem('@current_location');
+        if (cached) {
+          setCurrentLocationStr(cached);
+        }
+      }
+    } catch (err) {
+      console.warn('Error checking permission in saved places:', err);
+    }
+  };
+
+  React.useEffect(() => {
+    checkPermission();
+  }, []);
+
+  const handleEnableLocation = async () => {
+    tap();
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      const granted = status === 'granted';
+      setHasLocationPermission(granted);
+      
+      if (granted) {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude: lat, longitude: lng } = loc.coords;
+        let placeName = 'Current Location';
+        const addresses = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+        if (addresses && addresses.length > 0) {
+          const addr = addresses[0];
+          const parts = [addr.name || addr.street, addr.district || addr.subregion, addr.city].filter(Boolean);
+          placeName = parts.join(', ') || 'Current Location';
+        }
+        await AsyncStorage.setItem('@current_location', placeName);
+        setCurrentLocationStr(placeName);
+      } else {
+        // Open system settings or show modal depending on platform
+        if (Platform.OS === 'web') {
+          setWebPermissionModalVisible(true);
+        } else {
+          Linking.openSettings().catch((err) => console.error('Failed to open settings:', err));
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to request location permission, trying fallback settings open:', err);
+      if (Platform.OS === 'web') {
+        setWebPermissionModalVisible(true);
+      } else {
+        Linking.openSettings().catch((err) => console.error('Failed to open settings:', err));
+      }
+    }
+  };
+
+
 
   // Fetch saved places from backend
   const { data: places = [], isLoading } = useQuery<SavedPlace[]>({
@@ -158,6 +226,90 @@ export default function SavedPlacesScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Current Location Row (Only in Select Mode) */}
+        {isSelectMode && (
+          <View style={[styles.section, { marginBottom: 16 }]}>
+            <Text style={[styles.sectionTitle, { color: t.textPrimary }]}>Current Location</Text>
+            <View
+              style={[
+                styles.placeCard,
+                { backgroundColor: t.surface, borderColor: t.border },
+              ]}
+            >
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.iconWrapper, { backgroundColor: '#EFF6FF' }]}>
+                  <MapPin size={18} color="#3B82F6" />
+                </View>
+                <View style={styles.placeInfo}>
+                  <Text style={[styles.placeLabel, { color: t.textPrimary }]}>Current Location</Text>
+                  <Text style={[styles.placeAddress, { color: t.textSecondary }]} numberOfLines={2}>
+                    {hasLocationPermission ? (currentLocationStr || 'Resolving location...') : ''}
+                  </Text>
+                </View>
+              </View>
+              {hasLocationPermission ? (
+                <TouchableOpacity
+                  onPress={async () => {
+                    tap();
+                    if (currentLocationStr) {
+                      await AsyncStorage.setItem('@active_location', currentLocationStr);
+                      const cachedCurrentData = await AsyncStorage.getItem('@current_location_data');
+                      if (cachedCurrentData) {
+                        await AsyncStorage.setItem('@active_location_data', cachedCurrentData);
+                      }
+                      router.back();
+                    } else {
+                      try {
+                        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                        const addresses = await Location.reverseGeocodeAsync({
+                          latitude: loc.coords.latitude,
+                          longitude: loc.coords.longitude
+                        });
+                        if (addresses && addresses.length > 0) {
+                          const addr = addresses[0];
+                          const parts = [addr.name || addr.street, addr.district || addr.subregion, addr.city].filter(Boolean);
+                          const placeName = parts.join(', ') || 'Current Location';
+                          await AsyncStorage.setItem('@active_location', placeName);
+                          await AsyncStorage.setItem('@active_location_data', JSON.stringify({
+                            address: placeName,
+                            latitude: loc.coords.latitude,
+                            longitude: loc.coords.longitude
+                          }));
+                          router.back();
+                        }
+                      } catch (e) {
+                        Alert.alert('Error', 'Unable to resolve your current location.');
+                      }
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  style={{
+                    backgroundColor: t.primary,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: radius.sm,
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>Select</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleEnableLocation}
+                  activeOpacity={0.7}
+                  style={{
+                    backgroundColor: t.primary,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: radius.sm,
+                  }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>Grant Permission</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Saved List Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: t.textPrimary }]}>Your Saved Places</Text>
@@ -184,6 +336,11 @@ export default function SavedPlacesScreen() {
                     onPress={async () => {
                       tap();
                       await AsyncStorage.setItem('@active_location', place.address);
+                      await AsyncStorage.setItem('@active_location_data', JSON.stringify({
+                        address: place.address,
+                        latitude: place.latitude,
+                        longitude: place.longitude
+                      }));
                       router.back();
                     }}
                     activeOpacity={0.7}
@@ -354,6 +511,10 @@ export default function SavedPlacesScreen() {
         setLatitude(lat);
         setLongitude(lng);
       }}
+    />
+    <WebPermissionModal
+      visible={webPermissionModalVisible}
+      onClose={() => setWebPermissionModalVisible(false)}
     />
     </SafeAreaView>
   );
