@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Linking, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Smartphone, Shield, CheckCircle } from 'lucide-react-native';
+
+const googlePlayBadgeImg = require('../../../../assets/images/get-it-on-google-play-badge.png');
 import { verdexColors } from '../../../core/theme/theme';
 import { CabBuddySimulator } from './CabBuddySimulator';
 
@@ -41,10 +43,14 @@ export function Hero({ isDesktop }: HeroProps) {
 
             <TouchableOpacity
               onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.bpandey690.frontend')}
-              style={styles.ctaSecondary}
+              activeOpacity={0.8}
+              style={{ justifyContent: 'center', alignItems: 'center' }}
             >
-              <Smartphone size={18} color="#FFFFFF" />
-              <Text style={styles.ctaSecondaryText}>Download Android App</Text>
+              <Image
+                source={googlePlayBadgeImg}
+                style={{ width: 175, height: 52 }}
+                resizeMode="contain"
+              />
             </TouchableOpacity>
           </View>
 

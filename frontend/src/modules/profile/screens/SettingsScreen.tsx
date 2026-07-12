@@ -20,6 +20,7 @@ import { useFeatureFlags } from '../../../services/feature-flag/FeatureFlagConte
 import { lightTheme, spacing } from '../../../core/theme/theme';
 import { tap } from '../../../core/utils/haptics';
 import { ScreenHeader } from '../../../core/components/ScreenHeader';
+import { WebPermissionModal } from '../../../core/components/WebPermissionModal';
 import { styles } from './Settings.styles';
 
 export default function SettingsScreen() {
@@ -237,42 +238,10 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Web Permissions Modal */}
-      <Modal
+      <WebPermissionModal
         visible={webPermissionModalVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setWebPermissionModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: t.background }]}>
-            <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Browser Permissions Guide</Text>
-            <Text style={[styles.modalText, { color: t.textSecondary }]}>
-              To update site permissions (Location, Notifications, etc.) for this web app:
-            </Text>
-            <View style={styles.modalSteps}>
-              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
-                1. Look at the address bar of your browser.
-              </Text>
-              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
-                2. Click on the lock (🔒) or settings icon next to the URL.
-              </Text>
-              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
-                3. Locate the permission toggles and select "Allow" or "Ask".
-              </Text>
-              <Text style={[styles.modalStep, { color: t.textPrimary }]}>
-                4. Reload the page to apply the changes.
-              </Text>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.modalCloseBtn, { backgroundColor: t.primary }]}
-              onPress={() => setWebPermissionModalVisible(false)}
-            >
-              <Text style={{ color: t.primaryContrast, fontWeight: '700' }}>Got It</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setWebPermissionModalVisible(false)}
+      />
 
       {/* App Settings Modal */}
       <Modal

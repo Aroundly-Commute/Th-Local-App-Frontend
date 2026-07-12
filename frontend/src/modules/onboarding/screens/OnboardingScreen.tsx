@@ -30,7 +30,9 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { user, refresh, sendPhoneOtp, linkPhoneOtp } = useAuth();
 
-  const [name, setName] = useState(user?.name || '');
+  // If the user's stored name looks like a phone number or placeholder, start with empty
+  const isNamePhoneNumber = user?.name && (/^\+?\d+$/.test(user.name.trim()) || user.name.startsWith('Aroundler'));
+  const [name, setName] = useState(isNamePhoneNumber ? '' : (user?.name || ''));
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>((user?.gender as any) || 'Male');
   const [loading, setLoading] = useState(false);
@@ -204,20 +206,26 @@ export default function OnboardingScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginBottom: 10 }}>
-            <TouchableOpacity
-              onPress={handleSkip}
-              activeOpacity={0.7}
-              style={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: radius.pill,
-                backgroundColor: t.muted,
-              }}
-            >
-              <Text style={{ fontSize: 13, color: t.textSecondary, fontWeight: '700' }}>Skip</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Only show Skip button if user already has a valid name (e.g. Google/email signup).
+              Phone-login users must provide their name — it's mandatory. */}
+          {!isNamePhoneNumber && user?.name ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginBottom: 10 }}>
+              <TouchableOpacity
+                onPress={handleSkip}
+                activeOpacity={0.7}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: radius.pill,
+                  backgroundColor: t.muted,
+                }}
+              >
+                <Text style={{ fontSize: 13, color: t.textSecondary, fontWeight: '700' }}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ height: 10 }} />
+          )}
           <View style={styles.header}>
             <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
               <Image

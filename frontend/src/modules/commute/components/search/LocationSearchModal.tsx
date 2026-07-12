@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Search as SearchIcon, ChevronLeft, X } from 'lucide-react-native';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../../../../core/api/api';
 import { spacing, radius, Theme } from '../../../../core/theme/theme';
 import { tap, success, errorH } from '../../../../core/utils/haptics';
@@ -85,13 +87,51 @@ export function LocationSearchModal({
 
   const handleCurrentLocation = async () => {
     try {
-      setLocLoading(true);
       tap();
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Permission to access location was denied.');
-        return;
+      
+      // 1. Check if `@current_location_data` exists in AsyncStorage
+      const cachedStr = await AsyncStorage.getItem('@current_location_data');
+      if (cachedStr) {
+        try {
+          const cachedData = JSON.parse(cachedStr);
+          if (cachedData && cachedData.address && cachedData.latitude && cachedData.longitude) {
+            onSelect(cachedData.address, cachedData.latitude, cachedData.longitude);
+            success();
+            onClose();
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse cached location data:', e);
+        }
       }
+
+      // 2. If not present, check foreground permission status
+      const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
+      if (currentStatus !== 'granted') {
+        const { status: requestStatus } = await Location.requestForegroundPermissionsAsync();
+        if (requestStatus !== 'granted') {
+          errorH();
+          Alert.alert(
+            'Permission Required',
+            'Location permission is missing. Please grant location permission in your device settings to use this feature.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Grant Permission',
+                onPress: () => {
+                  Linking.openSettings().catch((err) =>
+                    console.error('Failed to open settings:', err)
+                  );
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
+      // 3. Permission is granted, fetch the current position
+      setLocLoading(true);
       const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -122,6 +162,14 @@ export function LocationSearchModal({
       } catch (e) {
         // Fallback
       }
+
+      // Cache it for next time
+      await AsyncStorage.setItem('@current_location', placeName);
+      await AsyncStorage.setItem(
+        '@current_location_data',
+        JSON.stringify({ address: placeName, latitude, longitude })
+      );
+
       onSelect(placeName, latitude, longitude);
       success();
       onClose();

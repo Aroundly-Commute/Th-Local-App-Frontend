@@ -70,6 +70,7 @@ const GooglePlayIcon = ({ size = 24 }: { size?: number }) => (
 const cabBuddyPromoImg = require('../../../../assets/images/cab_buddy_promo.webp');
 const carpoolPromoImg = require('../../../../assets/images/carpool_promo.webp');
 const offerRidePromoImg = require('../../../../assets/images/offer_ride_promo.webp');
+const googlePlayBadgeImg = require('../../../../assets/images/get-it-on-google-play-badge.png');
 
 const cabBuddyIconImg = Platform.select({
   web: require('../../../../assets/images/cab_buddy_icon.webp'),
@@ -122,9 +123,21 @@ export default function CommuteDashboard() {
   });
 
   const { data: ridesData, isLoading: ridesLoading, refetch: refreshRides } = useQuery({
-    queryKey: ['rides', 'nearby', 3],
+    queryKey: ['rides', 'nearby', 3, activeLocation],
     queryFn: async () => {
-      const { data } = await api.get('/rides?page=1&limit=3');
+      let url = '/rides?page=1&limit=3';
+      try {
+        const cachedActiveData = await AsyncStorage.getItem('@active_location_data');
+        if (cachedActiveData) {
+          const { latitude, longitude } = JSON.parse(cachedActiveData);
+          if (latitude && longitude) {
+            url += `&latitude=${latitude}&longitude=${longitude}`;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load active location coordinates:', e);
+      }
+      const { data } = await api.get(url);
       return data;
     },
     staleTime: 30000,
@@ -132,10 +145,18 @@ export default function CommuteDashboard() {
 
 
   const { data: buddiesData, isLoading: buddiesLoading, refetch: refreshBuddies } = useQuery({
-    queryKey: ['buddies', 3],
+    queryKey: ['buddies', 3, activeLocation],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/matchmaking/buddies?page=1&limit=3');
+        let url = '/matchmaking/buddies?page=1&limit=3';
+        const cachedActiveData = await AsyncStorage.getItem('@active_location_data');
+        if (cachedActiveData) {
+          const { latitude, longitude } = JSON.parse(cachedActiveData);
+          if (latitude && longitude) {
+            url += `&latitude=${latitude}&longitude=${longitude}`;
+          }
+        }
+        const { data } = await api.get(url);
         return data;
       } catch (err) {
         console.error('Failed to fetch buddy requests:', err);
@@ -161,6 +182,56 @@ export default function CommuteDashboard() {
     staleTime: 30000,
   });
 
+  const fetchAndStoreCurrentLocation = async () => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = loc.coords;
+      let placeName = 'Current Location';
+
+      if (Platform.OS === 'web') {
+        const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+        if (apiKey) {
+          const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.results && data.results.length > 0) {
+            placeName = data.results[0].formatted_address;
+          }
+        }
+      } else {
+        const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (addresses && addresses.length > 0) {
+          const addr = addresses[0];
+          const namePart = addr.name || addr.street || '';
+          const districtPart = addr.district || addr.subregion || '';
+          const cityPart = addr.city || addr.region || '';
+          const parts = [namePart, districtPart, cityPart].filter(Boolean);
+          placeName = parts.join(', ') || 'Current Location';
+        }
+      }
+
+      await AsyncStorage.setItem('@current_location', placeName);
+      await AsyncStorage.setItem(
+        '@current_location_data',
+        JSON.stringify({ address: placeName, latitude, longitude })
+      );
+      setCurrentLocation(placeName);
+
+      // Also update active location if it was not explicitly selected or if it's set to "Fetching location..." or "Select Location"
+      const cachedActive = await AsyncStorage.getItem('@active_location');
+      if (!cachedActive || cachedActive === 'Fetching location...' || cachedActive === 'Select Location') {
+        setActiveLocation(placeName);
+      }
+    } catch (err) {
+      console.error('Failed to fetch and store current location:', err);
+    }
+  };
+
   // Load and cache current location
   useEffect(() => {
     const initLocation = async () => {
@@ -184,43 +255,7 @@ export default function CommuteDashboard() {
           return;
         }
 
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const { latitude, longitude } = loc.coords;
-        let placeName = 'Current Location';
-
-        if (Platform.OS === 'web') {
-          const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-          if (apiKey) {
-            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.results && data.results.length > 0) {
-              placeName = data.results[0].formatted_address;
-            }
-          }
-        } else {
-          const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
-          if (addresses && addresses.length > 0) {
-            const addr = addresses[0];
-            const namePart = addr.name || addr.street || '';
-            const districtPart = addr.district || addr.subregion || '';
-            const cityPart = addr.city || addr.region || '';
-            const parts = [namePart, districtPart, cityPart].filter(Boolean);
-            placeName = parts.join(', ') || 'Current Location';
-          }
-        }
-
-        await AsyncStorage.setItem('@current_location', placeName);
-        setCurrentLocation(placeName);
-
-        // If active location was never explicitly selected, update active location to current
-        const checkActive = await AsyncStorage.getItem('@active_location');
-        if (!checkActive) {
-          setActiveLocation(placeName);
-        }
-
+        await fetchAndStoreCurrentLocation();
       } catch (err) {
         console.error('Failed to load/fetch current location:', err);
       }
@@ -246,6 +281,7 @@ export default function CommuteDashboard() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
+      await fetchAndStoreCurrentLocation();
       await Promise.all([refreshStats(), refreshRides(), refreshBuddies(), refreshSavedPlaces()]);
     } catch { } finally {
       setRefreshing(false);
@@ -256,17 +292,38 @@ export default function CommuteDashboard() {
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['saved-places'] });
       
-      AsyncStorage.getItem('@active_location').then((active) => {
-        if (active) {
-          setActiveLocation(active);
-        } else {
-          AsyncStorage.getItem('@current_location').then((current) => {
-            if (current) {
-              setActiveLocation(current);
+      const checkLocationPerm = async () => {
+        try {
+          const { status } = await Location.getForegroundPermissionsAsync();
+          const granted = status === 'granted';
+          
+          if (granted) {
+            await fetchAndStoreCurrentLocation();
+          }
+          
+          const active = await AsyncStorage.getItem('@active_location');
+          if (active && active !== 'Fetching location...') {
+            setActiveLocation(active);
+          } else {
+            if (granted) {
+              const current = await AsyncStorage.getItem('@current_location');
+              setActiveLocation(current || 'Fetching location...');
+            } else {
+              // Missing permission: show first saved place, or "Select Location"
+              if (savedPlaces && savedPlaces.length > 0) {
+                const firstPlace = savedPlaces[0].name || savedPlaces[0].address || 'Select Location';
+                setActiveLocation(firstPlace);
+              } else {
+                setActiveLocation('Select Location');
+              }
             }
-          });
+          }
+        } catch (err) {
+          console.error('[DASHBOARD] Location check error:', err);
         }
-      }).catch((err) => console.error('Failed to load active location:', err));
+      };
+
+      checkLocationPerm();
 
       if (hasInitialFetched.current) {
         queryClient.invalidateQueries({ queryKey: ['sustainability'] });
@@ -275,14 +332,16 @@ export default function CommuteDashboard() {
       } else {
         hasInitialFetched.current = true;
       }
-    }, [queryClient])
+    }, [queryClient, savedPlaces])
   );
 
   const nearbyRides = (rides || []).slice(0, 3);
   const buddiesList = (buddies || []).slice(0, 3);
 
   const { width: screenWidth } = Dimensions.get('window');
-  const containerWidth = screenWidth - spacing.lg * 2;
+  const contentWidth = Math.min(screenWidth, 600);
+  const containerWidth = contentWidth - spacing.lg * 2;
+  const promoCardWidth = Math.min(containerWidth * 0.85, 340);
 
   const hasMultipleNearby = nearbyRides.length > 1;
   const nearbyCardWidth = hasMultipleNearby ? containerWidth * 0.95 : containerWidth;
@@ -322,7 +381,7 @@ export default function CommuteDashboard() {
 
   const services = [
     {
-      label: 'Cab Buddy',
+      label: 'Share a Cab',
       icon: cabBuddyIconImg,
       onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'buddy', hideTabs: 'true' } }),
     },
@@ -349,17 +408,17 @@ export default function CommuteDashboard() {
 
   const promoCards = [
     {
-      title: 'Cab Buddy',
-      description: 'Matches two strangers going to the same route so they can book a cab and split the fare.',
+      title: 'Share a Cab',
+      description: 'Matches two people going to the same route so they can book a cab and split the fare.',
       image: cabBuddyPromoImg,
-      buttonLabel: 'Find Cab Buddy',
+      buttonLabel: 'Share a Cab',
       onPress: () => {
         router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'buddy', hideTabs: 'true' } });
       },
     },
     {
       title: 'Car Pooling',
-      description: 'Going to some place with a vacant seat? Let your acquaintances pool in to save money, energy, and make better bonds.',
+      description: 'Going to some place? Request nearby, pool in with your neighbour going on the same route.',
       image: carpoolPromoImg,
       buttonLabel: 'Find Carpool',
       onPress: () => {
@@ -378,7 +437,15 @@ export default function CommuteDashboard() {
   return (
     <View style={{ flex: 1, backgroundColor: t.background }}>
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, paddingTop: 24 }}
+        style={{ flex: 1, backgroundColor: t.background }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: 120,
+          paddingTop: 24,
+          maxWidth: 600,
+          width: '100%',
+          alignSelf: 'center',
+        }}
         refreshControl={Platform.OS !== 'web' ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.textPrimary} /> : undefined}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
@@ -390,7 +457,7 @@ export default function CommuteDashboard() {
             testID="location-selector"
             onPress={() => {
               tap();
-              router.push('/commute/saved-places' as any);
+              router.push({ pathname: '/commute/saved-places' as any, params: { selectMode: 'true' } });
             }}
             activeOpacity={0.7}
             style={{
@@ -405,7 +472,7 @@ export default function CommuteDashboard() {
                 fontWeight: '600',
                 color: t.textPrimary,
                 marginRight: spacing.xs,
-                maxWidth: screenWidth * 0.5,
+                maxWidth: contentWidth * 0.5,
               }}
               numberOfLines={1}
               ellipsizeMode="tail"
@@ -576,7 +643,7 @@ export default function CommuteDashboard() {
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
-            snapToInterval={containerWidth * 0.85 + 16}
+            snapToInterval={promoCardWidth + 16}
             snapToAlignment="start"
             style={{ marginHorizontal: -spacing.lg, marginTop: spacing.xs }}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 16 }}
@@ -589,7 +656,7 @@ export default function CommuteDashboard() {
                   {
                     backgroundColor: t.surface,
                     borderColor: t.border,
-                    width: containerWidth * 0.85,
+                    width: promoCardWidth,
                   }
                 ]}
               >
@@ -654,13 +721,12 @@ export default function CommuteDashboard() {
                 tap();
                 Linking.openURL('https://play.google.com/store/apps/details?id=com.bpandey690.frontend');
               }}
-              style={styles.googlePlayBadge}
             >
-              <GooglePlayIcon size={24} />
-              <View style={styles.googlePlayBadgeTextContainer}>
-                <Text style={styles.googlePlayBadgeSub}>GET IT ON</Text>
-                <Text style={styles.googlePlayBadgeMain}>Google Play</Text>
-              </View>
+              <Image
+                source={googlePlayBadgeImg}
+                style={{ width: 135, height: 40 }}
+                resizeMode="contain"
+              />
             </TouchableOpacity>
           </View>
         )}

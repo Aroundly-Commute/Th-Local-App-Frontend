@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { User, Phone, Save, Building2, Briefcase, Mail, Lock, FileText } from 'lucide-react-native';
+import { User, Phone, Save, Building2, Briefcase, Mail, FileText } from 'lucide-react-native';
 import { useAuth } from '../../../core/auth/auth';
 import { lightTheme, spacing } from '../../../core/theme/theme';
 import { tap, success, errorH } from '../../../core/utils/haptics';
@@ -50,7 +50,9 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { user, refresh, sendPhoneOtp, linkPhoneOtp } = useAuth();
 
-  const [name, setName] = useState(user?.name || '');
+  // If the user's stored name looks like a phone number or placeholder, start with empty
+  const isNamePhoneNumber = user?.name && (/^\+?\d+$/.test(user.name.trim()) || user.name.startsWith('Aroundler'));
+  const [name, setName] = useState(isNamePhoneNumber ? '' : (user?.name || ''));
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>(() => {
     const rawGender = user?.gender;
@@ -68,11 +70,20 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Phone OTP state
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [confirmResult, setConfirmResult] = useState<any>(null);
+
+  // Email verification state
+  const [email, setEmail] = useState(user?.email || '');
+  const [isEmailOtpSent, setIsEmailOtpSent] = useState(false);
+  const [emailOtpCode, setEmailOtpCode] = useState('');
+  const [emailVerifying, setEmailVerifying] = useState(false);
+  const [emailOtpError, setEmailOtpError] = useState('');
+  const [emailVerified, setEmailVerified] = useState(!!user?.email);
 
   const cleanCurrentPhone = (user?.phoneNumber || '').trim();
   const cleanInputPhone = (() => {
@@ -81,6 +92,11 @@ export default function EditProfileScreen() {
     return trimmed.startsWith('+') ? trimmed : `+91${trimmed}`;
   })();
   const needsVerification = cleanInputPhone !== cleanCurrentPhone;
+
+  // Email change detection
+  const cleanCurrentEmail = (user?.email || '').trim().toLowerCase();
+  const cleanInputEmail = email.trim().toLowerCase();
+  const emailNeedsVerification = cleanInputEmail !== cleanCurrentEmail && cleanInputEmail.length > 0;
 
   const handleNameChange = (text: string) => {
     const cleaned = text.replace(/[^A-Za-z\s]/g, '');
@@ -159,6 +175,67 @@ export default function EditProfileScreen() {
       setOtpError(translateFirebaseError(err) || 'Invalid or expired OTP verification code');
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const handleSendEmailOtp = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) return;
+
+    // Basic email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setEmailOtpError('Please enter a valid email address');
+      errorH();
+      return;
+    }
+
+    tap();
+    setEmailVerifying(true);
+    setEmailOtpError('');
+    setErrorMsg('');
+
+    try {
+      // 1. Check if email is already taken
+      const checkRes = await api.get(`/auth/check-email?email=${encodeURIComponent(trimmedEmail)}`);
+      if (checkRes.data && checkRes.data.exists) {
+        throw new Error('This email is already registered with another account');
+      }
+
+      // 2. Send email OTP
+      await api.post('/auth/email/send-otp', { email: trimmedEmail });
+      setIsEmailOtpSent(true);
+      success();
+    } catch (err: any) {
+      errorH();
+      setEmailOtpError(err?.response?.data?.message || err?.message || 'Failed to send verification code. Please try again.');
+    } finally {
+      setEmailVerifying(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || emailOtpCode.length < 6) return;
+
+    tap();
+    setEmailVerifying(true);
+    setEmailOtpError('');
+    setErrorMsg('');
+
+    try {
+      await api.post('/auth/email/verify-otp', { email: trimmedEmail, code: emailOtpCode });
+      success();
+      setIsEmailOtpSent(false);
+      setEmailOtpCode('');
+      setEmailVerified(true);
+      await refresh();
+      Alert.alert('Verified', 'Email verified and updated successfully!');
+    } catch (err: any) {
+      errorH();
+      setEmailOtpError(err?.response?.data?.message || 'Invalid or expired verification code');
+    } finally {
+      setEmailVerifying(false);
     }
   };
 
@@ -277,18 +354,95 @@ export default function EditProfileScreen() {
               </View>
             </View>
 
-            {/* Email Address (Read-Only) */}
+            {/* Email Address */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Email Address (Read-Only)</Text>
-              <View style={[styles.inputFieldWrapper, { backgroundColor: t.surfaceElevated, borderColor: t.border }]}>
-                <Mail color={t.textTertiary} size={18} />
+              <Text style={[styles.inputLabel, { color: t.textSecondary }]}>Email</Text>
+              <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
+                <Mail color={t.textSecondary} size={18} />
                 <TextInput
-                  value={user?.email || 'No email registered'}
-                  editable={false}
-                  style={[styles.inputField, { color: t.textSecondary }]}
+                  placeholder="Enter your email address"
+                  placeholderTextColor={t.textSecondary}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setIsEmailOtpSent(false);
+                    setEmailOtpError('');
+                    setEmailVerified(text.trim().toLowerCase() === cleanCurrentEmail && !!cleanCurrentEmail);
+                  }}
+                  editable={!loading && !isEmailOtpSent}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={[styles.inputField, { color: t.textPrimary }]}
                 />
-                <Lock color={t.textTertiary} size={16} />
+                {emailNeedsVerification && !isEmailOtpSent && (
+                  <TouchableOpacity
+                    onPress={handleSendEmailOtp}
+                    disabled={emailVerifying || !email.trim()}
+                    style={{
+                      backgroundColor: t.primary,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 100,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {emailVerifying ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>Verify</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
+
+              {/* Email OTP errors */}
+              {emailNeedsVerification && emailOtpError ? (
+                <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '500', marginTop: 6 }}>{emailOtpError}</Text>
+              ) : null}
+
+              {/* Email OTP Entry Field */}
+              {emailNeedsVerification && isEmailOtpSent && (
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <Text style={{ fontSize: 12, color: t.textSecondary }}>
+                      A 6-digit verification code has been sent to {email.trim()}
+                    </Text>
+                    <TouchableOpacity onPress={() => { tap(); setIsEmailOtpSent(false); setEmailOtpCode(''); setEmailOtpError(''); }}>
+                      <Text style={{ fontSize: 12, color: t.primary, fontWeight: '700', textDecorationLine: 'underline' }}>Edit Email</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={[styles.inputFieldWrapper, { flex: 1, backgroundColor: t.surface, borderColor: t.border }]}>
+                      <TextInput
+                        placeholder="OTP Code"
+                        placeholderTextColor={t.textSecondary}
+                        value={emailOtpCode}
+                        onChangeText={setEmailOtpCode}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        style={[styles.inputField, { color: t.textPrimary }]}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleVerifyEmailOtp}
+                      disabled={emailVerifying || emailOtpCode.length < 6}
+                      style={{
+                        backgroundColor: '#10B981',
+                        paddingHorizontal: 16,
+                        borderRadius: 100,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {emailVerifying ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Confirm</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Name Input */}

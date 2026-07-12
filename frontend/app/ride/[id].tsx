@@ -134,7 +134,8 @@ export default function RideDetail() {
         riderEndName: params.toName,
         riderStartCoords: params.fromLng && params.fromLat ? [Number(params.fromLng), Number(params.fromLat)] : undefined,
         riderEndCoords: params.toLng && params.toLat ? [Number(params.toLng), Number(params.toLat)] : undefined,
-        riderStartTime: ride?.startTime
+        riderStartTime: ride?.startTime,
+        fareCents: parsedFare ? Math.round(parsedFare.finalFare * 100) : undefined
       };
 
       AnalyticsService.trackEvent('ride_seat_requested', {
@@ -312,9 +313,50 @@ export default function RideDetail() {
   if (ride.endPointGeoJson) {
     try { const p = JSON.parse(ride.endPointGeoJson); dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
   }
-  
-  const co2 = ride.co2_saved_kg ?? 0;
+
+  // Build co-passenger route overlays
+  // Driver: show all passenger routes; Rider (ACCEPTED): show own route overlay
+  const buildPassengerRouteOverlays = () => {
+    if (isDriver) {
+      return passengers
+        .filter((p: any) => p.riderStartGeoJson && p.riderEndGeoJson)
+        .map((p: any) => {
+          let pStartLat: number | undefined, pStartLng: number | undefined;
+          let pEndLat: number | undefined, pEndLng: number | undefined;
+          try { const g = JSON.parse(p.riderStartGeoJson); pStartLng = g.coordinates[0]; pStartLat = g.coordinates[1]; } catch {}
+          try { const g = JSON.parse(p.riderEndGeoJson); pEndLng = g.coordinates[0]; pEndLat = g.coordinates[1]; } catch {}
+          return {
+            origin: { lat: pStartLat ?? 0, lng: pStartLng ?? 0, name: p.riderStartName || 'Pickup' },
+            destination: { lat: pEndLat ?? 0, lng: pEndLng ?? 0, name: p.riderEndName || 'Drop-off' },
+            label: p.rider_name || 'Passenger',
+          };
+        })
+        .filter((r: any) => r.origin.lat && r.destination.lat);
+    }
+    // Rider with ACCEPTED status: show own route overlay on the driver's map
+    if (!isDriver && ride.my_request_status === 'ACCEPTED') {
+      const myEntry = passengers.find((p: any) => p.rider_id === user?.id);
+      if (myEntry && myEntry.riderStartGeoJson && myEntry.riderEndGeoJson) {
+        let pStartLat: number | undefined, pStartLng: number | undefined;
+        let pEndLat: number | undefined, pEndLng: number | undefined;
+        try { const g = JSON.parse(myEntry.riderStartGeoJson); pStartLng = g.coordinates[0]; pStartLat = g.coordinates[1]; } catch {}
+        try { const g = JSON.parse(myEntry.riderEndGeoJson); pEndLng = g.coordinates[0]; pEndLat = g.coordinates[1]; } catch {}
+        if (pStartLat && pEndLat) {
+          return [{
+            origin: { lat: pStartLat, lng: pStartLng ?? 0, name: myEntry.riderStartName || 'Your Pickup' },
+            destination: { lat: pEndLat, lng: pEndLng ?? 0, name: myEntry.riderEndName || 'Your Drop-off' },
+            label: 'Your Route',
+            color: '#f59e0b',
+          }];
+        }
+      }
+    }
+    return [];
+  };
+  const passengerRoutes = buildPassengerRouteOverlays();
+
   const dist = ride.distance_km ?? 0;
+  const co2 = ride.co2_saved_kg ?? 0;
   const vehicle = isCab ? null : (ride.driver_vehicle || ride.vehicle);
   const time = new Date(departureTime);
 
@@ -520,6 +562,7 @@ export default function RideDetail() {
           destination={{ lat: dest_lat ?? 0, lng: dest_lng ?? 0, name: destination }}
           t={t}
           style={{ height: '100%', borderRadius: 0 }}
+          passengerRoutes={passengerRoutes}
         />
       </View>
 

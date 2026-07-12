@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ChevronRight } from 'lucide-react-native';
+
 import { useAuth } from '../../../core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../../core/theme/theme';
 import { tap } from '../../../core/utils/haptics';
@@ -41,19 +41,19 @@ export default function IntroScreen() {
 
   const slides = [
     {
-      title: 'Aroundly',
-      description: 'Ride Together , Save together with Aroundly',
+      title: 'Ride Sharing App',
+      description: 'Ride Together, Save Together',
       image: require('../../../../assets/images/app_Icon_less_padding.png'),
       isLogo: true,
     },
     {
-      title: 'Cab Buddy',
-      description: 'Matches two strangers going to the same route, so that they can book a cab and split the fare.',
+      title: 'Share a Cab',
+      description: 'Matches two people going to the same route, so that they can book a cab and split the fare.',
       image: cabBuddyPromoImg,
     },
     {
       title: 'Car Pooling',
-      description: 'Going to some place with a vacant seat? Let acquaintances pool in, saving money, energy, and building better bonds.',
+      description: 'Going to some place? Request nearby, pool in with your neighbour going on the same route.',
       image: carpoolPromoImg,
     },
     {
@@ -69,7 +69,8 @@ export default function IntroScreen() {
       await AsyncStorage.setItem('intro_completed', 'true');
       if (user) {
         const onboarded = await AsyncStorage.getItem(`onboarded_${user.id}`);
-        const isAlreadyConfigured = user.name && !user.name.startsWith('Aroundler') && user.phoneNumber;
+        const nameIsValid = user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
+        const isAlreadyConfigured = nameIsValid && user.phoneNumber;
         if (onboarded === 'true' || isAlreadyConfigured) {
           router.replace('/(tabs)');
         } else {
@@ -148,7 +149,9 @@ export default function IntroScreen() {
               />
             </View>
             <View style={styles.content}>
-              <Text style={[styles.title, { color: t.textPrimary }]}>{slide.title}</Text>
+              {slide.title ? (
+                <Text style={[styles.title, { color: t.textPrimary }]}>{slide.title}</Text>
+              ) : null}
               <Text style={[styles.description, { color: t.textSecondary }]}>
                 {slide.description}
               </Text>
@@ -176,23 +179,20 @@ export default function IntroScreen() {
         </View>
 
         {/* CTA Button */}
-        <TouchableOpacity
-          testID="intro-next-btn"
-          onPress={handleNext}
-          activeOpacity={0.85}
-          style={[styles.ctaButton, { backgroundColor: t.primary }]}
-        >
-          {activeIndex === slides.length - 1 ? (
+        {activeIndex === slides.length - 1 ? (
+          <TouchableOpacity
+            testID="intro-next-btn"
+            onPress={handleNext}
+            activeOpacity={0.85}
+            style={[styles.ctaButton, { backgroundColor: t.primary }]}
+          >
             <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
-              {"Let's GO"}
+              Let's Go Aroundly
             </Text>
-          ) : (
-            <>
-              <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Next</Text>
-              <ChevronRight color={t.primaryContrast} size={18} />
-            </>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.ctaButton, { backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 }]} />
+        )}
       </View>
     </SafeAreaView>
   );

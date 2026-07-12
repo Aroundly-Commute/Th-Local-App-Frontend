@@ -43,10 +43,13 @@ export default function Index() {
       try {
         const hasRequested = await AsyncStorage.getItem('permissions_requested');
         if (!hasRequested) {
-          // Request Location Permission
+          // Request Location Permission first
           await Location.requestForegroundPermissionsAsync().catch(() => { });
 
-          // Request Notification Permission
+          // Introduce a 2-second delay to prevent OS stacking/suppression bugs
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // Request Notification Permission second
           if (Platform.OS !== 'web') {
             try {
               const { default: messaging } = require('@react-native-firebase/messaging');
@@ -79,7 +82,8 @@ export default function Index() {
 
       if (user) {
         const val = await AsyncStorage.getItem(`onboarded_${user.id}`);
-        const isAlreadyConfigured = user.name && !user.name.startsWith('Aroundler') && user.phoneNumber;
+        const nameIsValid = user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
+        const isAlreadyConfigured = nameIsValid && user.phoneNumber;
         if (val === 'true' || isAlreadyConfigured) {
           if (isAlreadyConfigured) {
             await AsyncStorage.setItem(`onboarded_${user.id}`, 'true').catch(() => { });
