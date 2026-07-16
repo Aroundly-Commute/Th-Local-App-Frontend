@@ -124,9 +124,9 @@ export class AnalyticsService {
   /**
    * Tracks user screen navigations.
    */
-  public static async trackScreen(screenName: string): Promise<void> {
+  public static async trackScreen(screenName: string, params: Record<string, any> = {}): Promise<void> {
     try {
-      console.log(`[Analytics] Log Screen View: "${screenName}"`);
+      console.log(`[Analytics] Log Screen View: "${screenName}"`, params);
       
       if (Platform.OS === 'web') {
         if (webAnalyticsInstance) {
@@ -134,6 +134,7 @@ export class AnalyticsService {
           logEvent(webAnalyticsInstance, 'screen_view', {
             screen_name: screenName,
             screen_class: screenName,
+            ...params,
           });
         }
       } else {
@@ -142,12 +143,21 @@ export class AnalyticsService {
           await logEventNative(analytics, 'screen_view', {
             screen_name: screenName,
             screen_class: screenName,
+            ...params,
           });
         }
       }
     } catch (err) {
       console.warn('[Analytics] Failed to log Screen View:', err);
     }
+  }
+
+  public static async logScreenView(screenName: string, params: Record<string, any> = {}): Promise<void> {
+    return this.trackScreen(screenName, params);
+  }
+
+  public static async logEvent(eventName: string, params: Record<string, any> = {}): Promise<void> {
+    return this.trackEvent(eventName, params);
   }
 
   /**

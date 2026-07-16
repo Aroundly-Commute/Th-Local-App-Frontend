@@ -564,6 +564,8 @@ const RideCardExt: React.FC<{
   const isConfirmed = r.isConfirmed || (!isRequested && !isPast && (r.status === 'ACCEPTED' || r.request_status === 'ACCEPTED' || r.request_status === 'STARTED'));
 
   // Status Label
+  const isOffered = r.ride_role === 'OFFERED' && isDriver && !r.isBuddyRequest && !isCab;
+
   let statusLabel = 'Pending';
   if (r.status === 'CANCELLED' || r.request_status === 'CANCELLED') {
     statusLabel = 'Cancelled';
@@ -573,7 +575,7 @@ const RideCardExt: React.FC<{
     statusLabel = isSentRequest ? (r.isBuddyRequest ? 'Open' : 'Requested') : 'Pending';
   } else {
     // Upcoming Tab
-    statusLabel = isConfirmed ? 'Confirmed' : (isDriver ? 'Offered' : 'Requested');
+    statusLabel = isConfirmed ? 'Confirmed' : (isOffered ? 'Offered' : 'Requested');
   }
 
   const statusColor = statusLabel === 'Cancelled' ? '#ef4444' : (isPast ? t.textSecondary : (statusLabel === 'Confirmed' ? t.success : t.warning));
@@ -582,39 +584,24 @@ const RideCardExt: React.FC<{
   // Chat: driver -> first passenger chat, rider -> their own chat with driver
   const chatId = r.chat_id;
 
-  // Decide user info display (unconfirmed upcoming/past: hide user details)
-  const showUserInfo = (isRequested || isConfirmed) && statusLabel !== 'Expired' && statusLabel !== 'Cancelled';
-  // Decide price info display (hide price for cab buddy request/share request, or when unconfirmed upcoming)
-  const showPriceInfo = (isConfirmed || isRequested) && !isCab && !r.isBuddyRequest && statusLabel !== 'Expired' && statusLabel !== 'Cancelled';
+  // Decide user info display (Always display peer details for confirmed rides and for all cards in the Requests tab)
+  const showUserInfo = (isConfirmed || isRequested) && statusLabel !== 'Expired' && statusLabel !== 'Cancelled';
+  // Decide price info display (ONLY for offered rides, hidden for all seeking matches)
+  const showPriceInfo = isOffered && r.price_per_seat !== null && r.price_per_seat !== undefined && statusLabel !== 'Expired' && statusLabel !== 'Cancelled';
 
-  const avatarUri = showUserInfo
-    ? (isConfirmed ? r.peer_avatar : (isCab ? r.peer_avatar : (isDriver && isRequested ? r.peer_avatar : r.driver_avatar)))
-    : null;
-  const avatarName = showUserInfo
-    ? (isConfirmed ? (r.peer_name || 'Co-Passenger') : (isCab ? (r.peer_name || 'Cab Buddy') : (isDriver && isRequested ? r.peer_name : r.driver_name)))
-    : null;
-  const targetUserId = showUserInfo
-    ? (isConfirmed
-        ? (isDriver ? (r.passengers?.[0]?.rider_id || null) : r.driver_id)
-        : (isCab ? (isDriver ? (r.passengers?.[0]?.rider_id || r.driver_id) : r.driver_id) : (isDriver && isRequested ? r.rider_id : r.driver_id))
-      )
-    : null;
+  const avatarUri = showUserInfo ? r.peer_avatar : null;
+  const avatarName = showUserInfo ? r.peer_name : null;
+  const targetUserId = showUserInfo ? (r.peer_id || r.driver_id) : null;
 
-  let displayRole = 'Ride Offer';
-  if (r.isBuddyRequest || isCab) {
-    displayRole = 'Seeking Ride';
-  } else if (isDriver) {
+  let displayRole = 'Seeking Ride';
+  if (isOffered) {
     displayRole = 'Ride Offered';
   } else {
     displayRole = 'Seeking Ride';
   }
 
-  const displayName = showUserInfo
-    ? (isConfirmed ? (r.peer_name || 'Co-Passenger') : (isCab ? (r.peer_name || 'Cab Buddy') : (isDriver ? (isRequested ? r.peer_name : `${r.driver_name} (You)`) : r.driver_name)))
-    : null;
-  const displayRating = showUserInfo
-    ? (isConfirmed ? (r.peer_rating ?? 5.0) : (isDriver && isRequested ? (r.peer_rating ?? 5.0) : (r.driver_rating ?? 5.0)))
-    : null;
+  const displayName = showUserInfo ? r.peer_name : null;
+  const displayRating = showUserInfo ? (r.peer_rating ?? 5.0) : null;
   const priceVal = (r.price_per_seat ?? 0).toFixed(0);
 
   const handleCancelRequest = async (e: any) => {

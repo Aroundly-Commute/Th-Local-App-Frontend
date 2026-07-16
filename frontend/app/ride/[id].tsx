@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Platform, Animated, PanResponder, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, TextInput } from 'react-native';
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { useQuery } from '@tanstack/react-query';
@@ -8,7 +8,7 @@ import { ReviewModal } from '../../src/core/components/ReviewModal';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Star, Leaf, Car, MessageCircle, Users, Clock, Send } from 'lucide-react-native';
+import { Star, Leaf, Car, MessageCircle, Clock, Send, KeyRound, CheckCircle2 } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
@@ -21,59 +21,6 @@ export default function RideDetail() {
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
 
-  const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-  const SNAP_TOP = 80;
-  const SNAP_MIDDLE = SCREEN_HEIGHT * 0.45;
-  const SNAP_BOTTOM = SCREEN_HEIGHT - 160;
-
-  const lastPosition = useRef(SNAP_MIDDLE);
-  const translateY = useRef(new Animated.Value(SNAP_MIDDLE)).current;
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only drag vertically, and ignore minor tremors or horizontal swipes
-        return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dx) < Math.abs(gestureState.dy);
-      },
-      onPanResponderGrant: () => {
-        translateY.setOffset(lastPosition.current);
-        translateY.setValue(0);
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        const nextValue = lastPosition.current + gestureState.dy;
-        if (nextValue >= SNAP_TOP) {
-          translateY.setValue(gestureState.dy);
-        } else {
-          // Clamp at SNAP_TOP
-          translateY.setValue(SNAP_TOP - lastPosition.current);
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        translateY.flattenOffset();
-        const absolutePos = lastPosition.current + gestureState.dy;
-
-        const distTop = Math.abs(absolutePos - SNAP_TOP);
-        const distMiddle = Math.abs(absolutePos - SNAP_MIDDLE);
-        const distBottom = Math.abs(absolutePos - SNAP_BOTTOM);
-
-        let target = SNAP_MIDDLE;
-        const minVal = Math.min(distTop, distMiddle, distBottom);
-        if (minVal === distTop) target = SNAP_TOP;
-        else if (minVal === distBottom) target = SNAP_BOTTOM;
-
-        lastPosition.current = target;
-        Animated.spring(translateY, {
-          toValue: target,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 150,
-          mass: 0.6,
-        }).start();
-      },
-    })
-  ).current;
-  
   const params = useLocalSearchParams<{
     id: string;
     fromName?: string;
@@ -89,6 +36,8 @@ export default function RideDetail() {
   const id = params.id;
   const { user } = useAuth();
   const [booking, setBooking] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
   const [showPricingDetails, setShowPricingDetails] = useState(false);
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -99,97 +48,61 @@ export default function RideDetail() {
     toUserId: string;
   } | null>(null);
 
-  const { data: ride, refetch: load } = useQuery({
+  const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : null;
+  const requestedSeats = params.seats ? parseInt(params.seats, 10) : 1;
+
+  const { data: ride, isLoading, refetch: load } = useQuery({
     queryKey: ['ride', id],
     queryFn: async () => {
-      try {
-        const { data } = await api.get(`/rides/${id}`);
-        AnalyticsService.trackEvent('ride_detail_viewed', {
-          ride_id: id,
-          driver_name: data.driverName || data.driver_name,
-          start_place: data.startPlaceName || data.origin,
-          end_place: data.endPlaceName || data.destination,
-        }).catch(() => {});
-        return data;
-      } catch (e: any) {
-        errorH();
-        AnalyticsService.trackError(e?.response?.data?.message || 'Load Ride Details Failed', false, { ride_id: id }).catch(() => {});
-        throw e;
-      }
+      const { data } = await api.get(`/rides/${id}`);
+      return data;
     },
-    enabled: !!id,
+    enabled: Boolean(id),
   });
 
-  const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : (ride?.estimatedFare ?? null);
-
-  const requestedSeats = params.seats ? parseInt(params.seats) : 1;
+  useEffect(() => {
+    if (id) {
+      try {
+        AnalyticsService?.logScreenView?.('RideDetail', { rideId: id });
+      } catch {}
+    }
+  }, [id]);
 
   const onBook = async () => {
     tap();
     setBooking(true);
     try {
       const payload = {
+        riderStartName: params.fromName || ride?.startPlaceName,
+        riderEndName: params.toName || ride?.endPlaceName,
+        riderStartCoords: params.fromLng && params.fromLat ? [parseFloat(params.fromLng), parseFloat(params.fromLat)] : undefined,
+        riderEndCoords: params.toLng && params.toLat ? [parseFloat(params.toLng), parseFloat(params.toLat)] : undefined,
         seats: requestedSeats,
-        riderStartName: params.fromName,
-        riderEndName: params.toName,
-        riderStartCoords: params.fromLng && params.fromLat ? [Number(params.fromLng), Number(params.fromLat)] : undefined,
-        riderEndCoords: params.toLng && params.toLat ? [Number(params.toLng), Number(params.toLat)] : undefined,
-        riderStartTime: ride?.startTime,
-        fareCents: parsedFare ? Math.round(parsedFare.finalFare * 100) : undefined
       };
-
-      AnalyticsService.trackEvent('ride_seat_requested', {
-        ride_id: id,
-        rider_id: user?.id,
-        is_custom_path: !!(params.fromLng && params.fromLat) ? 'true' : 'false',
-      }).catch(() => {});
-
-      const { data } = await api.post(`/rides/${id}/book`, payload);
+      await api.post(`/rides/${id}/book`, payload);
       success();
-      Alert.alert('Request Sent!', 'Your booking request has been sent. You will be notified once the driver accepts.');
-      load(); // refresh to show updated state
+      Alert.alert(
+        'Request Sent',
+        'Your ride request has been sent successfully! The ride will now appear under your Upcoming Rides tab.',
+        [{ text: 'OK', onPress: () => router.push('/(tabs)/rides' as any) }]
+      );
+      load();
     } catch (e: any) {
       errorH();
-      AnalyticsService.trackError(e?.response?.data?.message || 'Request Seat Failed', false, { ride_id: id }).catch(() => {});
-      Alert.alert('Failed', e?.response?.data?.message || e?.response?.data?.detail || 'Try again');
-    } finally { setBooking(false); }
-  };
-
-  const onAcceptRequest = async (requestId: string) => {
-    tap();
-    try {
-      AnalyticsService.trackEvent('ride_request_accepted', { request_id: requestId, ride_id: id }).catch(() => {});
-      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'ACCEPTED' });
-      success();
-      Alert.alert('Request Accepted', 'The passenger has been added to your ride.');
-      load(); // refresh
-    } catch (e: any) {
-      errorH();
-      AnalyticsService.trackError(e?.response?.data?.message || 'Accept Request Failed', false, { request_id: requestId }).catch(() => {});
-      Alert.alert('Error', e?.response?.data?.message || 'Failed to accept request');
-    }
-  };
-
-  const onRejectRequest = async (requestId: string) => {
-    tap();
-    try {
-      AnalyticsService.trackEvent('ride_request_rejected', { request_id: requestId, ride_id: id }).catch(() => {});
-      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'REJECTED' });
-      success();
-      Alert.alert('Request Rejected', 'The request has been declined.');
-      load(); // refresh
-    } catch (e: any) {
-      errorH();
-      AnalyticsService.trackError(e?.response?.data?.message || 'Reject Request Failed', false, { request_id: requestId }).catch(() => {});
-      Alert.alert('Error', e?.response?.data?.message || 'Failed to reject request');
+      Alert.alert('Booking Error', e?.response?.data?.message || 'Failed to send ride request');
+    } finally {
+      setBooking(false);
     }
   };
 
   const onCancelBooking = () => {
     tap();
+    const requestId = ride?.my_request_id;
+    if (!requestId) return;
+
     Alert.alert(
-      'Cancel Booking',
-      'Are you sure you want to cancel this booking/request?',
+      'Cancel Request / Booking',
+      'Are you sure you want to cancel your request or booking for this ride?',
       [
         { text: 'No', style: 'cancel' },
         {
@@ -198,7 +111,7 @@ export default function RideDetail() {
           onPress: async () => {
             tap();
             try {
-              await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'CANCELLED' });
+              await api.patch(`/matchmaking/requests/${requestId}`, { status: 'CANCELLED' });
               success();
               Alert.alert('Cancelled', 'Your booking/request has been cancelled.');
               load();
@@ -214,9 +127,11 @@ export default function RideDetail() {
 
   const onAcceptInvite = async () => {
     tap();
+    const requestId = ride?.my_request_id;
+    if (!requestId) return;
     setBooking(true);
     try {
-      await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'ACCEPTED' });
+      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'ACCEPTED' });
       success();
       Alert.alert('Accepted', "You have accepted the driver's ride offer!");
       load();
@@ -230,9 +145,11 @@ export default function RideDetail() {
 
   const onRejectInvite = async () => {
     tap();
+    const requestId = ride?.my_request_id;
+    if (!requestId) return;
     setBooking(true);
     try {
-      await api.patch(`/matchmaking/requests/${ride.my_request_id}`, { status: 'REJECTED' });
+      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'REJECTED' });
       success();
       Alert.alert('Rejected', 'You have rejected the ride offer.');
       load();
@@ -259,8 +176,8 @@ export default function RideDetail() {
             try {
               await api.patch(`/rides/${id}/status`, { status: 'CANCELLED' });
               success();
-              Alert.alert('Withdrawn', 'Your offered ride has been withdrawn.');
-              load();
+              Alert.alert('Withdrawn', 'Your ride offer has been withdrawn.');
+              router.push('/(tabs)/rides' as any);
             } catch (e: any) {
               errorH();
               Alert.alert('Error', e?.response?.data?.message || 'Failed to withdraw ride');
@@ -271,21 +188,81 @@ export default function RideDetail() {
     );
   };
 
-  if (!ride) return (
-    <View style={{ flex: 1, backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator color={t.primary} />
-    </View>
-  );
+  const onVerifyOtpAndStart = async () => {
+    const requestId = ride?.my_request_id || ride?.passengers?.[0]?.request_id;
+    if (!requestId) {
+      Alert.alert('Error', 'No active request found for verification');
+      return;
+    }
+    if (!otpInput || otpInput.trim().length !== 4) {
+      Alert.alert('Invalid OTP', 'Please enter a valid 4-digit OTP code.');
+      return;
+    }
+    tap();
+    setVerifyingOtp(true);
+    try {
+      await api.patch(`/matchmaking/requests/${requestId}/start`, { otp: otpInput.trim() });
+      success();
+      Alert.alert('Ride Started!', 'OTP verified successfully. Have a safe journey!');
+      setOtpInput('');
+      load();
+    } catch (e: any) {
+      errorH();
+      Alert.alert('Verification Error', e?.response?.data?.message || 'Invalid OTP. Please check with your co-passenger and try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const onCompleteRide = async () => {
+    const requestId = ride?.my_request_id || ride?.passengers?.[0]?.request_id;
+    if (!requestId) {
+      Alert.alert('Error', 'No active request found to complete');
+      return;
+    }
+    tap();
+    Alert.alert(
+      'Complete Ride',
+      'Are you sure you want to mark this ride as completed?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Complete',
+          onPress: async () => {
+            tap();
+            setBooking(true);
+            try {
+              await api.patch(`/matchmaking/requests/${requestId}/complete`);
+              success();
+              Alert.alert('Ride Completed!', 'The ride has been completed and moved to your Past Rides.');
+              router.push('/(tabs)/rides' as any);
+            } catch (e: any) {
+              errorH();
+              Alert.alert('Error', e?.response?.data?.message || 'Failed to complete ride');
+            } finally {
+              setBooking(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  if (isLoading || !ride) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={t.primary} size="large" />
+      </SafeAreaView>
+    );
+  }
 
   // Determine user's role on this ride
   const driverId = ride.driverId || ride.driver_id;
   const isDriver = user?.id === driverId;
   const passengers: any[] = ride.passengers || [];
-
   const isCab = ride.vehicleType === 'CAB';
   const firstPassenger = passengers?.[0];
 
-  // Normalize variables for CarPool backend
   const dName = isCab && isDriver && firstPassenger
     ? (firstPassenger.rider_name || 'Cab Buddy')
     : (ride.driverName || ride.driver_name || 'Unknown');
@@ -295,15 +272,17 @@ export default function RideDetail() {
   const dRating = isCab && isDriver && firstPassenger
     ? 5.0
     : (ride.driverRating ?? ride.driver_rating ?? 5.0);
-  
+
   const origin = ride.startPlaceName || ride.origin || 'Unknown';
   const destination = ride.endPlaceName || ride.destination || 'Unknown';
   const departureTime = ride.startTime || ride.departure_time;
-  const isPast = new Date(departureTime) < new Date();
-  
-  const myFare = ride.my_fare_cents ? ride.my_fare_cents / 100 : null;
-  const price = myFare ?? (parsedFare ? parsedFare.finalFare : (ride.chargeCents ? ride.chargeCents / 100 : (ride.price_per_seat ?? 0)));
-  
+  const time = new Date(departureTime);
+  const isPast = time < new Date();
+
+  const myRequestStatus = ride.my_request_status;
+  const currentStatus = ride.status || 'OPEN';
+  const isConfirmed = currentStatus === 'ACCEPTED' || currentStatus === 'STARTED' || currentStatus === 'COMPLETED' || myRequestStatus === 'ACCEPTED' || myRequestStatus === 'STARTED';
+
   let origin_lat: number | undefined, origin_lng: number | undefined;
   let dest_lat: number | undefined, dest_lng: number | undefined;
 
@@ -314,594 +293,247 @@ export default function RideDetail() {
     try { const p = JSON.parse(ride.endPointGeoJson); dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
   }
 
-  // Build co-passenger route overlays
-  // Driver: show all passenger routes; Rider (ACCEPTED): show own route overlay
-  const buildPassengerRouteOverlays = () => {
-    if (isDriver) {
-      return passengers
-        .filter((p: any) => p.riderStartGeoJson && p.riderEndGeoJson)
-        .map((p: any) => {
-          let pStartLat: number | undefined, pStartLng: number | undefined;
-          let pEndLat: number | undefined, pEndLng: number | undefined;
-          try { const g = JSON.parse(p.riderStartGeoJson); pStartLng = g.coordinates[0]; pStartLat = g.coordinates[1]; } catch {}
-          try { const g = JSON.parse(p.riderEndGeoJson); pEndLng = g.coordinates[0]; pEndLat = g.coordinates[1]; } catch {}
-          return {
-            origin: { lat: pStartLat ?? 0, lng: pStartLng ?? 0, name: p.riderStartName || 'Pickup' },
-            destination: { lat: pEndLat ?? 0, lng: pEndLng ?? 0, name: p.riderEndName || 'Drop-off' },
-            label: p.rider_name || 'Passenger',
-          };
-        })
-        .filter((r: any) => r.origin.lat && r.destination.lat);
-    }
-    // Rider with ACCEPTED status: show own route overlay on the driver's map
-    if (!isDriver && ride.my_request_status === 'ACCEPTED') {
-      const myEntry = passengers.find((p: any) => p.rider_id === user?.id);
-      if (myEntry && myEntry.riderStartGeoJson && myEntry.riderEndGeoJson) {
-        let pStartLat: number | undefined, pStartLng: number | undefined;
-        let pEndLat: number | undefined, pEndLng: number | undefined;
-        try { const g = JSON.parse(myEntry.riderStartGeoJson); pStartLng = g.coordinates[0]; pStartLat = g.coordinates[1]; } catch {}
-        try { const g = JSON.parse(myEntry.riderEndGeoJson); pEndLng = g.coordinates[0]; pEndLat = g.coordinates[1]; } catch {}
-        if (pStartLat && pEndLat) {
-          return [{
-            origin: { lat: pStartLat, lng: pStartLng ?? 0, name: myEntry.riderStartName || 'Your Pickup' },
-            destination: { lat: pEndLat, lng: pEndLng ?? 0, name: myEntry.riderEndName || 'Your Drop-off' },
-            label: 'Your Route',
-            color: '#f59e0b',
-          }];
-        }
-      }
-    }
-    return [];
-  };
-  const passengerRoutes = buildPassengerRouteOverlays();
-
   const dist = ride.distance_km ?? 0;
   const co2 = ride.co2_saved_kg ?? 0;
-  const vehicle = isCab ? null : (ride.driver_vehicle || ride.vehicle);
-  const time = new Date(departureTime);
-
-  // Rider's own request state
-  const myRequestStatus = ride.my_request_status; // 'REQUESTED' | 'ACCEPTED' | undefined
-  const myChatId = ride.my_chat_id;
-
-  // What FAB to show
-  // - Driver: no FAB (has passenger list below)
-  // - Rider with ACCEPTED request: "Chat with Driver"
-  // - Rider with REQUESTED (pending): "Awaiting Approval"
-  // - Rider with no request: "Book Seat"
-  const fabContent = () => {
-    if (ride.status === 'CANCELLED') {
-      return (
-        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride Cancelled</Text>
-        </View>
-      );
-    }
-    if (isPast) {
-      if (!isDriver && myRequestStatus === 'ACCEPTED') {
-        const hasRated = ride.my_review_rating !== null && ride.my_review_rating !== undefined;
-        return (
-          <View style={{ width: '100%', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: t.textSecondary, fontSize: 13, fontWeight: '600' }}>
-              {hasRated ? 'Your rating for this driver' : 'Rate this ride'}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: hasRated ? 4 : 8 }}>
-              {hasRated ? (
-                [1, 2, 3, 4, 5].map((i) => (
-                  <Star
-                    key={i}
-                    color={i <= ride.my_review_rating ? '#f59e0b' : t.textTertiary}
-                    fill={i <= ride.my_review_rating ? '#f59e0b' : 'transparent'}
-                    size={20}
-                  />
-                ))
-              ) : (
-                [1, 2, 3, 4, 5].map((i) => (
-                  <TouchableOpacity
-                    key={i}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setReviewTarget({ peerName: dName, peerAvatar: dAvatar, rideId: id, toUserId: driverId });
-                      setReviewModalVisible(true);
-                    }}
-                  >
-                    <Star color={t.textTertiary} size={24} />
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          </View>
-        );
-      }
-      return (
-        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride Completed</Text>
-        </View>
-      );
-    }
-    if (isDriver) {
-      if (ride.status !== 'CANCELLED') {
-        return (
-          <TouchableOpacity
-            testID="withdraw-ride"
-            onPress={onWithdrawRide}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
-          >
-            <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>
-              {isCab ? 'Cancel Match' : 'Withdraw Offered Ride'}
-            </Text>
-          </TouchableOpacity>
-        );
-      }
-      return null;
-    }
-    if (myRequestStatus === 'ACCEPTED') {
-      return (
-        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-          <TouchableOpacity
-            testID="chat-driver"
-            onPress={() => router.push(`/chat/${encodeURIComponent(myChatId)}?name=${encodeURIComponent(dName)}` as any)}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, flex: 1 }]}
-          >
-            <MessageCircle color={t.primaryContrast} size={18} />
-            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>Chat</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            testID="cancel-booking"
-            onPress={onCancelBooking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
-          >
-            <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>
-              {isCab ? 'Cancel Match' : 'Cancel Booking'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    if (myRequestStatus === 'REQUESTED') {
-      if ((ride as any).my_request_is_invitation) {
-        return (
-          <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-            <TouchableOpacity
-              testID="accept-invite"
-              onPress={onAcceptInvite}
-              disabled={booking}
-              activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: t.primary, flex: 1 }]}
-            >
-              {booking ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Accept Offer</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="reject-invite"
-              onPress={onRejectInvite}
-              disabled={booking}
-              activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
-            >
-              {booking ? <ActivityIndicator color="#ef4444" /> : (
-                <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>Reject</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        );
-      }
-      return (
-        <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
-          <View style={[styles.cta, { backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 2 }]}>
-            <Clock color={t.textSecondary} size={18} />
-            <Text style={{ color: t.textSecondary, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>Awaiting Approval</Text>
-          </View>
-          <TouchableOpacity
-            testID="withdraw-request"
-            onPress={onCancelBooking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
-          >
-            <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>
-              {isCab ? 'Cancel Match' : 'Withdraw'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    // No request yet
-    const isFull = (ride.seatsAvailable ?? 0) <= 0;
-    const notEnoughSeats = (ride.seatsAvailable ?? 0) < requestedSeats;
-
-    if (isFull) {
-      return (
-        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Ride is Full</Text>
-        </View>
-      );
-    }
-
-    if (notEnoughSeats) {
-      return (
-        <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
-          <Text style={{ color: t.textSecondary, fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
-            Not Enough Seats Left (Only {ride.seatsAvailable ?? 0} available)
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <TouchableOpacity
-        testID="book-ride"
-        onPress={onBook}
-        disabled={booking}
-        activeOpacity={0.85}
-        style={[styles.cta, { backgroundColor: t.primary }]}
-      >
-        {booking ? <ActivityIndicator color={t.primaryContrast} /> : (
-          <>
-            <Send color={t.primaryContrast} size={15} />
-            <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700', marginLeft: 8 }}>
-              Request Ride
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <ScreenHeader title="Ride Details" />
 
-      {/* Absolute Map Background */}
-      <View style={[StyleSheet.absoluteFillObject, { top: Platform.OS === 'ios' ? 90 : 60 }]}>
-        <RouteMap
-          origin={{ lat: origin_lat ?? 0, lng: origin_lng ?? 0, name: origin }}
-          destination={{ lat: dest_lat ?? 0, lng: dest_lng ?? 0, name: destination }}
-          t={t}
-          style={{ height: '100%', borderRadius: 0 }}
-          passengerRoutes={passengerRoutes}
-        />
-      </View>
-
-      {/* Draggable Bottom Sheet */}
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: t.background,
-            transform: [{ translateY }],
-          },
-        ]}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Drag Handle */}
-        <View style={styles.handleContainer}>
-          <View style={[styles.handle, { backgroundColor: t.border }]} />
+        {/* Fixed Top Map */}
+        <View style={{ height: 220, width: '100%', borderRadius: radius.lg, overflow: 'hidden', marginVertical: spacing.md, borderWidth: 1, borderColor: t.border }}>
+          <RouteMap
+            origin={{ lat: origin_lat ?? 0, lng: origin_lng ?? 0, name: origin }}
+            destination={{ lat: dest_lat ?? 0, lng: dest_lng ?? 0, name: destination }}
+            t={t}
+            style={{ height: '100%', width: '100%' }}
+          />
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Driver card */}
-          <View style={[styles.card, { backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity
-                onPress={() => {
-                  tap();
-                  router.push(`/user/${ride.driverId}` as any);
-                }}
-                activeOpacity={0.8}
-                style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}
-              >
-                <VerifiedAvatar uri={dAvatar} name={dName} verified={ride.driver_verified || ride.driverVerified} t={t} size={40} />
-              </TouchableOpacity>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.textPrimary }} numberOfLines={1}>{dName}</Text>
-                  {ride.driverGender && (
-                    <Text style={{ fontSize: 12, color: t.textSecondary, textTransform: 'capitalize' }}>
-                      ({ride.driverGender})
-                    </Text>
-                  )}
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <Star color="#FBBF24" size={11} fill="#FBBF24" />
-                  <Text style={{ fontSize: 12, color: t.textSecondary }}>{dRating % 1 === 0 ? dRating.toFixed(0) : dRating.toFixed(1)}</Text>
-                  <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
-                  <Text style={{ fontSize: 12, color: t.textSecondary }}>
-                    {ride.seatsAvailable ?? 0} { (ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats' } available
+        {/* Driver / Host Participant Card */}
+        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => {
+                tap();
+                router.push(`/user/${ride.driverId}` as any);
+              }}
+              activeOpacity={0.8}
+              style={{ borderRadius: 9999, borderWidth: 2, borderColor: '#E5E7EB' }}
+            >
+              <VerifiedAvatar uri={dAvatar} name={dName} verified={ride.driver_verified || ride.driverVerified} t={t} size={44} />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: t.textPrimary }} numberOfLines={1}>{dName}</Text>
+                {ride.driverGender && (
+                  <Text style={{ fontSize: 12, color: t.textSecondary, textTransform: 'capitalize' }}>
+                    ({ride.driverGender})
                   </Text>
-                </View>
+                )}
               </View>
-              <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>
-                  {isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <Star color="#FBBF24" size={12} fill="#FBBF24" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: t.textSecondary }}>{dRating % 1 === 0 ? dRating.toFixed(0) : dRating.toFixed(1)}</Text>
+                <Text style={{ fontSize: 12, color: t.textTertiary }}>·</Text>
+                <Text style={{ fontSize: 13, color: t.textSecondary }}>
+                  {ride.seatsAvailable ?? 0} {(ride.seatsAvailable ?? 0) === 1 ? 'seat' : 'seats'} available
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                  <Clock color={t.textSecondary} size={10} />
-                  <Text style={{ fontSize: 12, color: t.textSecondary }}>
-                    {isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
-                  </Text>
-                </View>
+              </View>
+            </View>
+            <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>
+                {isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <Clock color={t.textSecondary} size={11} />
+                <Text style={{ fontSize: 12, color: t.textSecondary }}>
+                  {isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                </Text>
               </View>
             </View>
           </View>
+        </View>
 
-          {/* Route card */}
-          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-            <View style={{ flexDirection: 'row', gap: 14 }}>
-              <View style={{ alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
-                <View style={[styles.dot, { backgroundColor: t.primary }]} />
-                <View style={{ width: 2, flex: 1, backgroundColor: t.border, marginVertical: 4 }} />
-                <View style={[styles.dot, { backgroundColor: t.error }]} />
+        {/* Route Pickup / Dropoff Card */}
+        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            <View style={{ alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+              <View style={[styles.dot, { backgroundColor: t.primary }]} />
+              <View style={{ width: 2, flex: 1, backgroundColor: t.border, marginVertical: 4 }} />
+              <View style={[styles.dot, { backgroundColor: t.error }]} />
+            </View>
+            <View style={{ flex: 1, gap: 16 }}>
+              <View>
+                <Text style={[styles.label, { color: t.textSecondary }]}>PICKUP</Text>
+                <Text style={[styles.loc, { color: t.textPrimary }]}>{origin}</Text>
               </View>
-              <View style={{ flex: 1, gap: 18 }}>
-                <View>
-                  <Text style={[styles.label, { color: t.textSecondary }]}>PICKUP</Text>
-                  <Text style={[styles.loc, { color: t.textPrimary }]}>{origin}</Text>
-                  <Text style={[styles.time, { color: t.textSecondary }]}>
-                    {isNaN(time.getTime()) ? '???' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={[styles.label, { color: t.textSecondary }]}>DROPOFF</Text>
-                  <Text style={[styles.loc, { color: t.textPrimary }]}>{destination}</Text>
-                </View>
+              <View>
+                <Text style={[styles.label, { color: t.textSecondary }]}>DROPOFF</Text>
+                <Text style={[styles.loc, { color: t.textPrimary }]}>{destination}</Text>
               </View>
             </View>
           </View>
+        </View>
 
-          {/* Pricing Breakdown Dropdown */}
-          {parsedFare && (
-            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-              <TouchableOpacity 
-                onPress={() => { 
-                  tap(); 
-                  const nextState = !showPricingDetails;
-                  setShowPricingDetails(nextState); 
-                  if (nextState) {
-                    AnalyticsService.trackEvent('price_breakdown_expanded', {
-                      ride_id: id,
-                      final_fare: parsedFare.finalFare
-                    }).catch(() => {});
-                  }
-                }}
-                activeOpacity={0.855}
-                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 16 }}>🏷️</Text>
-                  <Text style={[styles.section, { color: t.textPrimary }]}>Fare Breakdown</Text>
-                </View>
-                <Text style={{ color: t.primary, fontWeight: '700', fontSize: 13 }}>
-                  {showPricingDetails ? 'Hide details' : 'Show details'}
-                </Text>
-              </TouchableOpacity>
-              
-              {showPricingDetails && (
-                <View style={{ marginTop: 12, gap: 10, borderTopWidth: 1, borderTopColor: t.border, paddingTop: 12 }}>
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>Base Fare ({parsedFare.vehicleType})</Text>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>₹{parsedFare.baseFare.toFixed(2)}</Text>
-                  </View>
-                  {parsedFare.locationPremium > 0 && (
-                    <View style={styles.breakdownRow}>
-                      <Text style={{ color: t.textSecondary, fontSize: 13 }}>📍 Location NCR Premium</Text>
-                      <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.locationPremium.toFixed(2)}</Text>
-                    </View>
-                  )}
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>🚗 Distance Fare ({parsedFare.distanceKm} km)</Text>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.distanceFare.toFixed(2)}</Text>
-                  </View>
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.textSecondary, fontSize: 13 }}>⛽ {parsedFare.fuelType} Fuel Surcharge</Text>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.fuelSurcharge.toFixed(2)}</Text>
-                  </View>
-                  {parsedFare.deviationSurcharge > 0 && (
-                    <View style={styles.breakdownRow}>
-                      <Text style={{ color: t.textSecondary, fontSize: 13 }}>↩️ detours Detour ({parsedFare.deviationKm} km)</Text>
-                      <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600' }}>+₹{parsedFare.deviationSurcharge.toFixed(2)}</Text>
-                    </View>
-                  )}
-                  <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>Subtotal</Text>
-                    <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.subtotal.toFixed(2)}</Text>
-                  </View>
-                  <View style={styles.breakdownRow}>
-                    <Text style={{ color: t.success, fontSize: 13, fontWeight: '600' }}>♻️ Pooling Discount (40% off)</Text>
-                    <Text style={{ color: t.success, fontSize: 13, fontWeight: '700' }}>-₹{parsedFare.poolingDiscount.toFixed(2)}</Text>
-                  </View>
-                  {parsedFare.poolingFare > parsedFare.cabCapFare && (
-                    <View style={styles.breakdownRow}>
-                      <Text style={{ color: t.error, fontSize: 13, fontWeight: '600' }}>🛡️ Private Cab Safety Surcharge Cap</Text>
-                      <Text style={{ color: t.error, fontSize: 13, fontWeight: '700' }}>₹{parsedFare.cabCapFare.toFixed(2)}</Text>
-                    </View>
-                  )}
-                  <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: t.border, paddingTop: 6 }]}>
-                    <Text style={{ color: t.primary, fontSize: 14, fontWeight: '800' }}>Final Rider Pooling Fare</Text>
-                    <Text style={{ color: t.primary, fontSize: 15, fontWeight: '800' }}>₹{parsedFare.finalFare}</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Vehicle */}
-          {vehicle && (
-            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+        {/* Static OTP Verification Section (For Confirmed & Active Rides) */}
+        {isConfirmed && currentStatus !== 'COMPLETED' && (
+          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.primary, borderWidth: 1.5, marginTop: spacing.md }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Car color={t.primary} size={18} />
-                <Text style={[styles.section, { color: t.textPrimary }]}>Vehicle</Text>
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: t.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                  <KeyRound color={t.primary} size={18} />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: t.textPrimary }}>Ride Verification & OTP</Text>
               </View>
-              <Text style={{ color: t.textPrimary, fontSize: 15, fontWeight: '700', marginTop: 8 }}>
-                {vehicle.year} {vehicle.make} {vehicle.model}
-              </Text>
-              <Text style={{ color: t.textSecondary, fontSize: 13 }}>{vehicle.color} · {vehicle.license_plate}</Text>
+              <View style={{ backgroundColor: t.successBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: t.success }}>Confirmed</Text>
+              </View>
             </View>
-          )}
 
-          {/* Eco badge */}
-          <View style={[styles.eco, { backgroundColor: t.isDark ? '#0f1f17' : '#EAF5EC' }]}>
-            <Leaf color={t.primary} size={18} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: t.primary, fontWeight: '800', fontSize: 14 }}>Eco impact</Text>
-              <Text style={{ color: t.primary, fontSize: 12, marginTop: 2 }}>
-                {(co2 || 0).toFixed(1)} kg CO₂ avoided · {(dist || 0).toFixed(0)} km route
-              </Text>
-            </View>
+            {ride.my_otp && (
+              <View style={{ backgroundColor: t.background, padding: 14, borderRadius: radius.md, marginBottom: 14, borderWidth: 1, borderColor: t.border }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: t.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Your Verification OTP</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                  <Text style={{ fontSize: 26, fontWeight: '800', color: t.primary, letterSpacing: 6 }}>
+                    {ride.my_otp}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: t.textSecondary, fontStyle: 'italic' }}>
+                    Share with co-passenger
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {currentStatus === 'ACCEPTED' && (
+              <View style={{ gap: 10 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: t.textPrimary }}>Enter Co-Passenger's 4-Digit OTP:</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TextInput
+                    value={otpInput}
+                    onChangeText={setOtpInput}
+                    placeholder="e.g. 4829"
+                    placeholderTextColor={t.textTertiary}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    style={{
+                      flex: 1,
+                      backgroundColor: t.background,
+                      borderWidth: 1,
+                      borderColor: t.border,
+                      borderRadius: radius.md,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      fontSize: 18,
+                      fontWeight: '700',
+                      letterSpacing: 4,
+                      color: t.textPrimary,
+                    }}
+                  />
+                  <TouchableOpacity
+                    onPress={onVerifyOtpAndStart}
+                    disabled={verifyingOtp}
+                    activeOpacity={0.85}
+                    style={{ backgroundColor: t.primary, paddingHorizontal: 18, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    {verifyingOtp ? <ActivityIndicator color={t.primaryContrast} /> : <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>Start Ride</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {currentStatus === 'STARTED' && (
+              <View style={{ gap: 12, marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.successBg, padding: 10, borderRadius: radius.md }}>
+                  <CheckCircle2 color={t.success} size={18} />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: t.success }}>Ride In Progress</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={onCompleteRide}
+                  disabled={booking}
+                  activeOpacity={0.85}
+                  style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
+                >
+                  {booking ? <ActivityIndicator color={t.primaryContrast} /> : <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Mark Ride Complete</Text>}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
+        )}
 
-          {/* DRIVER or ACCEPTED PASSENGER: Passengers / Booking Requests */}
-          {(isDriver || myRequestStatus === 'ACCEPTED') && (
-            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <Users color={t.primary} size={18} />
-                <Text style={[styles.section, { color: t.textPrimary }]}>
-                  {isCab
-                    ? 'Cab Buddy Match'
-                    : (isDriver 
-                      ? (passengers.length === 0 ? 'No passengers yet' : `Passengers (${passengers.length})`)
-                      : `Co-passengers (${passengers.filter(p => p.status === 'ACCEPTED' && p.rider_id !== user?.id).length})`)}
-                </Text>
+        {/* Environmental & Distance Impact Stats */}
+        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Leaf color={t.success} size={18} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: t.textPrimary }}>CO₂ Savings</Text>
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: t.success }}>{co2.toFixed(1)} kg</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Sticky Action Bar */}
+      <View style={[styles.bottomBar, { backgroundColor: t.surface, borderColor: t.border }]}>
+        {currentStatus === 'OPEN' && !isDriver && !myRequestStatus && (
+          <TouchableOpacity
+            onPress={onBook}
+            disabled={booking}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
+          >
+            {booking ? <ActivityIndicator color="#fff" /> : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Send color="#fff" size={16} />
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Request Ride</Text>
               </View>
-              {isDriver && passengers.length === 0 ? (
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                  When riders book this ride, they'll appear here.
-                </Text>
-              ) : !isDriver && passengers.filter(p => p.status === 'ACCEPTED' && p.rider_id !== user?.id).length === 0 ? (
-                <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                  No other passengers have joined this ride yet.
-                </Text>
-              ) : (
-                passengers
-                  .filter(p => isDriver || (p.status === 'ACCEPTED' && p.rider_id !== user?.id))
-                  .map((p: any) => (
-                    <View key={p.request_id} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.md, padding: 12, marginBottom: 12, backgroundColor: t.surface }}>
-                      {/* Top row: Avatar, Name & Fare, Status */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            tap();
-                            router.push(`/user/${p.rider_id}` as any);
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          <VerifiedAvatar uri={p.rider_avatar} name={p.rider_name} verified={false} t={t} size={40} />
-                        </TouchableOpacity>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: t.textPrimary, fontWeight: '600', fontSize: 14 }}>
-                            {p.rider_name} • {p.seats ?? 1} {(p.seats ?? 1) === 1 ? 'seat' : 'seats'} • ₹{Math.round((p.fareCents ?? 1000) / 100)}
-                          </Text>
-                          <Text style={{ color: p.status === 'ACCEPTED' ? t.success : p.status === 'REJECTED' ? t.error : t.warning, fontSize: 12, fontWeight: '600', marginTop: 2 }}>
-                            {p.status === 'ACCEPTED' ? 'Accepted' : p.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                          </Text>
-                        </View>
-                      </View>
+            )}
+          </TouchableOpacity>
+        )}
 
-                      {/* Bottom row: Action Buttons / Ratings (Driver only) */}
-                      {isDriver && (
-                        isPast && p.status === 'ACCEPTED' ? (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 8 }}>
-                            <Text style={{ color: t.textSecondary, fontSize: 13 }}>
-                              {p.my_review_rating !== null && p.my_review_rating !== undefined ? 'Your rating' : 'Rate passenger'}
-                            </Text>
-                            <View style={{ flexDirection: 'row', gap: p.my_review_rating !== null && p.my_review_rating !== undefined ? 3 : 6 }}>
-                              {p.my_review_rating !== null && p.my_review_rating !== undefined ? (
-                                [1, 2, 3, 4, 5].map((i) => (
-                                  <Star
-                                    key={i}
-                                    color={i <= p.my_review_rating ? '#f59e0b' : t.textTertiary}
-                                    fill={i <= p.my_review_rating ? '#f59e0b' : 'transparent'}
-                                    size={14}
-                                  />
-                                ))
-                              ) : (
-                                [1, 2, 3, 4, 5].map((i) => (
-                                  <TouchableOpacity
-                                    key={i}
-                                    activeOpacity={0.7}
-                                    onPress={() => {
-                                      setReviewTarget({ peerName: p.rider_name, peerAvatar: p.rider_avatar, rideId: id, toUserId: p.rider_id });
-                                      setReviewModalVisible(true);
-                                    }}
-                                  >
-                                    <Star color={t.textTertiary} size={18} />
-                                  </TouchableOpacity>
-                                ))
-                              )}
-                            </View>
-                          </View>
-                        ) : (
-                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                            {p.status === 'REQUESTED' && !isPast && (
-                              <>
-                                <TouchableOpacity
-                                  onPress={() => onAcceptRequest(p.request_id)}
-                                  activeOpacity={0.8}
-                                  style={{ backgroundColor: t.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                                >
-                                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Accept</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  onPress={() => onRejectRequest(p.request_id)}
-                                  activeOpacity={0.8}
-                                  style={{ backgroundColor: t.error, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flex: 1, alignItems: 'center' }}
-                                >
-                                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Decline</Text>
-                                </TouchableOpacity>
-                              </>
-                            )}
-                            {!isPast && (
-                              <TouchableOpacity
-                                onPress={() => router.push(`/chat/${encodeURIComponent(p.chat_id)}?name=${encodeURIComponent(p.rider_name)}` as any)}
-                                activeOpacity={0.8}
-                                style={{ backgroundColor: t.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flex: p.status === 'REQUESTED' ? 1 : 0 }}
-                              >
-                                <MessageCircle color="#fff" size={12} />
-                                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>Chat</Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        )
-                      )}
-                    </View>
-                  ))
-              )}
+        {myRequestStatus === 'REQUESTED' && (
+          <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+            <View style={[styles.cta, { backgroundColor: t.muted, flex: 2 }]}>
+              <Text style={{ color: t.textSecondary, fontSize: 14, fontWeight: '600' }}>Awaiting Approval</Text>
             </View>
-          )}
+            <TouchableOpacity
+              onPress={onCancelBooking}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
+            >
+              <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          {ride.notes ? (
-            <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
-              <Text style={[styles.section, { color: t.textPrimary }]}>Notes from driver</Text>
-              <Text style={{ color: t.textSecondary, marginTop: 6 }}>{ride.notes}</Text>
-            </View>
-          ) : null}
-          {/* Inline FAB Area */}
-          {fabContent() !== null && (
-            <View style={{ marginTop: spacing.md, width: '100%', paddingBottom: 20 }}>
-              {fabContent()}
-            </View>
-          )}
-        </ScrollView>
-      </Animated.View>
+        {isDriver && currentStatus !== 'CANCELLED' && currentStatus !== 'COMPLETED' && (
+          <TouchableOpacity
+            onPress={onWithdrawRide}
+            activeOpacity={0.85}
+            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
+          >
+            <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>Withdraw Ride</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {reviewTarget && (
         <ReviewModal
           visible={reviewModalVisible}
           onClose={() => setReviewModalVisible(false)}
+          onSubmitSuccess={() => {
+            setReviewModalVisible(false);
+            load();
+          }}
           peerName={reviewTarget.peerName}
           peerAvatar={reviewTarget.peerAvatar}
           rideId={reviewTarget.rideId}
           toUserId={reviewTarget.toUserId}
-          onSubmitSuccess={() => {
-            load().catch(() => {});
-          }}
         />
       )}
     </SafeAreaView>
@@ -909,50 +541,38 @@ export default function RideDetail() {
 }
 
 const styles = StyleSheet.create({
-  back: { position: 'absolute', top: 12, left: 12, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '100%',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  handleContainer: {
-    width: '100%',
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 2.5,
-  },
-  card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md },
-  driver: { fontSize: 18, fontWeight: '800' },
-  price: { fontSize: 24, fontWeight: '800' },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
-  loc: { fontSize: 16, fontWeight: '600', marginTop: 4 },
-  time: { fontSize: 13, marginTop: 2 },
-  section: { fontSize: 16, fontWeight: '700' },
-  eco: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md, borderRadius: radius.lg, marginTop: spacing.md },
-  sheetFab: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+  card: {
     padding: spacing.md,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  loc: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.md,
     borderTopWidth: 1,
   },
-  cta: { flex: 1, height: 54, borderRadius: 9999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cta: {
+    height: 48,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justify: 'center',
+  },
 });
