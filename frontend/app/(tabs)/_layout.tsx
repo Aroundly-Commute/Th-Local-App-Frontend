@@ -8,6 +8,7 @@ import { wsUrl, api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagContext';
 import { Alert } from '../../src/core/components/CustomAlert';
+import { RideRequestModal, RideRequestModalData } from '../../src/core/components/RideRequestModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,7 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const pathnameRef = React.useRef(pathname);
   const [hasUnread, setHasUnread] = React.useState(false);
+  const [requestModalData, setRequestModalData] = React.useState<RideRequestModalData | null>(null);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -120,90 +122,31 @@ export default function TabsLayout() {
           const msg = JSON.parse(e.data);
           console.log('[WS MESSAGE] Received:', msg);
           
-          if (msg.type === 'new_ride_request') {
+          if (msg.type === 'new_ride_request' || msg.type === 'new_ride_invite' || msg.type === 'new_buddy_request') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            Alert.alert(
-              "New Ride Request",
-              `${msg.payload.riderName} requested a seat.`,
-              [
-                { text: "Reject", style: "cancel", onPress: () => {
-                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'REJECTED' })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ride'] });
-                        queryClient.invalidateQueries({ queryKey: ['rides'] });
-                        queryClient.invalidateQueries({ queryKey: ['requests'] });
-                      })
-                      .catch(()=>{})
-                } },
-                { text: "Accept", onPress: () => {
-                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ride'] });
-                        queryClient.invalidateQueries({ queryKey: ['rides'] });
-                        queryClient.invalidateQueries({ queryKey: ['requests'] });
-                      })
-                      .catch(()=>{})
-                } }
-              ]
-            );
-          } else if (msg.type === 'new_ride_invite') {
+            setRequestModalData({
+              ...msg.payload,
+              type: msg.type
+            });
+          } else if (msg.type === 'ride_started') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            Alert.alert(
-              "New Ride Invite",
-              `A driver has invited you to join their ride.`,
-              [
-                { text: "Reject", style: "cancel", onPress: () => {
-                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'REJECTED' })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ride'] });
-                        queryClient.invalidateQueries({ queryKey: ['rides'] });
-                        queryClient.invalidateQueries({ queryKey: ['requests'] });
-                      })
-                      .catch(()=>{})
-                } },
-                { text: "Accept", onPress: () => {
-                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ride'] });
-                        queryClient.invalidateQueries({ queryKey: ['rides'] });
-                        queryClient.invalidateQueries({ queryKey: ['requests'] });
-                      })
-                      .catch(()=>{})
-                } }
-              ]
-            );
-          } else if (msg.type === 'new_buddy_request') {
+            queryClient.invalidateQueries({ queryKey: ['my-rides'] });
+            Alert.alert("🚀 Ride Started", `Your ride with ${msg.payload.peerUser?.name || 'co-passenger'} has officially started.`);
+          } else if (msg.type === 'ride_completed') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            Alert.alert(
-              "New Cab Buddy Request",
-              "A user wants to book a cab with you.",
-              [
-                { text: "Reject", style: "cancel", onPress: () => {
-                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'REJECTED' })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ride'] });
-                        queryClient.invalidateQueries({ queryKey: ['rides'] });
-                        queryClient.invalidateQueries({ queryKey: ['requests'] });
-                      })
-                      .catch(()=>{})
-                } },
-                { text: "Accept", onPress: () => {
-                    api.patch(`/matchmaking/requests/${msg.payload.id}`, { status: 'ACCEPTED' })
-                      .then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ride'] });
-                        queryClient.invalidateQueries({ queryKey: ['rides'] });
-                        queryClient.invalidateQueries({ queryKey: ['requests'] });
-                      })
-                      .catch(()=>{})
-                } }
-              ]
-            );
+            queryClient.invalidateQueries({ queryKey: ['my-rides'] });
+            Alert.alert("🏁 Ride Completed", `Your ride has been completed. Actual fare: ₹${msg.payload.actualFare || msg.payload.fareAmount || 0}.`);
+          } else if (msg.type === 'ride_cancelled') {
+            queryClient.invalidateQueries({ queryKey: ['ride'] });
+            queryClient.invalidateQueries({ queryKey: ['rides'] });
+            queryClient.invalidateQueries({ queryKey: ['requests'] });
+            Alert.alert("⚠️ Ride Cancelled", "The ride was cancelled.");
           } else if (msg.type === 'ride_request_updated') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
@@ -226,7 +169,7 @@ export default function TabsLayout() {
                 messageTitle = "Booking Cancelled";
                 messageText = "A passenger has cancelled their booking.";
               } else {
-                messageText = `Your request has been ${msg.payload.status.toLowerCase()} by the driver.`;
+                messageText = `Your request has been ${msg.payload.status.toLowerCase()} by ${msg.payload.peerUser?.name || 'the host'}.`;
               }
             }
 
@@ -343,7 +286,8 @@ export default function TabsLayout() {
   }, [user?.id]);
 
   return (
-    <Tabs
+    <>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: t.textTertiary,
@@ -407,5 +351,39 @@ export default function TabsLayout() {
         }} 
       />
     </Tabs>
+    <RideRequestModal
+      visible={!!requestModalData}
+      data={requestModalData}
+      onClose={() => setRequestModalData(null)}
+      onAccept={(item) => {
+        setRequestModalData(null);
+        api.patch(`/matchmaking/requests/${item.id}`, { status: 'ACCEPTED' })
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ['ride'] });
+            queryClient.invalidateQueries({ queryKey: ['rides'] });
+            queryClient.invalidateQueries({ queryKey: ['requests'] });
+          })
+          .catch(() => {});
+      }}
+      onReject={(item) => {
+        setRequestModalData(null);
+        api.patch(`/matchmaking/requests/${item.id}`, { status: 'REJECTED' })
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ['ride'] });
+            queryClient.invalidateQueries({ queryKey: ['rides'] });
+            queryClient.invalidateQueries({ queryKey: ['requests'] });
+          })
+          .catch(() => {});
+      }}
+      onViewDetail={(item) => {
+        setRequestModalData(null);
+        if (item.rideId) {
+          router.push(`/ride/${item.rideId}`);
+        } else if (item.id) {
+          router.push(`/buddy/${item.id}`);
+        }
+      }}
+    />
+    </>
   );
 }

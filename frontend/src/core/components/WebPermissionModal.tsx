@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { X, ShieldAlert } from 'lucide-react-native';
-import { lightTheme, spacing, radius } from '../theme/theme';
+import { lightTheme, darkTheme, spacing, radius, shadowStyle } from '../theme/theme';
 import { tap } from '../utils/haptics';
 
 interface WebPermissionModalProps {
@@ -101,11 +101,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.xl,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
+    ...shadowStyle('#000', { width: 0, height: 4 }, 0.15, 10, 5),
   },
   modalHeader: {
     flexDirection: 'row',

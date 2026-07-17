@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Platform } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { lightTheme, darkTheme, spacing, radius } from '../theme/theme';
+import { lightTheme, darkTheme, spacing, radius, shadowStyle } from '../theme/theme';
 import { tap } from '../utils/haptics';
 
 type ScreenHeaderProps = {
@@ -64,11 +64,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1.5,
+    ...shadowStyle('#000', { width: 0, height: 1 }, 0.1, 1.5, 2),
   },
   title: {
     fontSize: 16,

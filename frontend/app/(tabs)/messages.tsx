@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, useColorScheme, Platform } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MessageSquare, ChevronRight } from 'lucide-react-native';
@@ -80,7 +80,7 @@ export default function MessagesScreen() {
           data={chats}
           keyExtractor={(item) => item.chat_id}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.primary]} tintColor={t.primary} />
+            Platform.OS !== 'web' ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.primary]} tintColor={t.primary} /> : undefined
           }
           contentContainerStyle={{ paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 10 }}
           renderItem={({ item }) => (

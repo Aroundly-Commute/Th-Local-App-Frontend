@@ -4,6 +4,7 @@ import auth from './firebaseAdapter';
 import { api, clearApiCache } from '../api/api';
 import { cacheManager } from '../services/cache';
 import { Platform } from 'react-native';
+import { AnalyticsService } from '../services/analytics';
 
 let messagingModule: any = null;
 let GoogleSignin: any = null;
@@ -38,6 +39,7 @@ export type User = {
   workplace?: string | null;
   bio?: string | null;
   corporate_email: string | null;
+  fcmToken?: string | null;
 };
 
 type AuthCtx = {
@@ -57,10 +59,18 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const fcmSyncedRef = useRef<string | null>(null);
   const isAuthActionInProgress = useRef(false);
+
+  const setUser = useCallback((userData: User | null | ((prev: User | null) => User | null)) => {
+    setUserState((prev) => {
+      const nextUser = typeof userData === 'function' ? userData(prev) : userData;
+      AnalyticsService.setUser(nextUser);
+      return nextUser;
+    });
+  }, []);
 
   // Configure native Google Sign-in credentials on boot
   useEffect(() => {
@@ -310,7 +320,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data } = await api.get('/auth/me');
       await AsyncStorage.setItem('cached_profile_user', JSON.stringify(data));
       setUser(data);
+      AnalyticsService.trackEvent('login_success', { method: 'email', email });
       console.log(`[AUTH] Firebase Email login and Postgres sync successful!`);
+    } catch (err: any) {
+      AnalyticsService.trackError(`Login failed: ${err?.message || err}`, false, { email });
+      throw err;
     } finally {
       isAuthActionInProgress.current = false;
     }
@@ -339,7 +353,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       await AsyncStorage.setItem('cached_profile_user', JSON.stringify(data));
       setUser(data);
+      AnalyticsService.trackEvent('signup_success', { method: 'email', email, role });
       console.log(`[AUTH] Firebase Email signup and Postgres registration sync successful!`);
+    } catch (err: any) {
+      AnalyticsService.trackError(`Signup failed: ${err?.message || err}`, false, { email, role });
+      throw err;
     } finally {
       isAuthActionInProgress.current = false;
     }
@@ -347,15 +365,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const sendPhoneOtp = useCallback(async (phoneNumber: string) => {
     console.log(`[AUTH] Triggering Firebase Phone SMS OTP for ${phoneNumber}...`);
-    const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
-    console.log(`[AUTH] Firebase Phone SMS OTP successfully sent.`);
-    return confirmation;
+    try {
+      const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
+      console.log(`[AUTH] Firebase Phone SMS OTP successfully sent.`);
+      AnalyticsService.trackEvent('phone_otp_sent', { phoneNumber });
+      return confirmation;
+    } catch (err: any) {
+      AnalyticsService.trackError(`Phone OTP send failed: ${err?.message || err}`, false, { phoneNumber });
+      throw err;
+    }
   }, []);
 
   const verifyPhoneOtp = useCallback(async (confirmationResult: any, code: string) => {
     isAuthActionInProgress.current = true;
     try {
-      console.log(`[AUTH] Confirming Phone SMS OTP code ${code}...`);
+      console.log(`[AUTH] Confirming Phone SMS OTP code...`);
       const userCredential = await confirmationResult.confirm(code);
       if (!userCredential || !userCredential.user) throw new Error('Failed to confirm OTP');
       const token = await userCredential.user.getIdToken();
@@ -364,7 +388,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data } = await api.get('/auth/me');
       await AsyncStorage.setItem('cached_profile_user', JSON.stringify(data));
       setUser(data);
+      AnalyticsService.trackEvent('phone_otp_verified', { method: 'phone' });
       console.log(`[AUTH] Phone OTP login and Postgres sync complete.`);
+    } catch (err: any) {
+      AnalyticsService.trackError(`Phone OTP verify failed: ${err?.message || err}`, false);
+      throw err;
     } finally {
       isAuthActionInProgress.current = false;
     }
@@ -373,34 +401,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const linkPhoneOtp = useCallback(async (confirmationResult: any, code: string) => {
     isAuthActionInProgress.current = true;
     try {
-      console.log(`[AUTH] Linking Phone SMS OTP code ${code} to current user...`);
+      console.log(`[AUTH] Linking Phone SMS OTP code to current user...`);
       const currentUser = auth().currentUser;
       if (!currentUser) throw new Error('No logged in user found to link');
 
       const credential = auth.PhoneAuthProvider.credential(confirmationResult.verificationId, code);
-      console.log('[AUTH] Created credential object:', credential);
       
       try {
         await currentUser.linkWithCredential(credential);
-        console.log('[AUTH] linkWithCredential resolved successfully.');
       } catch (linkErr: any) {
         console.error('[AUTH] linkWithCredential threw error:', linkErr);
         throw linkErr;
       }
       
-      console.log('[AUTH] Phone linked in Firebase. Forcing token refresh...');
       const token = await currentUser.getIdToken(true);
-      console.log('[AUTH] Token refreshed successfully.');
       await AsyncStorage.setItem('access_token', token);
       
-      console.log('[AUTH] Syncing linked session with Postgres...');
       const { data } = await api.get('/auth/me');
-      console.log('[AUTH] Postgres sync response user:', data);
       await AsyncStorage.setItem('cached_profile_user', JSON.stringify(data));
       setUser(data);
+      AnalyticsService.trackEvent('phone_linked', { success: true });
       console.log(`[AUTH] Phone number successfully linked to Firebase user and synced to Postgres.`);
     } catch (err: any) {
       console.error('[AUTH] linkPhoneOtp failed overall:', err);
+      AnalyticsService.trackError(`Link phone failed: ${err?.message || err}`, false);
       throw err;
     } finally {
       isAuthActionInProgress.current = false;
@@ -421,7 +445,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       await AsyncStorage.setItem('cached_profile_user', JSON.stringify(data));
       setUser(data);
+      AnalyticsService.trackEvent('login_success', { method: 'google', email });
       console.log(`[AUTH] Google sign-in Postgres sync complete.`);
+    } catch (err: any) {
+      AnalyticsService.trackError(`Google login failed: ${err?.message || err}`, false, { email });
+      throw err;
     } finally {
       isAuthActionInProgress.current = false;
     }
@@ -429,6 +457,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     console.log('[AUTH] Log-out action triggered.');
+    AnalyticsService.trackEvent('user_logout');
     
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       localStorage.removeItem('aroundly_logged_in');

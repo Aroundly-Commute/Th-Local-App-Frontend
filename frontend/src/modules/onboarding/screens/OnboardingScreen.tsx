@@ -230,7 +230,8 @@ export default function OnboardingScreen() {
             <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
               <Image
                 source={require('../../../../assets/images/app_Icon_less_padding.png')}
-                style={{ width: 140, height: 110, resizeMode: 'contain' }}
+                style={{ width: 140, height: 110 }}
+                resizeMode="contain"
               />
             </View>
             <Text style={[styles.title, { color: t.textPrimary }]}>Welcome to Aroundly!</Text>

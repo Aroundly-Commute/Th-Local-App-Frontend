@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { AnalyticsService } from '../services/analytics';
 
 interface Props {
   children: ReactNode;
@@ -23,8 +24,12 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
+    console.error("Uncaught React component error:", error, errorInfo);
     this.setState({ error, errorInfo });
+    AnalyticsService.trackError(error.message || 'React Component Crash', true, {
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    }).catch(() => {});
   }
 
   public render() {

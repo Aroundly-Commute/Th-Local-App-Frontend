@@ -10,7 +10,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { MapPin, X, Search } from 'lucide-react-native';
-import { Theme, radius } from '../theme/theme';
+import { lightTheme, darkTheme, spacing, radius, shadowStyle, Theme } from '../theme/theme';
 import { api } from '../api/api';
 
 interface Prediction {
@@ -150,11 +150,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     maxHeight: 250,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadowStyle('#000', { width: 0, height: 4 }, 0.1, 8, 5),
   },
   item: {
     flexDirection: 'row',

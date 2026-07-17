@@ -86,7 +86,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     height: 380,
-    resizeMode: 'contain',
   },
   conceptRight: {
     justifyContent: 'center',

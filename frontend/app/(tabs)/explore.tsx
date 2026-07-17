@@ -1,6 +1,6 @@
 import React from 'react';
-import CommunityScreen from '../../src/modules/explore/screens/CommunityScreen';
+import PublicTransportScreen from '../../src/modules/commute/screens/PublicTransportScreen';
 
 export default function Explore() {
-  return <CommunityScreen />;
+  return <PublicTransportScreen />;
 }

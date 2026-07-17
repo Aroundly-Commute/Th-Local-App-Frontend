@@ -179,7 +179,8 @@ export default function Signup() {
               <View style={{ alignItems: 'center' }}>
                 <Image
                   source={require('../../assets/images/app_Icon_less_padding.png')}
-                  style={{ width: 200, height: 160, resizeMode: 'contain', marginBottom: 8 }}
+                  style={{ width: 200, height: 160, marginBottom: 8 }}
+                  resizeMode="contain"
                 />
                 <Text style={[styles.h1, { color: t.textPrimary, textAlign: 'center', marginBottom: spacing.md }]}>Ride Together, Save Together</Text>
               </View>

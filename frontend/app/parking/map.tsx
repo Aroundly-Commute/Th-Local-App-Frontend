@@ -5,9 +5,9 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  useColorScheme,
   RefreshControl,
   Platform,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -15,18 +15,19 @@ import {
   Search,
   ChevronLeft,
 } from 'lucide-react-native';
-import { api } from '../../../core/api/api';
-import { useAuth } from '../../../core/auth/auth';
-import { lightTheme, spacing } from '../../../core/theme/theme';
-import { styles } from './ParkingHub.styles';
-import { tap, success } from '../../../core/utils/haptics';
-import { Shimmer } from '../../../core/components/Shimmer';
-import { DateTimePicker } from '../components/DateTimePicker';
-import { ParkingFilters, HOURLY_SLOTS } from '../components/ParkingFilters';
-import { TicketCard } from '../components/TicketCard';
-import { BookingDrawer } from '../components/BookingDrawer';
-import { ParkingMapView } from '../components/ParkingMapView';
-import { ParkingListView } from '../components/ParkingListView';
+import { api } from '../../src/core/api/api';
+import { useAuth } from '../../src/core/auth/auth';
+import { lightTheme, darkTheme, spacing } from '../../src/core/theme/theme';
+import { styles } from './index.styles';
+import { tap, success } from '../../src/core/utils/haptics';
+import { Shimmer } from '../../src/core/components/Shimmer';
+import { Alert } from '../../src/core/components/CustomAlert';
+import { DateTimePicker } from '../../src/modules/commute/components/DateTimePicker';
+import { ParkingFilters, HOURLY_SLOTS } from '../../src/modules/commute/components/ParkingFilters';
+import { TicketCard } from '../../src/modules/commute/components/TicketCard';
+import { BookingDrawer } from '../../src/modules/commute/components/BookingDrawer';
+import { ParkingMapView } from '../../src/modules/commute/components/ParkingMapView';
+import { ParkingListView } from '../../src/modules/commute/components/ParkingListView';
 
 type SpotState = {
   id: string;
@@ -63,7 +64,7 @@ type SpotState = {
     startTime: string;
     endTime: string;
     price: number;
-    status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+    status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
     user: {
       id: string;
       name: string;
@@ -89,11 +90,9 @@ type MyBooking = {
   startTime: string;
   endTime: string;
   price: number;
-  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
   createdAt: string;
 };
-
-
 
 const getISTDate = (dateInput: string | Date | number): Date => {
   const d = new Date(dateInput);
@@ -114,8 +113,9 @@ const convertISTToUTC = (dateStr: string, timeStr: string): string => {
   return new Date(utcMs - 5.5 * 60 * 60 * 1000).toISOString();
 };
 
-export default function ParkingHub() {
-  const t = lightTheme;
+export default function Parking() {
+  const cs = useColorScheme();
+  const t = cs === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
   const router = useRouter();
 
@@ -127,7 +127,13 @@ export default function ParkingHub() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Filters State
-  const [selectedDate, setSelectedDate] = useState('2026-05-22');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [selectedSlotType, setSelectedSlotType] = useState<'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY'>('HOURLY');
   const [selectedHourlySlotIndex, setSelectedHourlySlotIndex] = useState(4); // Default: 12:00 - 15:00
 
@@ -148,16 +154,41 @@ export default function ParkingHub() {
   const hasActiveTicket = activeTickets.length > 0;
   const showTicketView = hasActiveTicket && !isBookingMode;
 
-  // Dynamic Horizontal Date Range Generator (7 Days starting 2026-05-22)
+  // Automatically select first valid slot if current one is past
+  useEffect(() => {
+    if (selectedSlotType === 'HOURLY') {
+      const todayStr = (() => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })();
+
+      if (selectedDate === todayStr) {
+        const now = new Date();
+        const istHours = new Date(now.getTime() + 5.5 * 60 * 60 * 1000).getUTCHours();
+        const currentSlot = HOURLY_SLOTS[selectedHourlySlotIndex];
+        const currentEndHour = parseInt(currentSlot.end.split(':')[0]);
+        if (currentEndHour <= istHours) {
+          const firstValidIdx = HOURLY_SLOTS.findIndex(slot => parseInt(slot.end.split(':')[0]) > istHours);
+          if (firstValidIdx !== -1) {
+            setSelectedHourlySlotIndex(firstValidIdx);
+          }
+        }
+      }
+    }
+  }, [selectedDate, selectedSlotType, selectedHourlySlotIndex]);
+
+  // Dynamic Horizontal Date Range Generator (7 Days starting from today)
   const dateOptions = (() => {
     const dates = [];
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const start = new Date('2026-05-22');
-
+    
     for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+      const d = new Date();
+      d.setDate(d.getDate() + i);
 
       const year = d.getFullYear();
       const monthNum = String(d.getMonth() + 1).padStart(2, '0');
@@ -210,36 +241,97 @@ export default function ParkingHub() {
 
   // Compute spot reservation condition details
   const getSpotStatus = (spot: SpotState) => {
-    const targetHourlySlot = HOURLY_SLOTS[selectedHourlySlotIndex];
-
-    // Find availability matching filters
+    // Find availability matching filters using range checks
     const avail = spot.availabilities.find((av) => {
-      if (av.slotType !== selectedSlotType) return false;
-      if (av.date !== selectedDate) return false;
+      const avStart = new Date(av.startTime);
+      const avEnd = new Date(av.endTime);
 
       if (selectedSlotType === 'HOURLY') {
-        const avStartHour = getISTDate(av.startTime).getUTCHours();
-        const targetStartHour = parseInt(targetHourlySlot.start.split(':')[0]);
-        return avStartHour === targetStartHour;
+        const targetHourlySlot = HOURLY_SLOTS[selectedHourlySlotIndex];
+        const targetStart = new Date(convertISTToUTC(selectedDate, targetHourlySlot.start));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, targetHourlySlot.end));
+
+        // Rule 1: Hourly availability matches this exact hourly slot
+        if (av.slotType === 'HOURLY') {
+          return av.date === selectedDate && getISTDate(av.startTime).getUTCHours() === parseInt(targetHourlySlot.start.split(':')[0]);
+        }
+        // Rule 2: Daily availability matches any hourly slot on that day
+        if (av.slotType === 'DAILY') {
+          return av.date === selectedDate;
+        }
+        // Rule 3: Weekly/Monthly availability matches if this hourly slot lies within its window
+        if (av.slotType === 'WEEKLY' || av.slotType === 'MONTHLY') {
+          return targetStart >= avStart && targetEnd <= avEnd;
+        }
       }
-      return true;
+
+      if (selectedSlotType === 'DAILY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, '23:59:59'));
+
+        // Rule 2: Daily availability matches full day
+        if (av.slotType === 'DAILY') {
+          return av.date === selectedDate;
+        }
+        // Rule 3: Weekly/Monthly matches if full day lies within its window
+        if (av.slotType === 'WEEKLY' || av.slotType === 'MONTHLY') {
+          return targetStart >= avStart && targetEnd <= avEnd;
+        }
+      }
+
+      if (selectedSlotType === 'WEEKLY' || selectedSlotType === 'MONTHLY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const daysToAdd = selectedSlotType === 'WEEKLY' ? 7 : 30;
+        const dEnd = new Date(selectedDate);
+        dEnd.setDate(dEnd.getDate() + daysToAdd);
+        const year = dEnd.getFullYear();
+        const month = String(dEnd.getMonth() + 1).padStart(2, '0');
+        const dateVal = String(dEnd.getDate()).padStart(2, '0');
+        const targetEnd = new Date(convertISTToUTC(`${year}-${month}-${dateVal}`, '00:00'));
+
+        if (av.slotType === 'WEEKLY' || av.slotType === 'MONTHLY') {
+          return targetStart >= avStart && targetEnd <= avEnd;
+        }
+      }
+
+      return false;
     });
 
     if (!avail) {
       return { status: 'UNAVAILABLE' as const, avail: null, booking: null };
     }
 
-    // Find if current spot has booking in the active time slot
+    // Find if current spot has booking in the active time slot using overlap checks
     const bk = spot.bookings.find((b) => {
-      if (b.slotType !== selectedSlotType) return false;
-      if (b.date !== selectedDate) return false;
+      const bStart = new Date(b.startTime);
+      const bEnd = new Date(b.endTime);
 
       if (selectedSlotType === 'HOURLY') {
-        const bStartHour = getISTDate(b.startTime).getUTCHours();
-        const targetStartHour = parseInt(targetHourlySlot.start.split(':')[0]);
-        return bStartHour === targetStartHour;
+        const targetHourlySlot = HOURLY_SLOTS[selectedHourlySlotIndex];
+        const targetStart = new Date(convertISTToUTC(selectedDate, targetHourlySlot.start));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, targetHourlySlot.end));
+        return targetStart < bEnd && targetEnd > bStart;
       }
-      return true;
+
+      if (selectedSlotType === 'DAILY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const targetEnd = new Date(convertISTToUTC(selectedDate, '23:59:59'));
+        return targetStart < bEnd && targetEnd > bStart;
+      }
+
+      if (selectedSlotType === 'WEEKLY' || selectedSlotType === 'MONTHLY') {
+        const targetStart = new Date(convertISTToUTC(selectedDate, '00:00'));
+        const daysToAdd = selectedSlotType === 'WEEKLY' ? 7 : 30;
+        const dEnd = new Date(selectedDate);
+        dEnd.setDate(dEnd.getDate() + daysToAdd);
+        const year = dEnd.getFullYear();
+        const month = String(dEnd.getMonth() + 1).padStart(2, '0');
+        const dateVal = String(dEnd.getDate()).padStart(2, '0');
+        const targetEnd = new Date(convertISTToUTC(`${year}-${month}-${dateVal}`, '00:00'));
+        return targetStart < bEnd && targetEnd > bStart;
+      }
+
+      return false;
     });
 
     if (bk) {
@@ -321,6 +413,9 @@ export default function ParkingHub() {
         endStr = convertISTToUTC(`${year}-${month}-${dateVal}`, '00:00');
       }
 
+      // Calculate final pricing based on booking request:
+      // If the selected slotType matches the availability slotType, charge the availability rate.
+      // Otherwise, charge the spot's rate for the selected slotType duration basis.
       let finalPrice = avail.price;
       if (avail.slotType !== selectedSlotType) {
         if (selectedSlotType === 'HOURLY') {
@@ -388,8 +483,6 @@ export default function ParkingHub() {
 
 
 
-
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }} edges={['top']}>
       {/* Header */}
@@ -421,6 +514,7 @@ export default function ParkingHub() {
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: t.textPrimary }]}>Aroundly Parking Hub</Text>
         </View>
+
       </View>
 
       {showTicketView ? (
@@ -472,16 +566,17 @@ export default function ParkingHub() {
       ) : (
         /* --- BOOKING WORKSPACE (MAP / LIST VIEWS) --- */
         <View style={{ flex: 1 }}>
-            <ParkingFilters
-              t={t}
-              selectedSlotType={selectedSlotType}
-              setSelectedSlotType={setSelectedSlotType}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              selectedHourlySlotIndex={selectedHourlySlotIndex}
-              setSelectedHourlySlotIndex={setSelectedHourlySlotIndex}
-              setShowDatePicker={setShowDatePicker}
-            />
+          {/* Date Filter & Timing filters */}
+          <ParkingFilters
+            t={t}
+            selectedSlotType={selectedSlotType}
+            setSelectedSlotType={setSelectedSlotType}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedHourlySlotIndex={selectedHourlySlotIndex}
+            setSelectedHourlySlotIndex={setSelectedHourlySlotIndex}
+            setShowDatePicker={setShowDatePicker}
+          />
 
           {/* Main Tab Controller navigation - Only Map and List Views! */}
           <View style={[styles.tabBar, { borderBottomColor: t.border }]}>

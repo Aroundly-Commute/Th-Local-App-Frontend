@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { spacing, radius } from '../../src/core/theme/theme';
+import { spacing, radius, shadowStyle } from '../../src/core/theme/theme';
 
 export const styles = StyleSheet.create({
   tabBar: { flexDirection: 'row', padding: 4, borderRadius: radius.md, gap: 2 },
@@ -46,11 +46,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.md,
     marginBottom: spacing.md,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    ...shadowStyle('#000', { width: 0, height: 2 }, 0.05, 8, 3),
   },
   dropdownsContainer: {
     position: 'relative',
@@ -80,10 +76,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     zIndex: 99,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    ...shadowStyle('#000', { width: 0, height: 2 }, 0.15, 4, 4),
+    color: '#ef4444',
   },
 });
+
+export default function StyleRoute() {
+  return null;
+}

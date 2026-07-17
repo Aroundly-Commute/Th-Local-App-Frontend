@@ -1,4 +1,4 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator } from 'react-native';
 import { Alert } from '../../src/core/components/CustomAlert';
@@ -14,11 +14,32 @@ import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/the
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 
+function parseCoords(geoJson: any, latProp?: any, lngProp?: any, fallbackLatStr?: string, fallbackLngStr?: string) {
+  let lat: number | undefined;
+  let lng: number | undefined;
+  if (geoJson) {
+    try {
+      const obj = typeof geoJson === 'string' ? JSON.parse(geoJson) : geoJson;
+      if (obj && Array.isArray(obj.coordinates) && obj.coordinates.length >= 2) {
+        lng = Number(obj.coordinates[0]);
+        lat = Number(obj.coordinates[1]);
+      }
+    } catch {}
+  }
+  if ((lat === undefined || isNaN(lat)) && latProp !== undefined) lat = Number(latProp);
+  if ((lng === undefined || isNaN(lng)) && lngProp !== undefined) lng = Number(lngProp);
+  if ((lat === undefined || isNaN(lat)) && fallbackLatStr) lat = parseFloat(fallbackLatStr);
+  if ((lng === undefined || isNaN(lng)) && fallbackLngStr) lng = parseFloat(fallbackLngStr);
+
+  return { lat: (lat && !isNaN(lat)) ? lat : undefined, lng: (lng && !isNaN(lng)) ? lng : undefined };
+}
+
 export default function BuddyDetail() {
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const params = useLocalSearchParams<{ id: string; rideId?: string; mode?: string }>();
   const id = params.id;
@@ -52,15 +73,12 @@ export default function BuddyDetail() {
   const isOwnRequest = user?.id === buddy.riderId;
   const time = new Date(buddy.startTime);
 
-  let origin_lat: number | undefined, origin_lng: number | undefined;
-  let dest_lat: number | undefined, dest_lng: number | undefined;
-
-  if (buddy.startPointGeoJson) {
-    try { const p = JSON.parse(buddy.startPointGeoJson); origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
-  }
-  if (buddy.endPointGeoJson) {
-    try { const p = JSON.parse(buddy.endPointGeoJson); dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
-  }
+  const startCoords = parseCoords(buddy.startPointGeoJson, (buddy as any).startLat || (buddy as any).start_lat, (buddy as any).startLng || (buddy as any).start_lng);
+  const endCoords = parseCoords(buddy.endPointGeoJson, (buddy as any).endLat || (buddy as any).end_lat, (buddy as any).endLng || (buddy as any).end_lng);
+  const origin_lat = startCoords.lat;
+  const origin_lng = startCoords.lng;
+  const dest_lat = endCoords.lat;
+  const dest_lng = endCoords.lng;
 
   const dist = buddy.distance_km ?? 0;
   const co2 = buddy.co2_saved_kg ?? 0;
@@ -155,7 +173,7 @@ export default function BuddyDetail() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 100 + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
         {/* Top Fixed Map */}
@@ -248,7 +266,7 @@ export default function BuddyDetail() {
       </ScrollView>
 
       {/* Bottom Sticky Action Bar */}
-      <View style={[styles.bottomBar, { backgroundColor: t.surface, borderColor: t.border }]}>
+      <View style={[styles.bottomBar, { backgroundColor: t.surface, borderColor: t.border, paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         {buddy.status === 'CANCELLED' ? (
           <View style={[styles.cta, { backgroundColor: t.muted, width: '100%' }]}>
             <Text style={{ color: t.textSecondary, fontSize: 16, fontWeight: '700' }}>Request Withdrawn</Text>
@@ -334,6 +352,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.md,
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
   },
 });

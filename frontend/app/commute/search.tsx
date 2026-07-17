@@ -175,21 +175,23 @@ export default function Search() {
     }
   };
 
-  // Date/time as a single Date object for easy formatting (aligned in IST)
-  const [datetime, setDatetime] = useState<Date>(() => {
-    const d = new Date();
-    const istMs = d.getTime() + 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(istMs);
-    const targetHour = istDate.getUTCHours() + 1;
-    const utcMs = Date.UTC(
-      istDate.getUTCFullYear(),
-      istDate.getUTCMonth(),
-      istDate.getUTCDate(),
-      targetHour,
-      0, 0, 0
-    );
-    return new Date(utcMs - 5.5 * 60 * 60 * 1000);
-  });
+function getDefaultTime5MinAhead(d: Date = new Date()): Date {
+  const istMs = d.getTime() + 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(istMs);
+  const currentMinutes = istDate.getUTCMinutes();
+  const nextMin = Math.ceil((currentMinutes + 1) / 5) * 5;
+  const utcMs = Date.UTC(
+    istDate.getUTCFullYear(),
+    istDate.getUTCMonth(),
+    istDate.getUTCDate(),
+    istDate.getUTCHours(),
+    nextMin, 0, 0
+  );
+  return new Date(utcMs - 5.5 * 60 * 60 * 1000);
+}
+
+// Date/time as a single Date object for easy formatting (aligned in IST)
+  const [datetime, setDatetime] = useState<Date>(() => getDefaultTime5MinAhead());
   const [seats, setSeats] = useState('1');
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -245,6 +247,12 @@ export default function Search() {
     tap();
     setRequestingRideId(ride.id);
     try {
+      AnalyticsService.trackEvent('ride_booking_requested', {
+        ride_id: ride.id,
+        seats: parseInt(seats) || 1,
+        fare: ride.estimatedFare?.finalFare,
+      }).catch(() => {});
+
       const payload = {
         seats: parseInt(seats) || 1,
         riderStartName: from,
@@ -261,6 +269,7 @@ export default function Search() {
       Alert.alert('Request Sent!', 'Your booking request has been sent successfully. You will be notified once the driver accepts.');
     } catch (e: any) {
       errorH();
+      AnalyticsService.trackError(`Request Ride Failed: ${e?.message}`, false, { ride_id: ride.id }).catch(() => {});
       Alert.alert('Failed', e?.response?.data?.message || e?.response?.data?.detail || 'Try again');
     } finally {
       setRequestingRideId(null);
@@ -323,14 +332,13 @@ export default function Search() {
 
       Alert.alert(
         'Success',
-        'Ride offered! Finding matching passengers on your route...',
+        'Ride offer published successfully!',
         [
           {
-            text: 'OK',
+            text: 'View Ride',
             onPress: () => {
               router.replace({
-                pathname: '/commute/matching-results' as any,
-                params: { rideId: ride.id },
+                pathname: `/ride/${ride.id}` as any,
               });
             }
           }
@@ -570,11 +578,7 @@ export default function Search() {
                   disabled={loading || locLoading}
                   onPress={() => {
                     tap();
-                    if (mode === 'find') {
-                      submitAction();
-                    } else {
-                      handlePublishOfferDirectly();
-                    }
+                    submitAction();
                   }}
                   activeOpacity={0.8}
                   style={[
@@ -873,7 +877,7 @@ export default function Search() {
                                       <>
                                         <Send size={13} color={t.primaryContrast} />
                                         <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 13, marginLeft: 6 }}>
-                                          Share Cab
+                                          {mode === 'offer' ? 'Send Ride Offer' : 'Share Cab'}
                                         </Text>
                                       </>
                                     )}

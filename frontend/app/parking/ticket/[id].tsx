@@ -18,12 +18,12 @@ import {
   Calendar,
   Clock,
   Info,
-  Sparkles,
   Share2,
   CheckCircle2,
   AlertCircle,
   QrCode,
 } from 'lucide-react-native';
+import { getTicketDeepLinkUrl, attemptNativeAppOpenOnWeb } from '../../../src/core/utils/deeplink';
 import * as Sharing from 'expo-sharing';
 
 let ViewShot: any = View;
@@ -77,6 +77,17 @@ const formatISTTime = (utcTimeStr: string): string => {
   return `${hours}:${minutes}`;
 };
 
+const formatISTDateTime = (utcTimeStr: string): string => {
+  if (!utcTimeStr) return 'N/A';
+  const istDate = getISTDate(utcTimeStr);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = istDate.getUTCDate();
+  const month = monthNames[istDate.getUTCMonth()];
+  const hours = String(istDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+  return `${day} ${month}, ${hours}:${minutes}`;
+};
+
 export default function TicketDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -90,6 +101,15 @@ export default function TicketDetails() {
   const loadTicket = async () => {
     try {
       setLoading(true);
+      try {
+        const { data } = await api.get(`/parking/ticket/${id}`);
+        if (data) {
+          setBooking(data);
+          return;
+        }
+      } catch (e) {
+        // Fallback to my-bookings
+      }
       const { data } = await api.get('/parking/my-bookings');
       const found = data.find((bk: any) => bk.id === id);
       if (found) {
@@ -108,6 +128,12 @@ export default function TicketDetails() {
   useEffect(() => {
     loadTicket();
   }, [id]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && id) {
+      attemptNativeAppOpenOnWeb(id as string, booking?.spot?.spotName);
+    }
+  }, [id, booking?.spot?.spotName]);
 
   const getQRCodeUrl = (text: string) => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(text)}`;
@@ -195,11 +221,11 @@ export default function TicketDetails() {
     statusBg = t.errorBg;
   }
 
-  const qrPayload = `aroundly://parking/ticket/${booking.id}?spot=${booking.spot.spotName}`;
+  const qrPayload = getTicketDeepLinkUrl(booking.id, booking.spot.spotName);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
-      <ScreenHeader title="GO-PASS DIGITAL TICKET" />
+      <ScreenHeader title="Aroundly Digital Ticket" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Ticket Container for High Fidelity Capturing */}
@@ -216,8 +242,7 @@ export default function TicketDetails() {
           {/* Ticket Header branding */}
           <View style={[styles.ticketHeader, { borderBottomColor: t.border }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={18} color={t.primary} />
-              <Text style={[styles.ticketTitle, { color: t.textPrimary }]}>GO-PASS DIGITAL PASS</Text>
+              <Text style={[styles.ticketTitle, { color: t.textPrimary }]}>YOUR DIGITAL TICKET</Text>
             </View>
             <View style={[styles.ticketStatusBadge, { backgroundColor: statusBg }]}>
               <Text style={{ fontSize: 10, fontWeight: '800', color: statusColor }}>{booking.status}</Text>
@@ -273,6 +298,26 @@ export default function TicketDetails() {
                   <Text style={styles.cellLabel}>SPOT OWNER</Text>
                   <Text style={[styles.cellVal, { color: t.textSecondary }]} numberOfLines={1}>
                     {booking.spot.owner?.name || 'Campus Resident'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketDetailCell}>
+                <Clock size={14} color={t.success} />
+                <View>
+                  <Text style={styles.cellLabel}>VALID FROM</Text>
+                  <Text style={[styles.cellVal, { color: t.textSecondary }]} numberOfLines={1}>
+                    {formatISTDateTime(booking.startTime)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketDetailCell}>
+                <Clock size={14} color={t.error} />
+                <View>
+                  <Text style={styles.cellLabel}>VALID TILL</Text>
+                  <Text style={[styles.cellVal, { color: t.textSecondary }]} numberOfLines={1}>
+                    {formatISTDateTime(booking.endTime)}
                   </Text>
                 </View>
               </View>

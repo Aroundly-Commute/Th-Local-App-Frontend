@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Star, X } from 'lucide-react-native';
 import { api } from '../api/api';
-import { lightTheme, darkTheme, spacing, radius } from '../theme/theme';
+import { lightTheme, darkTheme, spacing, radius, shadowStyle } from '../theme/theme';
 import { VerifiedAvatar } from './VerifiedAvatar';
 import { Alert } from './CustomAlert';
 import { tap, success, errorH } from '../utils/haptics';
@@ -205,11 +205,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    ...shadowStyle('#000', { width: 0, height: 4 }, 0.1, 10, 5),
   },
   closeBtn: {
     position: 'absolute',

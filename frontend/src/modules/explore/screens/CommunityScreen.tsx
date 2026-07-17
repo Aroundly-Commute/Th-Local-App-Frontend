@@ -25,6 +25,8 @@ import {
   X,
   PlusCircle,
   Settings,
+  Train,
+  Bus,
 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { api } from '../../../core/api/api';
@@ -204,7 +206,7 @@ export default function CommunityScreen() {
             <Text style={[styles.greet, { color: t.textSecondary }]}>
               {currentCommunity ? currentCommunity.toUpperCase() : 'NEIGHBORHOOD SERVICES'}
             </Text>
-            <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>Community Hub</Text>
+            <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>Parking Hub</Text>
           </View>
         </View>
 
@@ -252,7 +254,7 @@ export default function CommunityScreen() {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { tap(); router.push('/parking'); }}
+                onPress={() => { tap(); router.push('/parking/map' as any); }}
                 style={[styles.primaryActionBtn, { backgroundColor: t.primary }]}
               >
                 <Text style={[styles.primaryActionBtnText, { color: t.primaryContrast }]}>Book a Spot Now</Text>

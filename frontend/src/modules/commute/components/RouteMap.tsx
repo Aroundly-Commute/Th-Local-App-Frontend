@@ -92,8 +92,23 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t, style, passe
   useEffect(() => {
     if (!origin.lat || !origin.lng || !destination.lat || !destination.lng) return;
     fetchRouteCoords(origin, destination)
-      .then(setRouteCoords)
-      .catch((e) => console.error('Failed to fetch driver route', e));
+      .then((coords) => {
+        if (coords && coords.length > 0) {
+          setRouteCoords(coords);
+        } else {
+          setRouteCoords([
+            { latitude: origin.lat, longitude: origin.lng },
+            { latitude: destination.lat, longitude: destination.lng }
+          ]);
+        }
+      })
+      .catch((e) => {
+        console.error('Failed to fetch driver route', e);
+        setRouteCoords([
+          { latitude: origin.lat, longitude: origin.lng },
+          { latitude: destination.lat, longitude: destination.lng }
+        ]);
+      });
   }, [origin.lat, origin.lng, destination.lat, destination.lng]);
 
   // Fetch each passenger segment
@@ -104,7 +119,15 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t, style, passe
     }
     Promise.all(
       passengerRoutes.map(async (pr, i) => {
-        const coords = await fetchRouteCoords(pr.origin, pr.destination).catch(() => []);
+        let coords = await fetchRouteCoords(pr.origin, pr.destination).catch(() => []);
+        if (!coords || coords.length === 0) {
+          if (pr.origin.lat && pr.origin.lng && pr.destination.lat && pr.destination.lng) {
+            coords = [
+              { latitude: pr.origin.lat, longitude: pr.origin.lng },
+              { latitude: pr.destination.lat, longitude: pr.destination.lng }
+            ];
+          }
+        }
         return {
           coords,
           color: pr.color || PASSENGER_COLORS[i % PASSENGER_COLORS.length],
@@ -162,7 +185,7 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t, style, passe
           <Polyline
             coordinates={routeCoords}
             strokeColor={t.primary}
-            strokeWidth={4}
+            strokeWidth={6}
           />
         )}
 
@@ -190,13 +213,13 @@ export const RouteMap: React.FC<Props> = ({ origin, destination, t, style, passe
                   pinColor={pr.color}
                 />
               )}
-              {/* Passenger segment polyline — thinner, dashed-look via opacity */}
+              {/* Passenger segment polyline — dashed-look with custom color so overlapping routes are visible */}
               {pr.coords.length > 0 && (
                 <Polyline
                   coordinates={pr.coords}
                   strokeColor={pr.color}
-                  strokeWidth={3}
-                  lineDashPattern={[8, 4]}
+                  strokeWidth={6}
+                  lineDashPattern={[12, 8]}
                 />
               )}
             </React.Fragment>
