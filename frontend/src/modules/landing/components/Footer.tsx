@@ -15,10 +15,10 @@ export function Footer({ isDesktop }: FooterProps) {
         <View style={[styles.footerLeft, isDesktop ? { width: '40%' } : { width: '100%', marginBottom: 30 }]}>
           <Image
             source={require('../../../../assets/images/app_Icon.png')}
+            resizeMode="contain"
             style={{ 
               width: 50, 
               height: 50, 
-              resizeMode: 'contain', 
               backgroundColor: '#FFFFFF', 
               borderRadius: 10,
               padding: 4,

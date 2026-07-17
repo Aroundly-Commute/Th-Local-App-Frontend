@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '../auth/firebaseAdapter';
+import { AnalyticsService } from '../services/analytics';
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -10,7 +11,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  console.log(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
+  console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
   
   let token = null;
   try {
@@ -35,15 +36,23 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API] Response: ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
+    console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - Status ${response.status}`);
     return response;
   },
   (error) => {
-    console.error(`[API] Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
+    const method = error.config?.method?.toUpperCase() || 'UNKNOWN';
+    const url = error.config?.url || 'UNKNOWN';
+    const status = error.response?.status || 0;
+    const errorMsg = error.response?.data?.message || error.message || 'Network error';
+
+    console.error(`[API Error] ${method} ${url} - Status ${status}:`, errorMsg);
+
+    AnalyticsService.trackError(`API Error: ${method} ${url} (${status}) - ${errorMsg}`, false, {
+      endpoint: url,
+      method,
+      status,
+    }).catch(() => {});
+
     return Promise.reject(error);
   }
 );

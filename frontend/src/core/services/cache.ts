@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Platform } from 'react-native';
 
 type CacheListener = (data: any) => void;
 
@@ -13,6 +14,9 @@ class CacheManager {
   }
 
   private async initialize() {
+    if (Platform.OS === 'web' && typeof window === 'undefined') {
+      return;
+    }
     try {
       const keys = await AsyncStorage.getAllKeys();
       const cacheKeys = keys.filter(key => key.startsWith('@app_cache:'));
@@ -52,7 +56,7 @@ class CacheManager {
     // Trigger with memory cache value immediately if it exists
     if (this.memoryCache.has(key)) {
       listener(this.memoryCache.get(key));
-    } else {
+    } else if (Platform.OS !== 'web' || typeof window !== 'undefined') {
       // Check asynchronously from AsyncStorage in case memory cache is not fully ready
       AsyncStorage.getItem(`@app_cache:${key}`).then(val => {
         if (val && !this.memoryCache.has(key)) {

@@ -30,8 +30,22 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="aroundly"/>
         <data android:scheme="frontend"/>
         <data android:scheme="exp+frontend"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="aroundly.app" android:pathPrefix="/parking/ticket"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="http" android:pathPrefix="/parking/ticket"/>
+        <data android:scheme="https" android:pathPrefix="/parking/ticket"/>
       </intent-filter>
     </activity>
     <uses-library android:name="org.apache.http.legacy" android:required="false"/>

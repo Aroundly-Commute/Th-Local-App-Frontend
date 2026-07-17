@@ -6,7 +6,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   MapPin, Users, Calendar, Leaf, Search as SearchIcon,
-  ChevronRight, Star, Clock, RefreshCw, ChevronDown, Home, Briefcase,
+  ChevronRight, Star, Clock, ChevronDown, Home, Briefcase,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -87,6 +87,10 @@ const publicTransportIconImg = Platform.select({
 const offerRideIconImg = Platform.select({
   web: require('../../../../assets/images/offer_ride_icon.webp'),
   default: require('../../../../assets/images/offer_ride_icon.png'),
+});
+const parkingIconImg = Platform.select({
+  web: require('../../../../assets/images/parking_icon.webp'),
+  default: require('../../../../assets/images/parking_icon.png'),
 });
 
 
@@ -281,7 +285,6 @@ export default function CommuteDashboard() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchAndStoreCurrentLocation();
       await Promise.all([refreshStats(), refreshRides(), refreshBuddies(), refreshSavedPlaces()]);
     } catch { } finally {
       setRefreshing(false);
@@ -376,7 +379,24 @@ export default function CommuteDashboard() {
 
   const handleBuddyPress = (buddy: any) => {
     tap();
-    router.push(`/buddy/${buddy.id}` as any);
+    let origin_lat, origin_lng, dest_lat, dest_lng;
+    if (buddy.startPointGeoJson) {
+      try { const p = typeof buddy.startPointGeoJson === 'string' ? JSON.parse(buddy.startPointGeoJson) : buddy.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
+    }
+    if (buddy.endPointGeoJson) {
+      try { const p = typeof buddy.endPointGeoJson === 'string' ? JSON.parse(buddy.endPointGeoJson) : buddy.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
+    }
+    router.push({
+      pathname: `/buddy/${buddy.id}` as any,
+      params: {
+        fromName: buddy.startPlaceName,
+        toName: buddy.endPlaceName,
+        fromLat: origin_lat ? String(origin_lat) : undefined,
+        fromLng: origin_lng ? String(origin_lng) : undefined,
+        toLat: dest_lat ? String(dest_lat) : undefined,
+        toLng: dest_lng ? String(dest_lng) : undefined,
+      }
+    });
   };
 
   const services = [
@@ -391,9 +411,9 @@ export default function CommuteDashboard() {
       onPress: () => router.push({ pathname: '/commute/search' as any, params: { mode: 'find', feature: 'carpool', hideTabs: 'true' } }),
     },
     {
-      label: 'Public Transport',
-      icon: publicTransportIconImg,
-      onPress: () => router.push('/commute/public-transport' as any),
+      label: 'Parking',
+      icon: parkingIconImg,
+      onPress: () => router.push('/parking' as any),
     },
     {
       label: 'Offer Ride',
@@ -482,33 +502,7 @@ export default function CommuteDashboard() {
             <ChevronDown size={14} color={t.textSecondary} />
           </TouchableOpacity>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {Platform.OS === 'web' && (
-              <TouchableOpacity
-                onPress={handleRefresh}
-                disabled={refreshing}
-                activeOpacity={0.7}
-                style={{
-                  padding: 10,
-                  borderRadius: 20,
-                  backgroundColor: t.muted,
-                  borderColor: t.border,
-                  borderWidth: 1,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: 40,
-                  height: 40,
-                }}
-              >
-                {refreshing ? (
-                  <ActivityIndicator size="small" color={t.primary} />
-                ) : (
-                  <RefreshCw color={t.textPrimary} size={16} />
-                )}
-              </TouchableOpacity>
-            )}
 
-          </View>
         </View>
 
         {/* Greeting & Header Subtitle */}
@@ -584,7 +578,27 @@ export default function CommuteDashboard() {
                     ride={r}
                     t={t}
                     testID={`home-ride-${r.id}`}
-                    onPress={() => { tap(); router.push(`/ride/${r.id}` as any); }}
+                    onPress={() => {
+                      tap();
+                      let origin_lat, origin_lng, dest_lat, dest_lng;
+                      if (r.startPointGeoJson) {
+                        try { const p = typeof r.startPointGeoJson === 'string' ? JSON.parse(r.startPointGeoJson) : r.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
+                      }
+                      if (r.endPointGeoJson) {
+                        try { const p = typeof r.endPointGeoJson === 'string' ? JSON.parse(r.endPointGeoJson) : r.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
+                      }
+                      router.push({
+                        pathname: `/ride/${r.id}` as any,
+                        params: {
+                          fromName: r.startPlaceName || r.origin,
+                          toName: r.endPlaceName || r.destination,
+                          fromLat: origin_lat ? String(origin_lat) : undefined,
+                          fromLng: origin_lng ? String(origin_lng) : undefined,
+                          toLat: dest_lat ? String(dest_lat) : undefined,
+                          toLng: dest_lng ? String(dest_lng) : undefined,
+                        }
+                      });
+                    }}
                     style={{ width: nearbyCardWidth }}
                   />
                 ))}

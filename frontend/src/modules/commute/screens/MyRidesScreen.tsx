@@ -3,7 +3,7 @@ import React, { useCallback, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl, Platform, ActivityIndicator, Modal, TextInput, Linking } from 'react-native';
 
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
-import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users, RefreshCw } from 'lucide-react-native';
+import { Clock, MessageCircle, Phone, Star, CheckCircle2, Car, AlertCircle, Users } from 'lucide-react-native';
 import { api } from '../../../core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
@@ -52,9 +52,54 @@ export function MyRidesScreen() {
   // Final Price / Split Display Modal
   const [fareSplitDetails, setFareSplitDetails] = useState<any>(null);
 
-  const handleStartRide = (rideOrRequest: any) => {
-    const reqId = rideOrRequest.request_id || rideOrRequest.id;
-    const isCab = rideOrRequest.vehicle_type === 'CAB' || rideOrRequest.vehicleType === 'CAB';
+  const [availableCabApps, setAvailableCabApps] = useState<{ id: 'uber' | 'ola' | 'rapido'; name: string; bg: string; color: string; url: string; webUrl: string }[]>([]);
+  const [checkingApps, setCheckingApps] = useState(false);
+
+  const checkInstalledCabApps = async () => {
+    setCheckingApps(true);
+    const allApps = [
+      { id: 'uber' as const, name: 'UBER', bg: '#000000', color: '#ffffff', url: 'uber://?action=setPickup&pickup=my_location', webUrl: 'https://m.uber.com' },
+      { id: 'ola' as const, name: 'OLA', bg: '#a6c307', color: '#000000', url: 'olacabs://app/launch', webUrl: 'https://www.olacabs.com' },
+      { id: 'rapido' as const, name: 'Rapido', bg: '#ffd700', color: '#000000', url: 'rapido://', webUrl: 'https://www.rapido.bike' },
+    ];
+
+    if (Platform.OS === 'web') {
+      setAvailableCabApps(allApps);
+      setCheckingApps(false);
+      return;
+    }
+
+    const installed: typeof allApps = [];
+    for (const app of allApps) {
+      try {
+        const canOpen = await Linking.canOpenURL(app.url);
+        if (canOpen) {
+          installed.push(app);
+        }
+      } catch {}
+    }
+
+    if (installed.length === 0) {
+      setAvailableCabApps(allApps);
+    } else {
+      setAvailableCabApps(installed);
+    }
+    setCheckingApps(false);
+  };
+
+  const handleStartRide = async (rideOrRequest: any) => {
+    const reqId = rideOrRequest.request_id || rideOrRequest.requestId || rideOrRequest.passengers?.find((p: any) => p.status === 'ACCEPTED' || p.status === 'STARTED')?.request_id || rideOrRequest.passengers?.[0]?.request_id || rideOrRequest.id;
+    if (!reqId || reqId === 'undefined') {
+      Alert.alert('Error', 'Invalid ride request ID');
+      return;
+    }
+    const isCab = rideOrRequest.vehicle_type === 'CAB' || rideOrRequest.vehicleType === 'CAB' || rideOrRequest.ride_role === 'SEEKING';
+    if (isCab) {
+      setCabLauncherTargetRide(rideOrRequest);
+      await checkInstalledCabApps();
+      setCabLauncherModalVisible(true);
+      return;
+    }
     setOtpTargetRequest({
       request_id: reqId,
       isCab,
@@ -70,20 +115,22 @@ export function MyRidesScreen() {
       setOtpError('Please enter a valid 4-digit OTP');
       return;
     }
+    if (!otpTargetRequest?.request_id || otpTargetRequest?.request_id === 'undefined') {
+      setOtpError('Invalid ride request ID');
+      return;
+    }
     setVerifyingOtp(true);
     setOtpError('');
     try {
-      await api.patch(`/matchmaking/requests/${otpTargetRequest.request_id}/start`, { otp: otpValue });
+      const res = await api.patch(`/matchmaking/requests/${otpTargetRequest.request_id}/start`, { otp: otpValue });
       success();
       setOtpModalVisible(false);
-      
       await refresh();
 
-      if (otpTargetRequest.isCab) {
-        setCabLauncherTargetRide(otpTargetRequest.ride);
-        setCabLauncherModalVisible(true);
+      if (res.data?.allVerified === false) {
+        Alert.alert('OTP Verified', 'OTP verified! Waiting for remaining co-passenger(s) to verify OTP before starting the ride.');
       } else {
-        Alert.alert('Started', 'Ride started successfully!');
+        Alert.alert('Started', 'All OTPs verified successfully! Ride started!');
       }
     } catch (err: any) {
       errorH();
@@ -93,57 +140,44 @@ export function MyRidesScreen() {
     }
   };
 
-  const handleLaunchCabApp = async (app: 'uber' | 'ola' | 'rapido') => {
+  const handleLaunchCabApp = async (app: { url: string; webUrl: string }) => {
     tap();
     setCabLauncherModalVisible(false);
-    const ride = cabLauncherTargetRide;
-    if (!ride) return;
-
-    let url = '';
-    if (app === 'uber') {
-      url = `uber://?action=setPickup&pickup=my_location`;
-    } else if (app === 'ola') {
-      url = `olacabs://app/launch`;
-    } else {
-      url = `rapido://`;
-    }
-
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        if (app === 'uber') {
-          await Linking.openURL('https://m.uber.com');
-        } else if (app === 'ola') {
-          await Linking.openURL('https://www.olacabs.com');
-        } else {
-          await Linking.openURL('https://www.rapido.bike');
+      if (Platform.OS !== 'web') {
+        const supported = await Linking.canOpenURL(app.url);
+        if (supported) {
+          await Linking.openURL(app.url);
+          return;
         }
       }
-    } catch (e) {
-      if (app === 'uber') {
-        Linking.openURL('https://m.uber.com');
-      } else if (app === 'ola') {
-        Linking.openURL('https://www.olacabs.com');
-      } else {
-        Linking.openURL('https://www.rapido.bike');
-      }
+      await Linking.openURL(app.webUrl);
+    } catch {
+      Linking.openURL(app.webUrl);
     }
   };
 
   const handleCompleteRide = (rideOrRequest: any) => {
+    const reqId = rideOrRequest.request_id || rideOrRequest.requestId || rideOrRequest.passengers?.find((p: any) => p.status === 'ACCEPTED' || p.status === 'STARTED')?.request_id || rideOrRequest.passengers?.[0]?.request_id || rideOrRequest.id;
+    if (!reqId || reqId === 'undefined') {
+      Alert.alert('Error', 'Invalid ride request ID');
+      return;
+    }
     const isCab = rideOrRequest.vehicle_type === 'CAB' || rideOrRequest.vehicleType === 'CAB';
     if (isCab) {
-      setFareTargetRequest(rideOrRequest);
+      setFareTargetRequest({ ...rideOrRequest, request_id: reqId });
       setCabFareValue('');
       setCabFareModalVisible(true);
     } else {
-      submitCompleteRide(rideOrRequest.request_id, undefined, false);
+      submitCompleteRide(reqId, undefined, false);
     }
   };
 
   const submitCompleteRide = async (requestId: string, actualFare?: number, isCab?: boolean) => {
+    if (!requestId || requestId === 'undefined') {
+      Alert.alert('Error', 'Invalid ride request ID');
+      return;
+    }
     if (isCab) {
       setSubmittingFare(true);
     }
@@ -189,7 +223,8 @@ export function MyRidesScreen() {
     }
   });
 
-  const upcomingList = res?.upcoming || [];
+  const rawUpcoming = res?.upcoming || [];
+  const upcomingList = rawUpcoming.filter((item: any) => item.status !== 'COMPLETED' && item.status !== 'CANCELLED');
   const requestedList = res?.requested || [];
   const pastList = res?.past || [];
 
@@ -226,26 +261,6 @@ export function MyRidesScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <ScreenHeader 
         title="My Rides" 
-        rightComponent={Platform.OS === 'web' ? (
-          <TouchableOpacity 
-            onPress={handleRefresh} 
-            disabled={refreshing}
-            activeOpacity={0.7} 
-            style={{ 
-              padding: 6, 
-              borderRadius: 18, 
-              backgroundColor: t.muted,
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={t.primary} />
-            ) : (
-              <RefreshCw color={t.textPrimary} size={14} />
-            )}
-          </TouchableOpacity>
-        ) : undefined}
       />
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: 12 }}>
         <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
@@ -296,8 +311,8 @@ export function MyRidesScreen() {
                     key={`${r.id}-${r.role}-${r.request_id || ''}`}
                     r={r}
                     t={t}
-                    isPast={tab === 'past'}
-                    isRequested={tab === 'requested'}
+                    isPast={false}
+                    isRequested={true}
                     isSentRequest={r.section === 'sent'}
                     router={router}
                     onRefresh={refresh}
@@ -317,7 +332,7 @@ export function MyRidesScreen() {
                   r={r}
                   t={t}
                   isPast={tab === 'past'}
-                  isRequested={tab === 'requested'}
+                  isRequested={false}
                   router={router}
                   onRefresh={refresh}
                   onRatePeer={(peerName, peerAvatar, rideId, toUserId) => {
@@ -373,7 +388,7 @@ export function MyRidesScreen() {
               maxLength={4}
               value={otpValue}
               onChangeText={setOtpValue}
-              placeholder="0000"
+              placeholder=""
               placeholderTextColor={t.textTertiary}
             />
 
@@ -408,31 +423,24 @@ export function MyRidesScreen() {
           <View style={[styles.modalContent, { backgroundColor: t.surface, borderColor: t.border }]}>
             <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Choose Cab App</Text>
             <Text style={[styles.modalSub, { color: t.textSecondary }]}>
-              Select one of the cab apps below to book/launch your ride.
+              Select one of the available cab apps installed on your phone to book your shared ride:
             </Text>
 
-            <View style={{ gap: 10, marginVertical: 12, width: '100%' }}>
-              <TouchableOpacity
-                onPress={() => handleLaunchCabApp('uber')}
-                style={[styles.cabAppBtn, { backgroundColor: '#000000' }]}
-              >
-                <Text style={{ color: '#ffffff', fontWeight: '700' }}>UBER</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleLaunchCabApp('ola')}
-                style={[styles.cabAppBtn, { backgroundColor: '#a6c307' }]}
-              >
-                <Text style={{ color: '#000000', fontWeight: '700' }}>OLA</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleLaunchCabApp('rapido')}
-                style={[styles.cabAppBtn, { backgroundColor: '#ffd700' }]}
-              >
-                <Text style={{ color: '#000000', fontWeight: '700' }}>Rapido</Text>
-              </TouchableOpacity>
-            </View>
+            {checkingApps ? (
+              <ActivityIndicator color={t.primary} style={{ marginVertical: 20 }} />
+            ) : (
+              <View style={{ gap: 10, marginVertical: 12, width: '100%' }}>
+                {availableCabApps.map(app => (
+                  <TouchableOpacity
+                    key={app.id}
+                    onPress={() => handleLaunchCabApp(app)}
+                    style={[styles.cabAppBtn, { backgroundColor: app.bg }]}
+                  >
+                    <Text style={{ color: app.color, fontWeight: '700' }}>{app.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             <TouchableOpacity
               onPress={() => setCabLauncherModalVisible(false)}
@@ -607,6 +615,11 @@ const RideCardExt: React.FC<{
   const handleCancelRequest = async (e: any) => {
     e.stopPropagation();
     tap();
+    const reqId = r.request_id || r.requestId || r.id;
+    if (!reqId || reqId === 'undefined') {
+      Alert.alert('Error', 'Invalid request ID');
+      return;
+    }
     Alert.alert(
       'Cancel Request/Booking',
       'Are you sure you want to cancel this request/booking?',
@@ -618,7 +631,7 @@ const RideCardExt: React.FC<{
           onPress: async () => {
             tap();
             try {
-              await api.patch(`/matchmaking/requests/${r.request_id}`, { status: 'CANCELLED' });
+              await api.patch(`/matchmaking/requests/${reqId}`, { status: 'CANCELLED' });
               success();
               Alert.alert('Cancelled', 'Your request/booking has been cancelled.');
               onRefresh();
@@ -831,46 +844,72 @@ const RideCardExt: React.FC<{
                       </TouchableOpacity>
                     )}
 
-                    {p.status === 'ACCEPTED' && (
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          tap();
-                          onStartRide({ ...r, request_id: p.request_id, passenger_name: p.rider_name, otp: p.otp });
-                        }}
-                        activeOpacity={0.8}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          backgroundColor: t.primary
-                        }}
-                      >
-                        <Text style={{ color: t.primaryContrast, fontSize: 12, fontWeight: '700' }}>
-                          {isCab ? 'Share Cab' : 'Start'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                    {p.status === 'ACCEPTED' && (() => {
+                      const canEnterOtp = !isCab ? isDriver : (r.my_request_is_invitation ? !isDriver : isDriver);
+                      if (!canEnterOtp) return null;
+                      return (
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            tap();
+                            onStartRide({ ...r, request_id: p.request_id, passenger_name: p.rider_name, otp: p.otp });
+                          }}
+                          activeOpacity={0.8}
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor: t.primary
+                          }}
+                        >
+                          <Text style={{ color: t.primaryContrast, fontSize: 12, fontWeight: '700' }}>
+                            {isCab ? 'Book Cab' : 'Start'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
 
                     {p.status === 'STARTED' && (
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          tap();
-                          onCompleteRide({ ...r, request_id: p.request_id, passenger_name: p.rider_name });
-                        }}
-                        activeOpacity={0.8}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          backgroundColor: '#10b981'
-                        }}
-                      >
-                        <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
-                          Complete
-                        </Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        {isCab && (
+                          <TouchableOpacity
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              tap();
+                              onStartRide({ ...r, request_id: p.request_id, passenger_name: p.rider_name, otp: p.otp });
+                            }}
+                            activeOpacity={0.8}
+                            style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor: t.primary
+                            }}
+                          >
+                            <Text style={{ color: t.primaryContrast, fontSize: 12, fontWeight: '700' }}>
+                              Start Ride
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            tap();
+                            onCompleteRide({ ...r, request_id: p.request_id, passenger_name: p.rider_name });
+                          }}
+                          activeOpacity={0.8}
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor: '#10b981'
+                          }}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                            Complete
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -894,12 +933,12 @@ const RideCardExt: React.FC<{
         </View>
       )}
 
-      {/* OTP Info Box for Rider */}
-      {!isRequested && !isDriver && r.request_status === 'ACCEPTED' && r.otp && statusLabel !== 'Confirmed' && (
+      {/* OTP Info Box for Passive User */}
+      {!isRequested && !(r.can_enter_otp !== undefined ? Boolean(r.can_enter_otp) : (!isCab ? isDriver : (r.is_invitation ? !isDriver : isDriver))) && (r.status === 'ACCEPTED' || r.request_status === 'ACCEPTED') && (r.my_display_otp || r.otp || r.my_otp) && (
         <View style={{ backgroundColor: t.isDark ? '#1a2e26' : '#e6f4ea', borderRadius: radius.sm, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <Clock color="#137333" size={13} strokeWidth={2.5} />
           <Text style={{ color: '#137333', fontSize: 12, fontWeight: '600', flex: 1 }}>
-            Your OTP to start ride: <Text style={{ fontSize: 13, fontWeight: '800' }}>{r.otp}</Text>
+            Your Verification OTP: <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 2 }}>{r.my_display_otp || r.otp || r.my_otp}</Text> (Give to co-passenger to verify)
           </Text>
         </View>
       )}
@@ -917,79 +956,80 @@ const RideCardExt: React.FC<{
       {/* Action buttons */}
       {!isPast && (
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-          {/* Upcoming tab unconfirmed - Cancel Ride */}
-          {!isRequested && !isConfirmed && (
-            <TouchableOpacity
-              onPress={isDriver ? handleCancelRide : handleCancelRequest}
-              activeOpacity={0.8}
-              style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', flex: 1 }]}
-            >
-              <Text style={[styles.actionText, { color: '#ef4444', fontWeight: '700' }]}>
-                Cancel Ride
-              </Text>
-            </TouchableOpacity>
-          )}
+          {/* Upcoming Tab Actions */}
+          {!isRequested && (
+            <>
+              {/* Confirmed ride, but NOT started -> Only "View Ride" and "Cancel Ride" */}
+              {isConfirmed && r.status !== 'STARTED' && r.request_status !== 'STARTED' && (
+                <>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      tap();
+                      router.push(`/ride/${r.id}`);
+                    }}
+                    activeOpacity={0.8}
+                    style={[styles.actionBtn, { backgroundColor: t.primary, borderColor: t.primary, flex: 1 }]}
+                  >
+                    <Text style={[styles.actionText, { color: t.primaryContrast, fontWeight: '700' }]}>
+                      View Ride
+                    </Text>
+                  </TouchableOpacity>
 
-          {/* Start Ride button for Confirmed rides (both driver and rider) */}
-          {!isRequested && isConfirmed && r.status !== 'STARTED' && r.request_status !== 'STARTED' && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                tap();
-                router.push(`/ride/${r.id}`);
-              }}
-              activeOpacity={0.8}
-              style={[styles.actionBtn, { backgroundColor: t.primary, borderColor: t.primary, flex: 1 }]}
-            >
-              <Text style={[styles.actionText, { color: t.primaryContrast, fontWeight: '700' }]}>
-                Start Ride
-              </Text>
-            </TouchableOpacity>
-          )}
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      isDriver ? handleCancelRide(e) : handleCancelRequest(e);
+                    }}
+                    activeOpacity={0.8}
+                    style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', flex: 1 }]}
+                  >
+                    <Text style={[styles.actionText, { color: '#ef4444', fontWeight: '700' }]}>
+                      Cancel Ride
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
-          {/* Complete Ride (Only for Riders) */}
-          {!isRequested && !isDriver && r.request_status === 'STARTED' && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                tap();
-                onCompleteRide(r);
-              }}
-              activeOpacity={0.8}
-              style={[styles.actionBtn, { backgroundColor: '#10b981', borderColor: '#10b981', flex: 1 }]}
-            >
-              <Text style={[styles.actionText, { color: '#ffffff', fontWeight: '700' }]}>
-                Complete Ride
-              </Text>
-            </TouchableOpacity>
-          )}
+              {/* Confirmed ride AND Started ride -> Only "Mark Ride Complete" */}
+              {isConfirmed && (r.status === 'STARTED' || r.request_status === 'STARTED') && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    tap();
+                    onCompleteRide(r);
+                  }}
+                  activeOpacity={0.8}
+                  style={[styles.actionBtn, { backgroundColor: '#10b981', borderColor: '#10b981', flex: 1 }]}
+                >
+                  <Text style={[styles.actionText, { color: '#ffffff', fontWeight: '700' }]}>
+                    Mark Ride Complete
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-          {/* Cancel Match option for Rider */}
-          {!isRequested && isConfirmed && !isDriver && r.request_status === 'ACCEPTED' && (
-            <TouchableOpacity
-              testID={`myride-cancel-${r.id}`}
-              onPress={handleCancelRequest}
-              activeOpacity={0.8}
-              style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', flex: 1 }]}
-            >
-              <Text style={[styles.actionText, { color: '#ef4444', fontWeight: '700' }]}>
-                Cancel Match
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Cancel Match option for Driver */}
-          {!isRequested && isConfirmed && isDriver && (r.status === 'OPEN' || r.status === 'REQUESTED' || r.status === 'ACCEPTED') && (
-            <TouchableOpacity
-              testID={`myride-withdraw-${r.id}`}
-              onPress={handleCancelRide}
-              activeOpacity={0.8}
-              style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', flex: 1 }]}
-            >
-              <Text style={[styles.actionText, { color: '#ef4444', fontWeight: '700' }]}>
-                Cancel Match
-              </Text>
-            </TouchableOpacity>
+              {/* Unconfirmed ride -> "Withdraw Ride" */}
+              {!isConfirmed && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (r.isBuddyRequest) {
+                      handleCancelBuddyRequest(e);
+                    } else if (isDriver) {
+                      handleCancelRide(e);
+                    } else {
+                      handleCancelRequest(e);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                  style={[styles.actionBtn, { borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.05)', flex: 1 }]}
+                >
+                  <Text style={[styles.actionText, { color: '#ef4444', fontWeight: '700' }]}>
+                    Withdraw Ride
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
 
           {/* Requests Tab Actions */}

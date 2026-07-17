@@ -3,7 +3,7 @@ import React, { useCallback, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, useColorScheme, RefreshControl, Platform, ActivityIndicator } from 'react-native';
 
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Clock, Users, RefreshCw } from 'lucide-react-native';
+import { Clock, Users } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
@@ -53,7 +53,24 @@ export default function BuddiesSeeking() {
 
   const handleBuddyPress = (buddy: any) => {
     tap();
-    router.push(`/buddy/${buddy.id}` as any);
+    let origin_lat, origin_lng, dest_lat, dest_lng;
+    if (buddy.startPointGeoJson) {
+      try { const p = typeof buddy.startPointGeoJson === 'string' ? JSON.parse(buddy.startPointGeoJson) : buddy.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
+    }
+    if (buddy.endPointGeoJson) {
+      try { const p = typeof buddy.endPointGeoJson === 'string' ? JSON.parse(buddy.endPointGeoJson) : buddy.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
+    }
+    router.push({
+      pathname: `/buddy/${buddy.id}` as any,
+      params: {
+        fromName: buddy.startPlaceName,
+        toName: buddy.endPlaceName,
+        fromLat: origin_lat ? String(origin_lat) : undefined,
+        fromLng: origin_lng ? String(origin_lng) : undefined,
+        toLat: dest_lat ? String(dest_lat) : undefined,
+        toLng: dest_lng ? String(dest_lng) : undefined,
+      }
+    });
   };
 
   const hasMore = buddies && buddies.length >= limit;
@@ -62,26 +79,6 @@ export default function BuddiesSeeking() {
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
       <ScreenHeader 
         title="Buddies Seeking Rides" 
-        rightComponent={Platform.OS === 'web' ? (
-          <TouchableOpacity 
-            onPress={handleRefresh} 
-            disabled={refreshing}
-            activeOpacity={0.7} 
-            style={{ 
-              padding: 6, 
-              borderRadius: 18, 
-              backgroundColor: t.muted,
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={t.primary} />
-            ) : (
-              <RefreshCw color={t.textPrimary} size={14} />
-            )}
-          </TouchableOpacity>
-        ) : undefined}
       />
 
       <ScrollView

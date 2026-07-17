@@ -60,6 +60,52 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
 
 export class AnalyticsService {
   private static clientId: string | null = null;
+  private static currentUser: { id: string; email?: string | null; name?: string | null; role?: string | null } | null = null;
+
+  /**
+   * Sets or clears the active authenticated user context across Web and Native platforms.
+   */
+  public static setUser(user: { id: string; email?: string | null; name?: string | null; role?: string | null } | null): void {
+    this.currentUser = user;
+    const userId = user?.id || null;
+
+    console.log(`[Analytics] User Context Set: user_id=${userId || 'anonymous'}`, user || {});
+
+    if (Platform.OS === 'web') {
+      if (webAnalyticsInstance) {
+        try {
+          const { setUserId, setUserProperties } = require('firebase/analytics');
+          setUserId(webAnalyticsInstance, userId);
+          if (user) {
+            setUserProperties(webAnalyticsInstance, {
+              email: user.email || '',
+              name: user.name || '',
+              role: user.role || 'passenger',
+            });
+          }
+        } catch (e) {
+          console.warn('[Analytics] Failed to set Web Firebase user context:', e);
+        }
+      }
+    } else {
+      if (getCrashlyticsNative) {
+        try {
+          const crashlytics = getCrashlyticsNative();
+          if (setUserIdNative) setUserIdNative(crashlytics, userId || '');
+          if (setAttributesNative && user) {
+            setAttributesNative(crashlytics, {
+              user_id: user.id,
+              email: user.email || '',
+              name: user.name || '',
+              role: user.role || '',
+            });
+          }
+        } catch (e) {
+          console.warn('[Analytics] Failed to set Crashlytics user context:', e);
+        }
+      }
+    }
+  }
 
   /**
    * Initializes the appropriate Firebase Analytics engine.
@@ -94,9 +140,12 @@ export class AnalyticsService {
       // Sanitize event name to comply with Firebase requirements (lowercase, alpha-numeric, underscores)
       const sanitizedName = eventName.toLowerCase().replace(/[^a-z0-9_]/g, '_');
       
-      // Enrich payload with platform metadata
+      // Enrich payload with platform & user metadata
       const enrichedParams = {
         ...params,
+        user_id: this.currentUser?.id || 'anonymous',
+        user_email: this.currentUser?.email || undefined,
+        user_role: this.currentUser?.role || undefined,
         platform: Platform.OS,
         os_version: String(Platform.Version),
         device_name: Constants.deviceName || 'Unknown Device',

@@ -40,12 +40,16 @@ export default function Login() {
   const router = useRouter();
   const { login, loginWithGoogle, setIsAuthenticating } = useAuth();
 
+  type LoadingType = null | 'google' | 'phone' | 'email' | 'submit' | 'signup';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState<LoadingType>(null);
   const [err, setErr] = useState('');
   const [showEmailFields, setShowEmailFields] = useState(false);
+
+  const isAnyLoading = Boolean(loadingType);
 
   // Configure native Google Sign-in credentials on boot
   useEffect(() => {
@@ -56,10 +60,11 @@ export default function Login() {
     }
   }, []);
 
-  // Clear errors when the login screen gains focus
+  // Clear errors and reset loading when the login screen gains focus
   useFocusEffect(
     useCallback(() => {
       setErr('');
+      setLoadingType(null);
     }, [])
   );
 
@@ -71,7 +76,7 @@ export default function Login() {
     }
 
     tap();
-    setLoading(true);
+    setLoadingType('submit');
     setErr('');
 
     try {
@@ -83,22 +88,17 @@ export default function Login() {
       console.warn('[AUTH] Firebase login failed:', e);
       setErr(translateFirebaseError(e));
     } finally {
-      setLoading(false);
+      setLoadingType(null);
     }
   };
 
   const onGoogleLogin = async () => {
     tap();
-    setLoading(true);
+    setLoadingType('google');
     setErr('');
 
     console.log("=========================================");
     console.log("       FRONTEND GOOGLE LOGIN TRIGGER     ");
-    console.log("=========================================");
-    console.log("EXPO_PUBLIC_BACKEND_URL:", process.env.EXPO_PUBLIC_BACKEND_URL);
-    console.log("EXPO_PUBLIC_APP_ENV:", process.env.EXPO_PUBLIC_APP_ENV);
-    console.log("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:", process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
-    console.log("GoogleSignin Module loaded?:", !!GoogleSignin);
     console.log("=========================================");
 
     try {
@@ -137,39 +137,26 @@ export default function Login() {
         // 2. Open Google Accounts overlay
         console.log('[AUTH] Calling GoogleSignin.signIn()...');
         const signInResult = await GoogleSignin.signIn();
-        console.log('[AUTH] GoogleSignin.signIn() success. Result keys:', Object.keys(signInResult || {}));
         if (signInResult.data) {
-          console.log('[AUTH] GoogleSignin data keys:', Object.keys(signInResult.data));
           console.log('[AUTH] Google User email:', signInResult.data.user?.email);
         }
 
         const idToken = signInResult.data?.idToken;
-        console.log('[AUTH] Google ID Token present?:', !!idToken, idToken ? `(Length: ${idToken.length})` : '');
-
         if (!idToken) {
           throw new Error('Google Sign-In was not successful. Please try again.');
         }
 
         console.log('[AUTH] Firebase authenticating Google credential...');
-
-        // 3. Build credential and log into Firebase client SDK
         const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-        console.log('[AUTH] Calling Firebase signInWithCredential...');
         const userCredential = await auth().signInWithCredential(googleCredential);
-        console.log('[AUTH] Firebase signInWithCredential success. User:', userCredential.user?.email);
 
-        // 4. Extract secure JWT token
         firebaseIdToken = await userCredential.user.getIdToken();
         name = userCredential.user.displayName || 'Google User';
         userEmail = userCredential.user.email || 'google.user@gmail.com';
       }
 
       console.log('[AUTH] Syncing Google session with PostgreSQL...');
-      console.log(`[AUTH] Calling loginWithGoogle with name: "${name}", email: "${userEmail}", token length: ${firebaseIdToken?.length}`);
-
-      // 5. Synchronize with our Postgres database
       await loginWithGoogle(firebaseIdToken, name, userEmail);
-      console.log('[AUTH] Google Sign-in and backend sync completed successfully!');
 
       success();
       router.replace('/');
@@ -177,17 +164,10 @@ export default function Login() {
       errorH();
       console.error('[AUTH] Google Sign-in failed! Detailed exception log:');
       console.error('Error message:', e?.message || e);
-      console.error('Error code/status:', e?.code || e?.status);
-      if (e?.response) {
-        console.error('Axios error details:');
-        console.error('  Response Status:', e.response.status);
-        console.error('  Response Data:', JSON.stringify(e.response.data));
-        console.error('  Response Headers:', JSON.stringify(e.response.headers));
-      }
       setErr(translateFirebaseError(e));
     } finally {
       setIsAuthenticating(false);
-      setLoading(false);
+      setLoadingType(null);
     }
   };
 
@@ -202,7 +182,8 @@ export default function Login() {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
             <Image
               source={require('../../assets/images/app_Icon_less_padding.png')}
-              style={{ width: 200, height: 160, resizeMode: 'contain' }}
+              style={{ width: 200, height: 160 }}
+              resizeMode="contain"
             />
           </View>
 
@@ -217,7 +198,7 @@ export default function Login() {
                   <TouchableOpacity
                     testID="login-google"
                     onPress={onGoogleLogin}
-                    disabled={loading}
+                    disabled={isAnyLoading}
                     activeOpacity={0.85}
                     style={[
                       styles.socialBtn,
@@ -226,23 +207,34 @@ export default function Login() {
                         borderWidth: 1,
                         borderRadius: 100,
                         backgroundColor: '#FFFFFF',
+                        opacity: isAnyLoading && loadingType !== 'google' ? 0.5 : 1,
                       }
                     ]}
                   >
-                    <Svg viewBox="12 10 20 20" width={18} height={18}>
-                      <Path d="M31.6 20.2273C31.6 19.5182 31.5364 18.8364 31.4182 18.1818H22V22.05H27.3818C27.15 23.3 26.4455 24.3591 25.3864 25.0682V27.5773H28.6182C30.5091 25.8364 31.6 23.2727 31.6 20.2273Z" fill="#4285F4"/>
-                      <Path d="M22 30C24.7 30 26.9636 29.1045 28.6181 27.5773L25.3863 25.0682C24.4909 25.6682 23.3454 26.0227 22 26.0227C19.3954 26.0227 17.1909 24.2636 16.4045 21.9H13.0636V24.4909C14.7091 27.7591 18.0909 30 22 30Z" fill="#34A853"/>
-                      <Path d="M16.4045 21.9C16.2045 21.3 16.0909 20.6591 16.0909 20C16.0909 19.3409 16.2045 18.7 16.4045 18.1V15.5091H13.0636C12.3864 16.8591 12 18.3864 12 20C12 21.6136 12.3864 23.1409 13.0636 24.4909L16.4045 21.9Z" fill="#FBBC04"/>
-                      <Path d="M22 13.9773C23.4681 13.9773 24.7863 14.4818 25.8227 15.4727L28.6909 12.6045C26.9591 10.9909 24.6954 10 22 10C18.0909 10 14.7091 12.2409 13.0636 15.5091L16.4045 18.1C17.1909 15.7364 19.3954 13.9773 22 13.9773Z" fill="#E94235"/>
-                    </Svg>
-                    <Text style={[styles.socialBtnText, { color: '#1F1F1F' }]}>Continue with Google</Text>
+                    {loadingType === 'google' ? (
+                      <ActivityIndicator color="#4285F4" size="small" />
+                    ) : (
+                      <>
+                        <Svg viewBox="12 10 20 20" width={18} height={18}>
+                          <Path d="M31.6 20.2273C31.6 19.5182 31.5364 18.8364 31.4182 18.1818H22V22.05H27.3818C27.15 23.3 26.4455 24.3591 25.3864 25.0682V27.5773H28.6182C30.5091 25.8364 31.6 23.2727 31.6 20.2273Z" fill="#4285F4"/>
+                          <Path d="M22 30C24.7 30 26.9636 29.1045 28.6181 27.5773L25.3863 25.0682C24.4909 25.6682 23.3454 26.0227 22 26.0227C19.3954 26.0227 17.1909 24.2636 16.4045 21.9H13.0636V24.4909C14.7091 27.7591 18.0909 30 22 30Z" fill="#34A853"/>
+                          <Path d="M16.4045 21.9C16.2045 21.3 16.0909 20.6591 16.0909 20C16.0909 19.3409 16.2045 18.7 16.4045 18.1V15.5091H13.0636C12.3864 16.8591 12 18.3864 12 20C12 21.6136 12.3864 23.1409 13.0636 24.4909L16.4045 21.9Z" fill="#FBBC04"/>
+                          <Path d="M22 13.9773C23.4681 13.9773 24.7863 14.4818 25.8227 15.4727L28.6909 12.6045C26.9591 10.9909 24.6954 10 22 10C18.0909 10 14.7091 12.2409 13.0636 15.5091L16.4045 18.1C17.1909 15.7364 19.3954 13.9773 22 13.9773Z" fill="#E94235"/>
+                        </Svg>
+                        <Text style={[styles.socialBtnText, { color: '#1F1F1F' }]}>Continue with Google</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
 
                   {/* Premium Social Button: Phone OTP Login */}
                   <TouchableOpacity
                     testID="login-phone"
-                    onPress={() => { tap(); router.push('/(auth)/phone-login'); }}
-                    disabled={loading}
+                    onPress={() => {
+                      tap();
+                      setLoadingType('phone');
+                      router.push('/(auth)/phone-login');
+                    }}
+                    disabled={isAnyLoading}
                     activeOpacity={0.85}
                     style={[
                       styles.socialBtn,
@@ -250,18 +242,29 @@ export default function Login() {
                         borderColor: '#000000',
                         borderWidth: 1,
                         borderRadius: 100,
+                        opacity: isAnyLoading && loadingType !== 'phone' ? 0.5 : 1,
                       }
                     ]}
                   >
-                    <Phone size={15} color={t.textPrimary} fill={t.textPrimary} />
-                    <Text style={[styles.socialBtnText, { color: t.textPrimary }]}>Continue with Phone Number</Text>
+                    {loadingType === 'phone' ? (
+                      <ActivityIndicator color={t.textPrimary} size="small" />
+                    ) : (
+                      <>
+                        <Phone size={15} color={t.textPrimary} fill={t.textPrimary} />
+                        <Text style={[styles.socialBtnText, { color: t.textPrimary }]}>Continue with Phone Number</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
 
                   {/* Premium Social Button: Email Login */}
                   <TouchableOpacity
                     testID="login-email-option"
-                    onPress={() => { tap(); setErr(''); setShowEmailFields(true); }}
-                    disabled={loading}
+                    onPress={() => {
+                      tap();
+                      setErr('');
+                      setShowEmailFields(true);
+                    }}
+                    disabled={isAnyLoading}
                     activeOpacity={0.85}
                     style={[
                       styles.socialBtn,
@@ -269,6 +272,7 @@ export default function Login() {
                         borderColor: '#000000',
                         borderWidth: 1,
                         borderRadius: 100,
+                        opacity: isAnyLoading && loadingType !== 'email' ? 0.5 : 1,
                       }
                     ]}
                   >
@@ -289,7 +293,7 @@ export default function Login() {
                     <Mail color={t.textSecondary} size={16} />
                     <TextInput
                       testID="login-email"
-                      editable={!loading}
+                      editable={!isAnyLoading}
                       value={email}
                       onChangeText={setEmail}
                       placeholder="Email"
@@ -303,7 +307,7 @@ export default function Login() {
                     <Lock color={t.textSecondary} size={16} />
                     <TextInput
                       testID="login-password"
-                      editable={!loading}
+                      editable={!isAnyLoading}
                       value={password}
                       onChangeText={setPassword}
                       placeholder="Password"
@@ -313,6 +317,7 @@ export default function Login() {
                     />
                     <TouchableOpacity
                       onPress={() => { tap(); setShowPassword(!showPassword); }}
+                      disabled={isAnyLoading}
                       style={{ padding: 4 }}
                       accessibilityRole="button"
                       accessibilityLabel={showPassword ? "Hide password" : "Show password"}
@@ -331,23 +336,25 @@ export default function Login() {
                 <TouchableOpacity
                   testID="login-submit"
                   onPress={onLogin}
-                  disabled={loading}
+                  disabled={isAnyLoading}
                   activeOpacity={0.85}
-                  style={[styles.cta, { backgroundColor: t.primary }]}
+                  style={[styles.cta, { backgroundColor: t.primary, opacity: isAnyLoading && loadingType !== 'submit' ? 0.5 : 1 }]}
                 >
-                  {loading
-                    ? <ActivityIndicator color={t.primaryContrast} />
+                  {loadingType === 'submit'
+                    ? <ActivityIndicator color={t.primaryContrast} size="small" />
                     : <Text style={[styles.ctaText, { color: t.primaryContrast }]}>Sign In</Text>}
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  disabled={isAnyLoading}
                   onPress={() => { tap(); setErr(''); setShowEmailFields(false); }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginTop: 12,
-                    gap: 6
+                    gap: 6,
+                    opacity: isAnyLoading ? 0.5 : 1,
                   }}
                 >
                   <ArrowLeft size={16} color={t.textSecondary} />
@@ -358,13 +365,21 @@ export default function Login() {
 
             <TouchableOpacity
               testID="goto-signup"
-              disabled={loading}
-              onPress={() => { tap(); router.push('/(auth)/signup'); }}
-              style={{ marginTop: spacing.md, opacity: loading ? 0.6 : 1 }}
+              disabled={isAnyLoading}
+              onPress={() => {
+                tap();
+                setLoadingType('signup');
+                router.push('/(auth)/signup');
+              }}
+              style={{ marginTop: spacing.md, opacity: isAnyLoading ? 0.5 : 1, alignItems: 'center' }}
             >
-              <Text style={[styles.link, { color: t.textSecondary }]}>
-                New here? <Text style={{ color: t.textPrimary, fontWeight: '700' }}>Create an account</Text>
-              </Text>
+              {loadingType === 'signup' ? (
+                <ActivityIndicator color={t.textPrimary} size="small" />
+              ) : (
+                <Text style={[styles.link, { color: t.textSecondary }]}>
+                  New here? <Text style={{ color: t.textPrimary, fontWeight: '700' }}>Create an account</Text>
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>

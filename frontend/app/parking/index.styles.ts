@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { spacing } from '../../src/core/theme/theme';
+import { spacing, shadowStyle } from '../../src/core/theme/theme';
 
 export const styles = StyleSheet.create({
   header: {
@@ -45,6 +45,13 @@ export const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: 120,
   },
+  searchBtn: {
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
   bookAnotherCta: {
     height: 48,
     borderRadius: 24,
@@ -52,14 +59,14 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.md,
     marginBottom: spacing.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadowStyle('#000', { width: 0, height: 2 }, 0.1, 4, 3),
   },
   bookAnotherCtaTxt: {
     fontSize: 15,
     fontWeight: '800',
   },
 });
+
+export default function StyleRoute() {
+  return null;
+}

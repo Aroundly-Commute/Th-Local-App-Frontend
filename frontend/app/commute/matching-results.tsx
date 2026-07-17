@@ -8,7 +8,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   MapPin, Clock, Users, Check, Send,
-  AlertTriangle, RefreshCw
+  AlertTriangle
 } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../src/core/api/api';
@@ -177,11 +177,13 @@ export default function MatchingResults() {
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 80 }}
           style={{ flex: 1 }}
           refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={handleRefresh}
-              tintColor={t.textPrimary}
-            />
+            Platform.OS !== 'web' ? (
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={handleRefresh}
+                tintColor={t.textPrimary}
+              />
+            ) : undefined
           }
         >
           {loading ? (

@@ -1,15 +1,17 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 
-const WebMap = React.forwardRef<any, any>((props, _ref) => {
-  const markers: any[] = [];
-  const polylines: any[] = [];
-
-  // Parse custom Map children (Markers and Polylines)
-  React.Children.forEach(props.children, (child) => {
+const extractMapChildren = (children: React.ReactNode, markers: any[], polylines: any[]) => {
+  React.Children.forEach(children, (child) => {
     if (!React.isValidElement(child)) return;
 
+    // Handle React.Fragment or components wrapping children
     const childProps = child.props as any;
+    if (child.type === React.Fragment || (childProps && childProps.children && !childProps.coordinate && !childProps.coordinates)) {
+      extractMapChildren(childProps.children, markers, polylines);
+      return;
+    }
+
     if (childProps.coordinate) {
       markers.push({
         lat: childProps.coordinate.latitude,
@@ -23,9 +25,18 @@ const WebMap = React.forwardRef<any, any>((props, _ref) => {
         points: childProps.coordinates.map((c: any) => [c.latitude, c.longitude]),
         strokeColor: childProps.strokeColor || '#1A73E8', // Default Google Blue
         strokeWidth: childProps.strokeWidth || 4,
+        lineDashPattern: childProps.lineDashPattern,
       });
     }
   });
+};
+
+const WebMap = React.forwardRef<any, any>((props, _ref) => {
+  const markers: any[] = [];
+  const polylines: any[] = [];
+
+  // Parse custom Map children recursively (including React.Fragment)
+  extractMapChildren(props.children, markers, polylines);
 
   const initialLat = props.initialRegion?.latitude || 20.5937;
   const initialLng = props.initialRegion?.longitude || 78.9629;
@@ -121,17 +132,24 @@ const WebMap = React.forwardRef<any, any>((props, _ref) => {
 
         // Inject dynamic routes / polylines
         const polylinesData = ${JSON.stringify(polylines)};
+        const polylineObjects = [];
         polylinesData.forEach(p => {
-          L.polyline(p.points, {
+          const options = {
             color: p.strokeColor,
             weight: p.strokeWidth,
             opacity: 0.85
-          }).addTo(map);
+          };
+          if (p.lineDashPattern && Array.isArray(p.lineDashPattern)) {
+            options.dashArray = p.lineDashPattern.join(', ');
+          }
+          const poly = L.polyline(p.points, options).addTo(map);
+          polylineObjects.push(poly);
         });
 
-        // Auto-fit route bounds perfectly
-        if (markersList.length > 0) {
-          const group = new L.featureGroup(markersList);
+        // Auto-fit route bounds perfectly (markers + polylines)
+        const featureItems = [...markersList, ...polylineObjects];
+        if (featureItems.length > 0) {
+          const group = new L.featureGroup(featureItems);
           map.fitBounds(group.getBounds().pad(0.35));
         }
       </script>

@@ -31,6 +31,14 @@ class InAppLogger {
     };
 
     console.warn = (...args: any[]) => {
+      const firstArg = args[0] ? String(args[0]) : '';
+      if (
+        firstArg.includes('"shadow*" style props are deprecated') ||
+        firstArg.includes('style.resizeMode is deprecated') ||
+        firstArg.includes('is missing the required default export')
+      ) {
+        return;
+      }
       this.originalWarn.apply(console, args);
       this.addEntry('warn', args);
     };

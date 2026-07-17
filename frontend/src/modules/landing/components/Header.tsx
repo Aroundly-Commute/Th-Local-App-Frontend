@@ -25,6 +25,7 @@ export function Header({ t, isDesktop, scrollToSection }: HeaderProps) {
           <Image
             source={require('../../../../assets/images/app_Icon_less_padding.png')}
             style={styles.logoImage}
+            resizeMode="contain"
           />
         </View>
 
@@ -141,7 +142,6 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 68,
     height: 54,
-    resizeMode: 'contain',
   },
   navLinks: {
     flexDirection: 'row',

@@ -56,3 +56,29 @@ export type Theme = typeof lightTheme;
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 18, xl: 24, xxl: 40 };
 export const radius  = { sm: 8, md: 12, lg: 16, xl: 24, pill: 9999 };
+
+import { Platform } from 'react-native';
+
+export function shadowStyle(
+  color = '#000',
+  offset = { width: 0, height: 2 },
+  opacity = 0.1,
+  radiusVal = 4,
+  elevation = 2
+) {
+  if (Platform.OS === 'web') {
+    const rgbaColor = (color === '#000' || color === '#000000')
+      ? `rgba(0, 0, 0, ${opacity})`
+      : color;
+    return {
+      boxShadow: `${offset.width}px ${offset.height}px ${radiusVal}px ${rgbaColor}`,
+    } as any;
+  }
+  return {
+    shadowColor: color,
+    shadowOffset: offset,
+    shadowOpacity: opacity,
+    shadowRadius: radiusVal,
+    elevation,
+  };
+}

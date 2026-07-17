@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, useColorScheme, Animated, Dimensions } from 'react-native';
-import { lightTheme, darkTheme, spacing, radius } from '../theme/theme';
+import { lightTheme, darkTheme, spacing, radius, shadowStyle } from '../theme/theme';
 import { tap } from '../utils/haptics';
 
 type AlertButton = {
@@ -154,11 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 10,
+    ...shadowStyle('#000', { width: 0, height: 8 }, 0.22, 16, 10),
     alignItems: 'center',
   },
   title: {

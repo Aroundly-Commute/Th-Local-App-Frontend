@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image, StyleSheet } from 'react-native';
-import { MapPin, Calendar, Clock, Info, Sparkles, AlertCircle } from 'lucide-react-native';
+import { MapPin, Calendar, Clock, Info, AlertCircle } from 'lucide-react-native';
+import { getTicketDeepLinkUrl } from '../../../core/utils/deeplink';
 
 const getISTDate = (dateInput: string | Date | number): Date => {
   const d = new Date(dateInput);
@@ -12,6 +13,17 @@ const formatISTTime = (utcTimeStr: string): string => {
   const hours = String(istDate.getUTCHours()).padStart(2, '0');
   const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+};
+
+const formatISTDateTime = (utcTimeStr: string): string => {
+  if (!utcTimeStr) return 'N/A';
+  const istDate = getISTDate(utcTimeStr);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = istDate.getUTCDate();
+  const month = monthNames[istDate.getUTCMonth()];
+  const hours = String(istDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+  return `${day} ${month}, ${hours}:${minutes}`;
 };
 
 interface MyBooking {
@@ -90,8 +102,7 @@ export function TicketCard({ bk, t, onPress }: TicketCardProps) {
       {/* Ticket Header branding */}
       <View style={[styles.ticketHeader, { borderBottomColor: t.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Sparkles size={16} color={t.primary} />
-          <Text style={[styles.ticketTitle, { color: t.textPrimary }]}>GO-PASS DIGITAL PASS</Text>
+          <Text style={[styles.ticketTitle, { color: t.textPrimary }]}>YOUR DIGITAL TICKET</Text>
         </View>
         <View style={[styles.ticketStatusBadge, { backgroundColor: statusBg }]}>
           <Text style={{ fontSize: 9, fontWeight: '800', color: statusColor }}>{bk.status}</Text>
@@ -130,9 +141,15 @@ export function TicketCard({ bk, t, onPress }: TicketCardProps) {
             </Text>
           </View>
           <View style={styles.ticketDetailCell}>
-            <Info size={12} color={t.textTertiary} />
+            <Clock size={12} color={t.success} />
             <Text style={[styles.ticketDetailVal, { color: t.textSecondary }]} numberOfLines={1}>
-              Owner: {bk.spot.owner?.name || 'Campus Resident'}
+              From: {formatISTDateTime(bk.startTime)}
+            </Text>
+          </View>
+          <View style={styles.ticketDetailCell}>
+            <Clock size={12} color={t.error} />
+            <Text style={[styles.ticketDetailVal, { color: t.textSecondary }]} numberOfLines={1}>
+              Till: {formatISTDateTime(bk.endTime)}
             </Text>
           </View>
         </View>
@@ -146,7 +163,7 @@ export function TicketCard({ bk, t, onPress }: TicketCardProps) {
             <Text style={{ fontSize: 11, fontWeight: '700', color: t.success, marginBottom: 4 }}>
               ✓ RESERVATION CONFIRMED PASS
             </Text>
-            {renderQRCode("aroundly://parking/ticket/" + bk.id + "?spot=" + bk.spot.spotName)}
+            {renderQRCode(getTicketDeepLinkUrl(bk.id, bk.spot.spotName))}
             <Text style={{ fontSize: 8, color: t.textTertiary, letterSpacing: 2, marginTop: 4 }}>
               ID: {bk.id.substring(0, 18).toUpperCase()}
             </Text>

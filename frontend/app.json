@@ -5,7 +5,7 @@
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/app_icon_ios.png",
-    "scheme": "frontend",
+    "scheme": "aroundly",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
