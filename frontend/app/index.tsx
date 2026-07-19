@@ -7,7 +7,7 @@ import {
   StyleSheet,
   useWindowDimensions
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import Head from 'expo-router/head';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -27,6 +27,7 @@ import { Footer } from '../src/modules/landing/components/Footer';
 export default function Index() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
   const { width } = useWindowDimensions();
@@ -70,6 +71,10 @@ export default function Index() {
   useEffect(() => {
     if (loading) return;
 
+    // Only perform root landing page redirects if the user is currently on the root index route
+    const isRootRoute = pathname === '/' || pathname === '/index';
+    if (!isRootRoute) return;
+
     const handleRedirects = async () => {
       // If we are on mobile, check if the one-time intro is completed first
       if (Platform.OS !== 'web') {
@@ -101,7 +106,7 @@ export default function Index() {
     };
 
     handleRedirects().catch(err => console.error('[INDEX] Redirect error:', err));
-  }, [user, loading]);
+  }, [user, loading, pathname]);
 
   const scrollToSection = (id: string) => {
     if (Platform.OS === 'web') {
