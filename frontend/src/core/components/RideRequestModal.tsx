@@ -131,9 +131,9 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
               </Text>
 
               <View style={styles.badgeRow}>
-                <View style={styles.ratingBadge}>
-                  <Star size={13} color="#F59E0B" fill="#F59E0B" />
-                  <Text style={styles.ratingText}>{Number(rating).toFixed(1)}</Text>
+                <View style={[styles.ratingBadge, { backgroundColor: t.warningBg }]}>
+                  <Star size={13} color={t.warning} fill={t.warning} />
+                  <Text style={[styles.ratingText, { color: t.warning }]}>{Number(rating).toFixed(1)}</Text>
                 </View>
                 <View style={[styles.roleBadge, { backgroundColor: t.isDark ? '#1E293B' : '#E0E7FF' }]}>
                   <Text style={[styles.roleText, { color: t.isDark ? '#93C5FD' : '#3B82F6' }]}>
@@ -159,52 +159,46 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
           ) : null}
 
           {/* Financial / Money Badge */}
-          <View
-            style={[
-              styles.fareCard,
-              {
-                backgroundColor: isOfferer
-                  ? (t.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5')
-                  : isSeeker
-                  ? (t.isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF')
-                  : (t.isDark ? 'rgba(168, 85, 247, 0.15)' : '#F3E8FF'),
-                borderColor: isOfferer
-                  ? '#10B981'
-                  : isSeeker
-                  ? '#3B82F6'
-                  : '#A855F7'
-              }
-            ]}
-          >
-            <Text
+          {!isCabShare && (
+            <View
               style={[
-                styles.fareLabel,
+                styles.fareCard,
                 {
-                  color: isOfferer
-                    ? '#059669'
-                    : isSeeker
-                    ? '#2563EB'
-                    : '#7C3AED'
+                  backgroundColor: isOfferer
+                    ? (t.isDark ? 'rgba(16, 185, 129, 0.15)' : t.mintBg)
+                    : (t.isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF'),
+                  borderColor: isOfferer
+                    ? t.success
+                    : '#3B82F6'
                 }
               ]}
             >
-              {isOfferer ? "YOU WILL RECEIVE" : isSeeker ? "YOU WILL PAY" : "ESTIMATED SHARE"}
-            </Text>
-            <Text
-              style={[
-                styles.fareAmount,
-                {
-                  color: isOfferer
-                    ? '#047857'
-                    : isSeeker
-                    ? '#1D4ED8'
-                    : '#6D28D9'
-                }
-              ]}
-            >
-              ₹{fare}
-            </Text>
-          </View>
+              <Text
+                style={[
+                  styles.fareLabel,
+                  {
+                    color: isOfferer
+                      ? t.success
+                      : '#2563EB'
+                  }
+                ]}
+              >
+                {isOfferer ? "YOU WILL RECEIVE" : "YOU WILL PAY"}
+              </Text>
+              <Text
+                style={[
+                  styles.fareAmount,
+                  {
+                    color: isOfferer
+                      ? t.success
+                      : '#1D4ED8'
+                  }
+                ]}
+              >
+                ₹{fare}
+              </Text>
+            </View>
+          )}
 
           {/* Action Buttons: 2 rows layout */}
           <View style={styles.actionSection}>
@@ -212,26 +206,26 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={[styles.actionBtn, styles.rejectBtn]}
+                style={[styles.actionBtn, { backgroundColor: t.errorBg, borderWidth: 1, borderColor: t.error }]}
                 onPress={() => {
                   tap();
                   onReject(data);
                 }}
               >
-                <XCircle size={17} color="#EF4444" />
-                <Text style={styles.rejectBtnText}>Reject</Text>
+                <XCircle size={17} color={t.error} />
+                <Text style={[styles.rejectBtnText, { color: t.error }]}>Reject</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 activeOpacity={0.85}
-                style={[styles.actionBtn, styles.acceptBtn]}
+                style={[styles.actionBtn, { backgroundColor: t.success }]}
                 onPress={() => {
                   tap();
                   onAccept(data);
                 }}
               >
                 <CheckCircle2 size={17} color="#FFFFFF" />
-                <Text style={styles.acceptBtnText}>Accept</Text>
+                <Text style={[styles.acceptBtnText, { color: '#FFFFFF' }]}>Accept</Text>
               </TouchableOpacity>
             </View>
 

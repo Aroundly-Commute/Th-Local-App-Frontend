@@ -171,7 +171,18 @@ export default function RideDetail() {
     } catch (e: any) {
       errorH();
       AnalyticsService.trackError(`Book Ride Error: ${e?.message}`, false, { rideId: id }).catch(() => {});
-      Alert.alert('Booking Error', e?.response?.data?.message || 'Failed to send ride request');
+      
+      let userMessage = 'Failed to send ride request';
+      const errMsg = e?.response?.data?.message || e?.message || '';
+      const status = e?.response?.status;
+      
+      if (status === 500 || errMsg.includes('Prisma') || errMsg.includes('invocation') || errMsg.includes('Raw query') || errMsg.includes('st_linesubstring') || errMsg.includes('SQL')) {
+        userMessage = 'An unexpected server error occurred. Please try again later.';
+      } else if (e?.response?.data?.message) {
+        userMessage = e.response.data.message;
+      }
+      
+      Alert.alert('Booking Error', userMessage);
     } finally {
       setBooking(false);
     }
@@ -444,7 +455,25 @@ export default function RideDetail() {
   const destination = ride.endPlaceName || ride.destination || 'Unknown';
   const departureTime = ride.startTime || ride.departure_time;
   const time = new Date(departureTime);
-  const isPast = time < new Date();
+  const isPast = (() => {
+    const tzOffset = 5.5 * 60 * 60 * 1000;
+    const nowKolkata = new Date(Date.now() + tzOffset);
+    const rideKolkata = new Date(time.getTime() + tzOffset);
+    
+    const nowYear = nowKolkata.getUTCFullYear();
+    const nowMonth = nowKolkata.getUTCMonth();
+    const nowDate = nowKolkata.getUTCDate();
+    
+    const rideYear = rideKolkata.getUTCFullYear();
+    const rideMonth = rideKolkata.getUTCMonth();
+    const rideDate = rideKolkata.getUTCDate();
+    
+    if (nowYear > rideYear) return true;
+    if (nowYear < rideYear) return false;
+    if (nowMonth > rideMonth) return true;
+    if (nowMonth < rideMonth) return false;
+    return nowDate > rideDate;
+  })();
 
   const startCoords = parseCoords(ride.startPointGeoJson, (ride as any).startLat || (ride as any).start_lat, (ride as any).startLng || (ride as any).start_lng, params.fromLat, params.fromLng);
   const endCoords = parseCoords(ride.endPointGeoJson, (ride as any).endLat || (ride as any).end_lat, (ride as any).endLng || (ride as any).end_lng, params.toLat, params.toLng);
@@ -585,7 +614,7 @@ export default function RideDetail() {
         </View>
 
         {/* Dynamic OTP Verification & Ride Action Section */}
-        {isConfirmed && currentStatus !== 'COMPLETED' && (!isPast) && (() => {
+        {isConfirmed && currentStatus !== 'COMPLETED' && currentStatus !== 'CANCELLED' && (!isPast) && (() => {
           const myRequestIsInvitation = Boolean(ride.my_request_is_invitation);
           const canEnterOtp = ride.can_enter_otp !== undefined ? Boolean(ride.can_enter_otp) : (!isCab ? isDriver : (myRequestIsInvitation ? !isDriver : isDriver));
           const userOtpCode = ride.my_display_otp || ride.my_otp || (ride.passengers && ride.passengers[0] ? ride.passengers[0].otp : '----');
@@ -780,68 +809,70 @@ export default function RideDetail() {
       </KeyboardAvoidingView>
 
       {/* Bottom Sticky Action Bar */}
-      <View style={[styles.bottomBar, { backgroundColor: t.surface, borderColor: t.border, paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-        {currentStatus === 'OPEN' && !isDriver && !myRequestStatus && (
-          <TouchableOpacity
-            onPress={onBook}
-            disabled={booking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
-          >
-            {booking ? <ActivityIndicator color="#fff" /> : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Send color="#fff" size={16} />
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Request Ride</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {myRequestStatus === 'REQUESTED' && (
-          <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-            <View style={[styles.cta, { backgroundColor: t.muted, flex: 2 }]}>
-              <Text style={{ color: t.textSecondary, fontSize: 14, fontWeight: '600' }}>Awaiting Approval</Text>
-            </View>
+      {!isPast && currentStatus !== 'COMPLETED' && currentStatus !== 'CANCELLED' && (
+        <View style={[styles.bottomBar, { backgroundColor: t.surface, borderColor: t.border, paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          {currentStatus === 'OPEN' && !isDriver && !myRequestStatus && (
             <TouchableOpacity
-              onPress={onCancelBooking}
+              onPress={onBook}
+              disabled={booking}
               activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
+              style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
             >
-              <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>Cancel</Text>
+              {booking ? <ActivityIndicator color="#fff" /> : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Send color="#fff" size={16} />
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Request Ride</Text>
+                </View>
+              )}
             </TouchableOpacity>
-          </View>
-        )}
+          )}
 
-        {/* Ride IS STARTED: Mark Ride as Completed */}
-        {(currentStatus === 'STARTED' || myRequestStatus === 'STARTED') && (
-          <TouchableOpacity
-            onPress={onCompleteRide}
-            disabled={booking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
-          >
-            {booking ? <ActivityIndicator color={t.primaryContrast} /> : (
-              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Mark Ride as Completed</Text>
-            )}
-          </TouchableOpacity>
-        )}
+          {myRequestStatus === 'REQUESTED' && (
+            <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+              <View style={[styles.cta, { backgroundColor: t.muted, flex: 2 }]}>
+                <Text style={{ color: t.textSecondary, fontSize: 14, fontWeight: '600' }}>Awaiting Approval</Text>
+              </View>
+              <TouchableOpacity
+                onPress={onCancelBooking}
+                activeOpacity={0.85}
+                style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
+              >
+                <Text style={{ color: '#ef4444', fontSize: 14, fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {/* Ride NOT STARTED: Withdraw Ride (driver) / Cancel Booking (passenger) */}
-        {(isDriver || myRequestStatus === 'ACCEPTED' || myRequestStatus === 'REQUESTED' || currentStatus === 'ACCEPTED') && currentStatus !== 'STARTED' && myRequestStatus !== 'STARTED' && currentStatus !== 'CANCELLED' && currentStatus !== 'COMPLETED' && (
-          <TouchableOpacity
-            onPress={isDriver ? onWithdrawRide : onCancelBooking}
-            disabled={booking}
-            activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
-          >
-            {booking ? <ActivityIndicator color="#ef4444" /> : (
-              <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>
-                {isDriver ? 'Withdraw Ride' : 'Cancel Booking'}
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
+          {/* Ride IS STARTED: Mark Ride as Completed */}
+          {(currentStatus === 'STARTED' || myRequestStatus === 'STARTED') && (
+            <TouchableOpacity
+              onPress={onCompleteRide}
+              disabled={booking}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
+            >
+              {booking ? <ActivityIndicator color={t.primaryContrast} /> : (
+                <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Mark Ride as Completed</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Ride NOT STARTED: Withdraw Ride (driver) / Cancel Booking (passenger) */}
+          {(isDriver || myRequestStatus === 'ACCEPTED' || myRequestStatus === 'REQUESTED' || currentStatus === 'ACCEPTED') && currentStatus !== 'STARTED' && myRequestStatus !== 'STARTED' && currentStatus !== 'CANCELLED' && currentStatus !== 'COMPLETED' && (
+            <TouchableOpacity
+              onPress={isDriver ? onWithdrawRide : onCancelBooking}
+              disabled={booking}
+              activeOpacity={0.85}
+              style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
+            >
+              {booking ? <ActivityIndicator color="#ef4444" /> : (
+                <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>
+                  {isDriver ? 'Withdraw Ride' : 'Cancel Booking'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {reviewTarget && (
         <ReviewModal
