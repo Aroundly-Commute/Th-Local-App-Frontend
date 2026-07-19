@@ -146,11 +146,13 @@ export default function TabsLayout() {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
+            queryClient.invalidateQueries({ queryKey: ['my-rides'] });
             Alert.alert("⚠️ Ride Cancelled", "The ride was cancelled.");
           } else if (msg.type === 'ride_request_updated') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
+            queryClient.invalidateQueries({ queryKey: ['my-rides'] });
             queryClient.invalidateQueries({ queryKey: ['sustainability'] });
             
             let messageTitle = "Ride Request Status";
