@@ -6,10 +6,10 @@ import {
   BackHandler, ActivityIndicator,
 } from 'react-native';
 
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   MapPin, Search as SearchIcon, Calendar, Clock, Users,
-  ArrowDownUp, SlidersHorizontal, ChevronDown, ArrowUpDown, Check, Send
+  ArrowDownUp, SlidersHorizontal, ChevronDown, ArrowUpDown, Check, Send, Repeat
 } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { lightTheme, darkTheme, spacing, radius, Theme } from '../../src/core/theme/theme';
@@ -32,6 +32,16 @@ const POPULAR = ['Noida → CP', 'Gurgaon → Delhi', 'Faridabad → Delhi', 'Gr
 
 
 
+
+const DAYS_OF_WEEK = [
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+];
 
 export default function Search() {
   const cs = useColorScheme();
@@ -61,7 +71,21 @@ export default function Search() {
   const [showAllLimit, setShowAllLimit] = useState(10);
   const [locLoading, setLocLoading] = useState(false);
   const [vehicleType, setVehicleType] = useState<string>('CAR');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const submittingRef = useRef(false);
+
+  const toggleDay = (dayVal: number) => {
+    tap();
+    setSelectedDays(prev => {
+      if (prev.includes(dayVal)) {
+        if (prev.length === 1) return prev;
+        return prev.filter(d => d !== dayVal);
+      } else {
+        return [...prev, dayVal].sort();
+      }
+    });
+  };
 
   const [searchTarget, setSearchTarget] = useState<'from' | 'to' | null>(null);
   const [requestingRideId, setRequestingRideId] = useState<string | null>(null);
@@ -174,6 +198,50 @@ export default function Search() {
       setLocLoading(false);
     }
   };
+
+  const loadDefaultOriginLocation = useCallback(async () => {
+    if (params.from && params.fromCoords) return;
+    try {
+      // 1. Try @active_location_data
+      const cachedActiveData = await AsyncStorage.getItem('@active_location_data');
+      if (cachedActiveData) {
+        const parsed = JSON.parse(cachedActiveData);
+        if (parsed?.address && parsed?.latitude !== undefined && parsed?.longitude !== undefined) {
+          if (!params.from) setFrom(parsed.address);
+          if (!params.fromCoords) setFromCoords({ lat: parsed.latitude, lng: parsed.longitude });
+          return;
+        }
+      }
+
+      // 2. Try @current_location_data
+      const cachedCurrentData = await AsyncStorage.getItem('@current_location_data');
+      if (cachedCurrentData) {
+        const parsed = JSON.parse(cachedCurrentData);
+        if (parsed?.address && parsed?.latitude !== undefined && parsed?.longitude !== undefined) {
+          if (!params.from) setFrom(parsed.address);
+          if (!params.fromCoords) setFromCoords({ lat: parsed.latitude, lng: parsed.longitude });
+          return;
+        }
+      }
+
+      // 3. Try @active_location or @current_location string
+      const activeStr = (await AsyncStorage.getItem('@active_location')) || (await AsyncStorage.getItem('@current_location'));
+      if (activeStr && !params.from) {
+        setFrom(activeStr);
+      }
+
+      // 4. Fallback: Request actual device location on the fly
+      await handleGetCurrentLocation();
+    } catch (err) {
+      console.error('Failed to load default origin location:', err);
+    }
+  }, [params.from, params.fromCoords]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDefaultOriginLocation();
+    }, [loadDefaultOriginLocation])
+  );
 
 function getDefaultTime5MinAhead(d: Date = new Date()): Date {
   const istMs = d.getTime() + 5.5 * 60 * 60 * 1000;
@@ -311,6 +379,42 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
     const dateStr = `${istShifted.getUTCFullYear()}-${String(istShifted.getUTCMonth() + 1).padStart(2, '0')}-${String(istShifted.getUTCDate()).padStart(2, '0')}`;
     const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
     try {
+      if (isRecurring) {
+        await api.post('/rides/recurring', {
+          startPlaceName: from,
+          endPlaceName: to,
+          start: { lng: fromCoords.lng, lat: fromCoords.lat },
+          end: { lng: toCoords.lng, lat: toCoords.lat },
+          route: [
+            { lng: fromCoords.lng, lat: fromCoords.lat },
+            { lng: toCoords.lng, lat: toCoords.lat }
+          ],
+          daysOfWeek: selectedDays,
+          timeOfDay: timeStr,
+          durationMinutes: 60,
+          startDate: new Date().toISOString(),
+          chargeCents: 1000,
+          seatsAvailable: parseInt(seats) || 1,
+          vehicleType,
+        });
+
+        await api.post('/rides/recurring/materialize?days=1').catch(() => {});
+        success();
+        saveRecentSearch(from, to);
+
+        Alert.alert(
+          'Recurring Schedule Published!',
+          'Your recurring ride schedule has been created and rides for the upcoming days have been auto-scheduled.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)/rides' as any),
+            }
+          ]
+        );
+        return;
+      }
+
       AnalyticsService.trackEvent('ride_offer_created', {
         start_place: from,
         end_place: to,
@@ -351,7 +455,7 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
       setLoading(false);
       submittingRef.current = false;
     }
-  }, [from, to, fromCoords, toCoords, datetime, seats, router, vehicleType]);
+  }, [from, to, fromCoords, toCoords, datetime, seats, router, vehicleType, isRecurring, selectedDays]);
 
   const submitAction = useCallback(async () => {
     if (!from.trim() || !to.trim()) {
@@ -372,6 +476,30 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
         start_place: from,
         end_place: to,
       }).catch(() => { });
+
+      if (isRecurring) {
+        const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
+        const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
+        await api.post('/rides/recurring', {
+          startPlaceName: from,
+          endPlaceName: to,
+          start: { lng: fromCoords.lng, lat: fromCoords.lat },
+          end: { lng: toCoords.lng, lat: toCoords.lat },
+          route: [
+            { lng: fromCoords.lng, lat: fromCoords.lat },
+            { lng: toCoords.lng, lat: toCoords.lat }
+          ],
+          daysOfWeek: selectedDays,
+          timeOfDay: timeStr,
+          durationMinutes: 60,
+          startDate: new Date().toISOString(),
+          chargeCents: 1000,
+          seatsAvailable: parseInt(seats) || 1,
+          vehicleType,
+        }).catch(() => {});
+
+        await api.post('/rides/recurring/materialize?days=1').catch(() => {});
+      }
 
       const searchFeature = params.feature || (mode === 'offer' ? 'offer' : 'main');
 
@@ -573,12 +701,81 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
                   </View>
                 </View>
 
+                {/* Recurring Ride Toggle for both Find and Offer Modes */}
+                <View style={{ marginTop: spacing.sm, gap: 10 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      tap();
+                      setIsRecurring(prev => !prev);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 8,
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Repeat color={isRecurring ? t.primary : t.textTertiary} size={16} />
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: isRecurring ? t.textPrimary : t.textTertiary }}>
+                        Repeat Ride Weekly (Recurring Schedule)
+                      </Text>
+                    </View>
+                    <View style={{
+                      width: 44,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: isRecurring ? t.primary : (t.isDark ? '#374151' : '#E5E7EB'),
+                      padding: 2,
+                      justifyContent: 'center',
+                      alignItems: isRecurring ? 'flex-end' : 'flex-start',
+                    }}>
+                      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: isRecurring ? '#FFFFFF' : '#9CA3AF' }} />
+                    </View>
+                  </TouchableOpacity>
+
+                  {isRecurring && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 4 }}>
+                      {DAYS_OF_WEEK.map(d => {
+                        const selected = selectedDays.includes(d.value);
+                        return (
+                          <TouchableOpacity
+                            key={d.value}
+                            onPress={() => toggleDay(d.value)}
+                            activeOpacity={0.8}
+                            style={{
+                              flex: 1,
+                              height: 36,
+                              borderRadius: radius.md,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: selected ? t.primary : t.surface,
+                              borderWidth: 1,
+                              borderColor: selected ? t.primary : t.border,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: selected ? t.primaryContrast : t.textSecondary }}>
+                              {d.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
                 <TouchableOpacity
                   testID="publish-submit"
                   disabled={loading || locLoading}
                   onPress={() => {
                     tap();
-                    submitAction();
+                    if (mode === 'offer') {
+                      handlePublishOfferDirectly();
+                    } else {
+                      submitAction();
+                    }
                   }}
                   activeOpacity={0.8}
                   style={[
@@ -592,7 +789,9 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
                   ]}
                 >
                   <Text style={[styles.ctaText, { color: t.primaryContrast }]}>
-                    {mode === 'find' ? 'Search Rides' : 'Offer Ride'}
+                    {mode === 'find'
+                      ? (isRecurring ? 'Search & Save Recurring' : 'Search Rides')
+                      : (isRecurring ? 'Publish Recurring Ride' : 'Offer Ride')}
                   </Text>
                 </TouchableOpacity>
             </>
