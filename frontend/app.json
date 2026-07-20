@@ -2,7 +2,7 @@
   "expo": {
     "name": "Aroundly",
     "slug": "frontend",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/app_icon_ios.png",
     "scheme": "aroundly",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.bpandey690.frontend",
-      "versionCode": 5,
+      "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
