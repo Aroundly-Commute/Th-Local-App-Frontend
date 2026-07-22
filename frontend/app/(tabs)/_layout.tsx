@@ -66,25 +66,38 @@ export default function TabsLayout() {
     try {
       const messaging = require('@react-native-firebase/messaging').default;
 
+      const handleNotificationOpen = (remoteMessage: any) => {
+        if (!remoteMessage?.data) return;
+        console.log('[FCM] Notification opened app:', remoteMessage);
+
+        const data = remoteMessage.data;
+        const type = data.type || '';
+
+        if (data.chatId || type.includes('chat')) {
+          const name = data.senderName || remoteMessage.notification?.title?.replace('Message from ', '') || 'Chat';
+          router.push(`/chat/${encodeURIComponent(data.chatId)}?name=${encodeURIComponent(name)}` as any);
+        } else if (data.rideId || type.includes('request') || type.includes('invite')) {
+          if (data.rideId) {
+            router.push(`/ride/${encodeURIComponent(data.rideId)}` as any);
+          } else {
+            router.push('/(tabs)/rides' as any);
+          }
+        } else {
+          router.push('/(tabs)/rides' as any);
+        }
+      };
+
       // 1. App in background state
       const unsubscribeNotificationOpened = messaging().onNotificationOpenedApp((remoteMessage: any) => {
-        console.log('[FCM] Notification opened app from background state:', remoteMessage);
-        if (remoteMessage?.data?.chatId) {
-          const name = remoteMessage.notification?.title?.replace('Message from ', '') || 'Chat';
-          router.push(`/chat/${encodeURIComponent(remoteMessage.data.chatId)}?name=${encodeURIComponent(name)}` as any);
-        }
+        handleNotificationOpen(remoteMessage);
       });
 
       // 2. App was in killed state
       messaging().getInitialNotification().then((remoteMessage: any) => {
         if (remoteMessage) {
-          console.log('[FCM] Notification opened app from killed state:', remoteMessage);
-          if (remoteMessage?.data?.chatId) {
-            const name = remoteMessage.notification?.title?.replace('Message from ', '') || 'Chat';
-            setTimeout(() => {
-              router.push(`/chat/${encodeURIComponent(remoteMessage.data.chatId)}?name=${encodeURIComponent(name)}` as any);
-            }, 1000);
-          }
+          setTimeout(() => {
+            handleNotificationOpen(remoteMessage);
+          }, 1000);
         }
       });
 

@@ -7,7 +7,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import {
   Star, Car, Wallet, Shield, Bell, HelpCircle, Settings,
   ChevronRight, LogOut, MapPin, Calendar, Leaf, BadgeCheck, Award,
-  Building2, Briefcase
+  Building2, Briefcase, Repeat
 } from 'lucide-react-native';
 import { useAuth } from '../../../core/auth/auth';
 import { lightTheme, spacing, radius } from '../../../core/theme/theme';
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   if (enableRideSharing) {
     menu.push(
       { icon: Car, label: 'My Vehicles', badge: user.vehicle ? 'Registered' : 'Not Set', badgeVariant: user.vehicle ? 'success' : undefined, route: '/commute/vehicles' },
-      { icon: Calendar, label: 'Scheduled Rides', badge: upcomingCount && upcomingCount > 0 ? upcomingCount.toString() : null, route: '/commute/rides' }
+      { icon: Repeat, label: 'Scheduled Rides', badge: null, route: '/commute/recurring-rides' }
     );
   }
 

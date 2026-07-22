@@ -9,9 +9,10 @@ type ScreenHeaderProps = {
   title: string;
   onBack?: () => void;
   rightComponent?: React.ReactNode;
+  onTitlePress?: () => void;
 };
 
-export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, onBack, rightComponent }) => {
+export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, onBack, rightComponent, onTitlePress }) => {
   const router = useRouter();
   const cs = useColorScheme();
   const t = cs === 'dark' ? darkTheme : lightTheme;
@@ -38,9 +39,17 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, onBack, right
         <ChevronLeft color={t.isDark ? '#00D4BC' : '#0A1628'} size={20} strokeWidth={2.8} />
       </TouchableOpacity>
 
-      <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>
-        {title}
-      </Text>
+      {onTitlePress ? (
+        <TouchableOpacity style={{ flex: 1, alignItems: 'center' }} activeOpacity={0.7} onPress={onTitlePress}>
+          <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>
+            {title}
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <Text style={[styles.title, { color: t.textPrimary }]} numberOfLines={1}>
+          {title}
+        </Text>
+      )}
 
       <View style={styles.right}>
         {rightComponent || <View style={{ width: 36 }} />}
