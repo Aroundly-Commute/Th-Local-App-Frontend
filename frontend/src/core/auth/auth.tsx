@@ -96,24 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // If server already has a token, and it matches our local cache, skip fetching
       if (user?.fcmToken && user.fcmToken === localCached) {
-        console.log('[FCM] Token matches server. Skipping fetch.');
-        return;
-      }
-
-      // If server has it but we don't have it locally, cache it
-      if (user?.fcmToken && !localCached) {
-        await AsyncStorage.setItem('@fcm_token', user.fcmToken);
-        console.log('[FCM] Cached server token locally.');
-        return;
-      }
-
-      // If we have it locally but server doesn't, sync local to server
-      if (localCached && !user?.fcmToken) {
-        console.log('[FCM] Syncing local token to server...');
-        await api.patch('/auth/fcm-token', { fcmToken: localCached });
-        // Optionally update the context user
-        setUser(prev => prev ? { ...prev, fcmToken: localCached } : null);
-        return;
+        console.log('[FCM] Token matches server and local cache.');
       }
     } catch (e) {
       console.warn('[FCM] Error checking local token cache:', e);
@@ -155,9 +138,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
 
             console.log('[FCM Web] Retrieved token:', token);
-            if (token) {
+            if (token && token !== user?.fcmToken) {
               await api.patch('/auth/fcm-token', { fcmToken: token });
               await AsyncStorage.setItem('@fcm_token', token);
+              setUser(prev => prev ? { ...prev, fcmToken: token } : null);
             }
           }
         }
@@ -169,23 +153,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!messagingModule) return;
     try {
-      const { getMessaging, getToken, requestPermission, AuthorizationStatus } = messagingModule;
-      const messagingInstance = getMessaging();
-      const authStatus = await requestPermission(messagingInstance);
+      const messaging = messagingModule.default || messagingModule;
+      const authStatus = await messaging().requestPermission();
       const enabled =
-        authStatus === AuthorizationStatus.AUTHORIZED ||
-        authStatus === AuthorizationStatus.PROVISIONAL;
+        authStatus === 1 || // AUTHORIZED
+        authStatus === 2 || // PROVISIONAL
+        authStatus === true;
 
       if (enabled) {
-        const token = await getToken(messagingInstance);
-        console.log('[FCM] Retrieved token:', token);
-        if (token) {
+        const token = await messaging().getToken();
+        console.log('[FCM Native] Retrieved token:', token);
+        if (token && token !== user?.fcmToken) {
           await api.patch('/auth/fcm-token', { fcmToken: token });
           await AsyncStorage.setItem('@fcm_token', token);
+          setUser(prev => prev ? { ...prev, fcmToken: token } : null);
         }
       }
     } catch (err) {
-      console.warn('[FCM] Failed to sync FCM token:', err);
+      console.warn('[FCM Native] Failed to sync FCM token:', err);
     }
   };
 

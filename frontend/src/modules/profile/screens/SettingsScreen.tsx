@@ -41,6 +41,19 @@ export default function SettingsScreen() {
   const [featureModalVisible, setFeatureModalVisible] = useState(false);
   const [webPermissionModalVisible, setWebPermissionModalVisible] = useState(false);
   const [appSettingsModalVisible, setAppSettingsModalVisible] = useState(false);
+  const [headerTapCount, setHeaderTapCount] = useState(0);
+
+  const handleHeaderTap = () => {
+    tap();
+    setHeaderTapCount((prev) => {
+      const next = prev + 1;
+      if (next >= 10) {
+        setFeatureModalVisible(true);
+        return 0;
+      }
+      return next;
+    });
+  };
 
   const handleToggle = async (key: 'enableRideSharing' | 'enableParking' | 'enableYourBadges' | 'enableEcoStarter' | 'enablePopularRoutes' | 'enableInAppLogs') => {
     tap();
@@ -68,7 +81,6 @@ export default function SettingsScreen() {
   };
 
   const menu = [
-    { icon: Sliders, label: 'Feature Manager', action: () => setFeatureModalVisible(true) },
     { icon: Lock, label: 'Permissions', action: handlePermissionsClick },
     { icon: Info, label: 'App Settings', action: () => setAppSettingsModalVisible(true) },
     { icon: BookOpen, label: 'Privacy Policy', action: () => { tap(); router.push('/privacy' as any); } },
@@ -77,7 +89,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.background }}>
-      <ScreenHeader title="Settings" onBack={handleBack} />
+      <ScreenHeader title="Settings" onBack={handleBack} onTitlePress={handleHeaderTap} />
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 60 }}>
         {/* Settings Menu List (Styled exactly like Profile menu) */}

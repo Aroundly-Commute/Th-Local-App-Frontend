@@ -26,22 +26,28 @@ import { styles } from './EditProfile.styles';
 
 const AVATARS = {
   Male: [
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Felix',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Jack',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Oliver',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Charlie',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Diego',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Victoria',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Samantha',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Elizabeth',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Katherine',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Brian',
   ],
   Female: [
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Aneka',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Lily',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Maya',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Zoe',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Sophia',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Alexander',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Christian',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Christopher',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Jessica',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Adrian',
   ],
   Other: [
     'https://api.dicebear.com/7.x/avataaars/png?seed=Sparky',
     'https://api.dicebear.com/7.x/avataaars/png?seed=Buster',
     'https://api.dicebear.com/7.x/avataaars/png?seed=Coco',
     'https://api.dicebear.com/7.x/avataaars/png?seed=Gizmo',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Zephyr',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Nova',
   ],
 };
 
