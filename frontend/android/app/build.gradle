@@ -92,8 +92,8 @@ android {
         applicationId 'com.bpandey690.frontend'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv("ANDROID_VERSION_CODE") ? Math.max(6, System.getenv("ANDROID_VERSION_CODE").toInteger()) : 6)
-        versionName "1.0.3"
+        versionCode (System.getenv("ANDROID_VERSION_CODE") ? Math.max(7, System.getenv("ANDROID_VERSION_CODE").toInteger()) : 7)
+        versionName "1.0.4"
         resConfigs "en"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
