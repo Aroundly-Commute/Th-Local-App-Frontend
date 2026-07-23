@@ -274,7 +274,7 @@ export default function SettingsScreen() {
             <View style={{ width: '100%', gap: 14, marginVertical: spacing.md }}>
               <View style={styles.infoRow}>
                 <Text style={{ color: t.textSecondary, fontWeight: '600' }}>App Version</Text>
-                <Text style={{ color: t.textPrimary, fontWeight: '700' }}>1.0.0</Text>
+                <Text style={{ color: t.textPrimary, fontWeight: '700' }}>1.0.4</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={{ color: t.textSecondary, fontWeight: '600' }}>Theme Mode</Text>
