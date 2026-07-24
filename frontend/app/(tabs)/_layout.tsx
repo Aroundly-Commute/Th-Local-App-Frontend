@@ -55,8 +55,26 @@ export default function TabsLayout() {
     staleTime: 30000,
   });
 
-  const hasPendingSent = (sentRequests || []).some((r: any) => r.status === 'REQUESTED');
-  const hasPendingReceived = (receivedRequests || []).some((r: any) => r.status === 'REQUESTED');
+  const isRequestPending = (r: any) => {
+    if (!r || r.status !== 'REQUESTED') return false;
+    const ride = r.ride || {};
+    if (ride.status === 'CANCELLED') return false;
+    const startTimeStr = r.riderStartTime || ride.startTime;
+    if (startTimeStr) {
+      const tzOffset = 5.5 * 60 * 60 * 1000;
+      const nowKolkata = new Date(Date.now() + tzOffset);
+      const rideKolkata = new Date(new Date(startTimeStr).getTime() + tzOffset);
+      if (nowKolkata.getUTCFullYear() > rideKolkata.getUTCFullYear()) return false;
+      if (nowKolkata.getUTCFullYear() < rideKolkata.getUTCFullYear()) return true;
+      if (nowKolkata.getUTCMonth() > rideKolkata.getUTCMonth()) return false;
+      if (nowKolkata.getUTCMonth() < rideKolkata.getUTCMonth()) return true;
+      if (nowKolkata.getUTCDate() > rideKolkata.getUTCDate()) return false;
+    }
+    return true;
+  };
+
+  const hasPendingSent = (sentRequests || []).some(isRequestPending);
+  const hasPendingReceived = (receivedRequests || []).some(isRequestPending);
   const hasPendingRequests = hasPendingSent || hasPendingReceived;
 
   // Handle FCM Notification click (tap) interactions
