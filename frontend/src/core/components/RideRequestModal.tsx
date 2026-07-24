@@ -66,6 +66,11 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
   const name = data.peerUser?.name || data.riderName || data.driverName || 'Co-passenger';
   const profilePic = data.peerUser?.profilePic;
   const rating = data.peerUser?.rating || 4.8;
+  const isVerified = Boolean(
+    (data.peerUser as any)?.isVerified || 
+    (data.peerUser as any)?.verified || 
+    (data.peerUser as any)?.verificationStatus === 'VERIFIED'
+  );
 
   // Resolve fare calculation
   const fare = data.fareAmount ?? (data.fareCents ? Math.round(data.fareCents / 100) : 150);
@@ -117,12 +122,12 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
           </Text>
 
           {/* Co-Passenger Profile Card */}
-          <View style={[styles.passengerCard, { backgroundColor: t.isDark ? 'rgba(255,255,255,0.05)' : '#F4F7FC' }]}>
+          <View style={[styles.passengerCard, { backgroundColor: t.isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC', borderWidth: 1, borderColor: t.border }]}>
             <VerifiedAvatar
               uri={profilePic}
               name={name}
-              size={54}
-              verified={true}
+              size={52}
+              verified={isVerified}
               t={t}
             />
             <View style={styles.passengerInfo}>
@@ -131,15 +136,16 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
               </Text>
 
               <View style={styles.badgeRow}>
-                <View style={[styles.ratingBadge, { backgroundColor: t.warningBg }]}>
-                  <Star size={13} color={t.warning} fill={t.warning} />
-                  <Text style={[styles.ratingText, { color: t.warning }]}>{Number(rating).toFixed(1)}</Text>
+                <View style={styles.ratingBadge}>
+                  <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                  <Text style={[styles.ratingText, { color: t.textPrimary }]}>{Number(rating).toFixed(1)}</Text>
                 </View>
-                <View style={[styles.roleBadge, { backgroundColor: t.isDark ? '#1E293B' : '#E0E7FF' }]}>
-                  <Text style={[styles.roleText, { color: t.isDark ? '#93C5FD' : '#3B82F6' }]}>
-                    {isOfferer ? 'Rider Seeker' : isSeeker ? 'Ride Host' : 'Cab Buddy'}
-                  </Text>
-                </View>
+                {isVerified ? (
+                  <View style={styles.verifiedBadge}>
+                    <CheckCircle2 size={13} color="#10B981" />
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                ) : null}
               </View>
             </View>
           </View>
@@ -160,41 +166,11 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
 
           {/* Financial / Money Badge */}
           {!isCabShare && (
-            <View
-              style={[
-                styles.fareCard,
-                {
-                  backgroundColor: isOfferer
-                    ? (t.isDark ? 'rgba(16, 185, 129, 0.15)' : t.mintBg)
-                    : (t.isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF'),
-                  borderColor: isOfferer
-                    ? t.success
-                    : '#3B82F6'
-                }
-              ]}
-            >
-              <Text
-                style={[
-                  styles.fareLabel,
-                  {
-                    color: isOfferer
-                      ? t.success
-                      : '#2563EB'
-                  }
-                ]}
-              >
+            <View style={[styles.fareCard, { backgroundColor: 'transparent', borderColor: t.border }]}>
+              <Text style={[styles.fareLabel, { color: t.textSecondary }]}>
                 {isOfferer ? "YOU WILL RECEIVE" : "YOU WILL PAY"}
               </Text>
-              <Text
-                style={[
-                  styles.fareAmount,
-                  {
-                    color: isOfferer
-                      ? t.success
-                      : '#1D4ED8'
-                  }
-                ]}
-              >
+              <Text style={[styles.fareAmount, { color: t.textPrimary }]}>
                 ₹{fare}
               </Text>
             </View>
@@ -206,40 +182,40 @@ export const RideRequestModal: React.FC<RideRequestModalProps> = ({
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={[styles.actionBtn, { backgroundColor: t.errorBg, borderWidth: 1, borderColor: t.error }]}
+                style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#EF4444' }]}
                 onPress={() => {
                   tap();
                   onReject(data);
                 }}
               >
-                <XCircle size={17} color={t.error} />
-                <Text style={[styles.rejectBtnText, { color: t.error }]}>Reject</Text>
+                <XCircle size={17} color="#EF4444" />
+                <Text style={[styles.rejectBtnText, { color: '#EF4444' }]}>Reject</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 activeOpacity={0.85}
-                style={[styles.actionBtn, { backgroundColor: t.success }]}
+                style={[styles.actionBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#10B981' }]}
                 onPress={() => {
                   tap();
                   onAccept(data);
                 }}
               >
-                <CheckCircle2 size={17} color="#FFFFFF" />
-                <Text style={[styles.acceptBtnText, { color: '#FFFFFF' }]}>Accept</Text>
+                <CheckCircle2 size={17} color="#10B981" />
+                <Text style={[styles.acceptBtnText, { color: '#10B981' }]}>Accept</Text>
               </TouchableOpacity>
             </View>
 
             {/* Bottom Row: View Detail */}
             <TouchableOpacity
               activeOpacity={0.8}
-              style={[styles.viewDetailBtn, { borderColor: t.border, backgroundColor: t.isDark ? 'rgba(255,255,255,0.03)' : '#FAFBFD' }]}
+              style={[styles.viewDetailBtn, { borderColor: t.border, backgroundColor: 'transparent' }]}
               onPress={() => {
                 tap();
                 onViewDetail(data);
               }}
             >
-              <Eye size={16} color={t.isDark ? '#00D4BC' : '#0A1628'} />
-              <Text style={[styles.viewDetailText, { color: t.isDark ? '#00D4BC' : '#0A1628' }]}>
+              <Eye size={16} color={t.textPrimary} />
+              <Text style={[styles.viewDetailText, { color: t.textPrimary }]}>
                 View Full Details
               </Text>
             </TouchableOpacity>
@@ -306,25 +282,24 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+    backgroundColor: 'transparent',
     gap: 4,
   },
   ratingText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#92400E',
   },
-  roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    gap: 4,
+    marginLeft: 6,
   },
-  roleText: {
+  verifiedText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#10B981',
   },
   routeBox: {
     flexDirection: 'row',
