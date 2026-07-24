@@ -399,6 +399,24 @@ export default function CommuteDashboard() {
     });
   };
 
+  const handleParkingPress = () => {
+    tap();
+    Alert.alert(
+      'Smart Parking Availability',
+      'This service is currently available only in selected partner societies and office complexes. Digital layout maps for each society are currently under progress.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Proceed',
+          onPress: () => {
+            tap();
+            router.push('/parking' as any);
+          },
+        },
+      ]
+    );
+  };
+
   const services = [
     {
       label: 'Share a Cab',
@@ -413,7 +431,7 @@ export default function CommuteDashboard() {
     {
       label: 'Parking',
       icon: parkingIconImg,
-      onPress: () => router.push('/parking' as any),
+      onPress: handleParkingPress,
     },
     {
       label: 'Offer Ride',
