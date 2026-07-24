@@ -129,7 +129,7 @@ export default function CommuteDashboard() {
   const { data: ridesData, isLoading: ridesLoading, refetch: refreshRides } = useQuery({
     queryKey: ['rides', 'nearby', 3, activeLocation],
     queryFn: async () => {
-      let url = '/rides?page=1&limit=3';
+      let url = '/rides?page=1&limit=3&radius=3000';
       try {
         const cachedActiveData = await AsyncStorage.getItem('@active_location_data');
         if (cachedActiveData) {
@@ -152,7 +152,7 @@ export default function CommuteDashboard() {
     queryKey: ['buddies', 3, activeLocation],
     queryFn: async () => {
       try {
-        let url = '/matchmaking/buddies?page=1&limit=3';
+        let url = '/matchmaking/buddies?page=1&limit=3&radius=3000';
         const cachedActiveData = await AsyncStorage.getItem('@active_location_data');
         if (cachedActiveData) {
           const { latitude, longitude } = JSON.parse(cachedActiveData);
