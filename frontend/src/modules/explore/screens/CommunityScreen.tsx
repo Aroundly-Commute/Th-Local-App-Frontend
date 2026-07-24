@@ -192,6 +192,24 @@ export default function CommunityScreen() {
     }
   };
 
+  const handleParkingNavigation = (targetRoute: string) => {
+    tap();
+    Alert.alert(
+      'Smart Parking Availability',
+      'This service is currently available only in selected partner societies and office complexes. Digital layout maps for each society are currently under progress.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Proceed',
+          onPress: () => {
+            tap();
+            router.push(targetRoute as any);
+          },
+        },
+      ]
+    );
+  };
+
   const currentCommunity = user?.society || user?.workplace || null;
 
   return (
@@ -254,7 +272,7 @@ export default function CommunityScreen() {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => { tap(); router.push('/parking/map' as any); }}
+                onPress={() => handleParkingNavigation('/parking/map')}
                 style={[styles.primaryActionBtn, { backgroundColor: t.primary }]}
               >
                 <Text style={[styles.primaryActionBtnText, { color: t.primaryContrast }]}>Book a Spot Now</Text>
@@ -346,7 +364,7 @@ export default function CommunityScreen() {
               <View style={styles.actionRow}>
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={() => { tap(); router.push('/parking/register'); }}
+                  onPress={() => handleParkingNavigation('/parking/register')}
                   style={[styles.primaryActionBtn, { backgroundColor: t.primary, flex: 1, width: 'auto' }]}
                 >
                   <PlusCircle size={16} color={t.primaryContrast} style={{ marginRight: 4 }} />
@@ -355,7 +373,7 @@ export default function CommunityScreen() {
 
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={() => { tap(); router.push('/parking/manage'); }}
+                  onPress={() => handleParkingNavigation('/parking/manage')}
                   style={[styles.secondaryActionBtn, { borderColor: t.border }]}
                 >
                   <Settings size={16} color={t.textPrimary} style={{ marginRight: 4 }} />

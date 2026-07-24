@@ -69,9 +69,11 @@ export default function IntroScreen() {
       await AsyncStorage.setItem('intro_completed', 'true');
       if (user) {
         const onboarded = await AsyncStorage.getItem(`onboarded_${user.id}`);
+        const skippedGlobal = await AsyncStorage.getItem('onboarding_skipped');
+        const skippedUser = await AsyncStorage.getItem(`onboarded_skipped_${user.id}`);
         const nameIsValid = user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
         const isAlreadyConfigured = nameIsValid && user.phoneNumber;
-        if (onboarded === 'true' || isAlreadyConfigured) {
+        if (onboarded === 'true' || skippedGlobal === 'true' || skippedUser === 'true' || isAlreadyConfigured) {
           router.replace('/(tabs)');
         } else {
           router.replace('/onboarding');
