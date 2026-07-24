@@ -12,6 +12,7 @@ import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { BuddyCard } from '../../src/modules/commute/components/BuddyCard';
 import { useQuery } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from '../../src/core/components/CustomAlert';
 
 export default function BuddiesSeeking() {
@@ -25,7 +26,19 @@ export default function BuddiesSeeking() {
   const { data: buddies, isLoading: cacheLoading, refetch: refresh } = useQuery({
     queryKey: ['buddies', 'list', limit],
     queryFn: async () => {
-      const { data } = await api.get(`/matchmaking/buddies?page=1&limit=${limit}`);
+      let url = `/matchmaking/buddies?page=1&limit=${limit}&radius=3000`;
+      try {
+        const cachedActiveData = await AsyncStorage.getItem('@active_location_data');
+        if (cachedActiveData) {
+          const { latitude, longitude } = JSON.parse(cachedActiveData);
+          if (latitude && longitude) {
+            url += `&latitude=${latitude}&longitude=${longitude}`;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load location for buddies seeking:', e);
+      }
+      const { data } = await api.get(url);
       return data || [];
     }
   });
