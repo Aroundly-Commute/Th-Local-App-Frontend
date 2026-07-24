@@ -266,7 +266,7 @@ export function MyRidesScreen() {
         <View style={[styles.tabBar, { backgroundColor: t.muted }]}>
           <TabBtn testID="tab-upcoming" label="Upcoming" count={totalUpcomingCount}
             active={tab === 'upcoming'} t={t} onPress={() => { tap(); setTab('upcoming'); }} />
-          <TabBtn testID="tab-requested" label="Requests" count={totalRequestedCount}
+          <TabBtn testID="tab-requested" label="Requests" count={totalRequestedCount} showRedDot={totalRequestedCount > 0}
             active={tab === 'requested'} t={t} onPress={() => { tap(); setTab('requested'); }} />
           <TabBtn testID="tab-past" label="Past" count={totalPastCount}
             active={tab === 'past'} t={t} onPress={() => { tap(); setTab('past'); }} />
@@ -1215,13 +1215,18 @@ const RideCardExt: React.FC<{
   );
 };
 
-const TabBtn: React.FC<{ label: string; active: boolean; count: number; t: Theme; onPress: () => void; testID?: string }>
-  = ({ label, active, count, t, onPress, testID }) => (
+const TabBtn: React.FC<{ label: string; active: boolean; count: number; t: Theme; onPress: () => void; testID?: string; showRedDot?: boolean }>
+  = ({ label, active, count, t, onPress, testID, showRedDot }) => (
   <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.8}
     style={[styles.tabBtn, active && { backgroundColor: t.background }]}>
-    <Text style={[styles.tabBtnText, { color: active ? t.textPrimary : t.textSecondary, fontWeight: active ? '700' : '500' }]}>
-      {label}
-    </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text style={[styles.tabBtnText, { color: active ? t.textPrimary : t.textSecondary, fontWeight: active ? '700' : '500' }]}>
+        {label}
+      </Text>
+      {showRedDot ? (
+        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#ef4444', marginLeft: 4 }} />
+      ) : null}
+    </View>
     {count > 0 ? (
       <View style={[styles.tabBadge, { backgroundColor: active ? t.textPrimary : t.border }]}>
         <Text style={[styles.tabBadgeText, { color: active ? t.background : t.textSecondary }]}>{count}</Text>
