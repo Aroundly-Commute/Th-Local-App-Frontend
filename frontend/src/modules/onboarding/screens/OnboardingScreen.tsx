@@ -135,7 +135,11 @@ export default function OnboardingScreen() {
   const handleSkip = async () => {
     tap();
     try {
-      await AsyncStorage.setItem(`onboarded_${user?.id || 'default'}`, 'true');
+      await AsyncStorage.setItem('onboarding_skipped', 'true');
+      if (user?.id) {
+        await AsyncStorage.setItem(`onboarded_${user.id}`, 'true');
+        await AsyncStorage.setItem(`onboarded_skipped_${user.id}`, 'true');
+      }
       success();
       await refresh();
       router.replace('/(tabs)');
