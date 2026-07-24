@@ -109,15 +109,15 @@ export const CustomAlertProvider: React.FC = () => {
               const isCancel = btn.style === 'cancel';
               const isDestructive = btn.style === 'destructive';
               
-              let btnBg = t.isDark ? '#00D4BC' : '#0A1628'; // Mint in dark mode, Navy in light
-              let textStyle: { color: string; fontWeight: '600' | '700' } = { color: t.isDark ? '#0A1628' : '#00D4BC', fontWeight: '700' };
+              let btnBorderColor = t.primary;
+              let textStyle: { color: string; fontWeight: '600' | '700' } = { color: t.primary, fontWeight: '700' };
               
               if (isCancel) {
-                btnBg = t.isDark ? '#142E58' : '#E8FBF9';
-                textStyle = { color: t.isDark ? '#CCF7F3' : '#1A4060', fontWeight: '600' as const };
+                btnBorderColor = t.border;
+                textStyle = { color: t.textSecondary, fontWeight: '600' };
               } else if (isDestructive) {
-                btnBg = '#EF4444';
-                textStyle = { color: '#FFFFFF', fontWeight: '700' as const };
+                btnBorderColor = '#EF4444';
+                textStyle = { color: '#EF4444', fontWeight: '700' };
               }
 
               return (
@@ -125,7 +125,7 @@ export const CustomAlertProvider: React.FC = () => {
                   key={idx}
                   activeOpacity={0.85}
                   onPress={() => handleButtonPress(btn)}
-                  style={[styles.button, { backgroundColor: btnBg, flex: config.buttons!.length > 2 ? undefined : 1 }]}
+                  style={[styles.button, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: btnBorderColor, flex: config.buttons!.length > 2 ? undefined : 1 }]}
                 >
                   <Text style={[styles.buttonText, textStyle]}>{btn.text}</Text>
                 </TouchableOpacity>
