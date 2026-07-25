@@ -969,12 +969,19 @@ export default function RideDetail() {
         const perKm = vType === 'BIKE' ? 4 : (vType === 'CAR' && (ride.vehicleCapacity || 5) > 5 ? 12 : 10);
         const fuelRate = vType === 'BIKE' ? 2 : (fType.toUpperCase() === 'CNG' ? 3 : (fType.toUpperCase() === 'DIESEL' ? 5 : 6));
         
-        const distanceFare = est?.distanceFare ?? Math.round(distVal * perKm);
-        const fuelSurcharge = est?.fuelSurcharge ?? Math.round(distVal * fuelRate);
+        const distanceFare = est?.distanceFare ?? (distVal * perKm);
+        const fuelSurcharge = est?.fuelSurcharge ?? (distVal * fuelRate);
+        const fuelTotal = Number(distanceFare + fuelSurcharge);
+
         const baseFareVal = est?.baseFare ?? 0;
-        const subtotalVal = est?.subtotal ?? (distanceFare + fuelSurcharge + baseFareVal);
-        const discountVal = est?.poolingDiscount ?? Math.round(subtotalVal * 0.40);
-        const finalFareVal = est?.finalFare ?? Math.round(displayFare || (subtotalVal - discountVal));
+        const subtotalVal = est?.subtotal ?? (fuelTotal + baseFareVal);
+        const discountVal = est?.poolingDiscount ?? (subtotalVal * 0.40);
+        const finalFareVal = est?.finalFare ?? (displayFare || (subtotalVal - discountVal));
+
+        const fmtPrice = (val: number) => {
+          const n = Number(val || 0);
+          return n % 1 === 0 ? n.toFixed(0) : n.toFixed(2);
+        };
 
         return (
           <Modal
@@ -1011,25 +1018,25 @@ export default function RideDetail() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 14, color: t.textSecondary }}>Fuel Charge</Text>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: t.textPrimary }}>
-                      ₹{distanceFare + fuelSurcharge}
+                      ₹{fmtPrice(fuelTotal)}
                     </Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 14, color: t.textSecondary }}>Base Fare</Text>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: baseFareVal === 0 ? t.success : t.textPrimary }}>
-                      {baseFareVal === 0 ? 'FREE (₹0)' : `₹${Math.round(baseFareVal)}`}
+                      {baseFareVal === 0 ? 'FREE (₹0)' : `₹${fmtPrice(baseFareVal)}`}
                     </Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderColor: t.border + '60', paddingTop: 8 }}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: t.textSecondary }}>Subtotal</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>₹{subtotalVal}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>₹{fmtPrice(subtotalVal)}</Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 14, color: t.success, fontWeight: '600' }}>40% Shared Pooling Discount</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: t.success }}>-₹{discountVal}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: t.success }}>-₹{fmtPrice(discountVal)}</Text>
                   </View>
                 </View>
 
@@ -1038,7 +1045,7 @@ export default function RideDetail() {
                     Total Pooled Fare
                   </Text>
                   <Text style={{ fontSize: 22, fontWeight: '800', color: t.primary }}>
-                    ₹{finalFareVal}
+                    ₹{fmtPrice(finalFareVal)}
                   </Text>
                 </View>
 
