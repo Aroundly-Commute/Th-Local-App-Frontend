@@ -8,14 +8,8 @@ interface ConceptShowcaseProps {
 export function ConceptShowcase({ isDesktop }: ConceptShowcaseProps) {
   return (
     <View id="cab-buddy" style={[styles.conceptSection, { backgroundColor: '#0F2240' }]}>
-      <View style={[styles.conceptContent, isDesktop ? styles.row : styles.column]}>
-        <View style={[styles.conceptLeft, isDesktop ? { width: '45%' } : { width: '100%', marginBottom: 30 }]}>
-          <Image
-            source={require('../../../../assets/images/app-image.webp')}
-            style={styles.conceptImage}
-          />
-        </View>
-        <View style={[styles.conceptRight, isDesktop ? { width: '55%', paddingLeft: 40 } : { width: '100%' }]}>
+      <View style={[styles.conceptContent]}>
+        <View style={[styles.conceptRight, { width: '100%' }]}>
           <Text style={styles.conceptPreTitle}>THE CAB BUDDY CONCEPT</Text>
           <Text style={styles.conceptTitle}>How two random strangers save ₹10,000+ monthly</Text>
           <Text style={styles.conceptDesc}>

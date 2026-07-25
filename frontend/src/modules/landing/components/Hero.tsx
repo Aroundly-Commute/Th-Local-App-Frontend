@@ -37,7 +37,7 @@ export function Hero({ isDesktop }: HeroProps) {
               onPress={() => router.push('/(auth)/login')}
               style={[styles.ctaPrimary, { backgroundColor: verdexColors.lime }]}
             >
-              <Text style={styles.ctaPrimaryText}>Get Started</Text>
+              <Text style={styles.ctaPrimaryText}>Continue on Web App</Text>
               <ArrowRight size={18} color="#0A1628" strokeWidth={2.5} />
             </TouchableOpacity>
 
