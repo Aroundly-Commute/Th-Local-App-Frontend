@@ -242,7 +242,7 @@ export default function CommuteDashboard() {
       try {
         const cachedCurrent = await AsyncStorage.getItem('@current_location');
         const cachedActive = await AsyncStorage.getItem('@active_location');
-        
+
         if (cachedCurrent) {
           setCurrentLocation(cachedCurrent);
         }
@@ -294,16 +294,16 @@ export default function CommuteDashboard() {
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['saved-places'] });
-      
+
       const checkLocationPerm = async () => {
         try {
           const { status } = await Location.getForegroundPermissionsAsync();
           const granted = status === 'granted';
-          
+
           if (granted) {
             await fetchAndStoreCurrentLocation();
           }
-          
+
           const active = await AsyncStorage.getItem('@active_location');
           if (active && active !== 'Fetching location...') {
             setActiveLocation(active);
@@ -381,10 +381,10 @@ export default function CommuteDashboard() {
     tap();
     let origin_lat, origin_lng, dest_lat, dest_lng;
     if (buddy.startPointGeoJson) {
-      try { const p = typeof buddy.startPointGeoJson === 'string' ? JSON.parse(buddy.startPointGeoJson) : buddy.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
+      try { const p = typeof buddy.startPointGeoJson === 'string' ? JSON.parse(buddy.startPointGeoJson) : buddy.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch { }
     }
     if (buddy.endPointGeoJson) {
-      try { const p = typeof buddy.endPointGeoJson === 'string' ? JSON.parse(buddy.endPointGeoJson) : buddy.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
+      try { const p = typeof buddy.endPointGeoJson === 'string' ? JSON.parse(buddy.endPointGeoJson) : buddy.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch { }
     }
     router.push({
       pathname: `/buddy/${buddy.id}` as any,
@@ -403,7 +403,7 @@ export default function CommuteDashboard() {
     tap();
     Alert.alert(
       'Smart Parking Availability',
-      'This service is currently available only in selected partner societies and office complexes. Digital layout maps for each society are currently under progress.',
+      'This service is currently available only in selected partner societies and office complexes.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -600,10 +600,10 @@ export default function CommuteDashboard() {
                       tap();
                       let origin_lat, origin_lng, dest_lat, dest_lng;
                       if (r.startPointGeoJson) {
-                        try { const p = typeof r.startPointGeoJson === 'string' ? JSON.parse(r.startPointGeoJson) : r.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch {}
+                        try { const p = typeof r.startPointGeoJson === 'string' ? JSON.parse(r.startPointGeoJson) : r.startPointGeoJson; origin_lng = p.coordinates[0]; origin_lat = p.coordinates[1]; } catch { }
                       }
                       if (r.endPointGeoJson) {
-                        try { const p = typeof r.endPointGeoJson === 'string' ? JSON.parse(r.endPointGeoJson) : r.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch {}
+                        try { const p = typeof r.endPointGeoJson === 'string' ? JSON.parse(r.endPointGeoJson) : r.endPointGeoJson; dest_lng = p.coordinates[0]; dest_lat = p.coordinates[1]; } catch { }
                       }
                       router.push({
                         pathname: `/ride/${r.id}` as any,
@@ -628,11 +628,11 @@ export default function CommuteDashboard() {
         {/* Buddies Seeking Rides */}
         {(loading || (buddiesList && buddiesList.length > 0)) && (
           <>
-            <SectionHeader 
-              t={t} 
-              title={buddiesList.length === 1 ? "Buddy Seeking Ride" : "Buddies Seeking Rides"} 
-              actionLabel="See all" 
-              onAction={() => router.push('/commute/buddies-seeking')} 
+            <SectionHeader
+              t={t}
+              title={buddiesList.length === 1 ? "Buddy Seeking Ride" : "Buddies Seeking Rides"}
+              actionLabel="See all"
+              onAction={() => router.push('/commute/buddies-seeking')}
             />
             {loading ? (
               <ScrollView

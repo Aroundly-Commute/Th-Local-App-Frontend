@@ -89,7 +89,30 @@ export function LocationSearchModal({
     try {
       tap();
       
-      // 1. Check if `@current_location_data` exists in AsyncStorage
+      // 1. Check foreground permission status first
+      let { status: currentStatus } = await Location.getForegroundPermissionsAsync();
+      if (currentStatus !== 'granted') {
+        const { status: requestStatus } = await Location.requestForegroundPermissionsAsync();
+        currentStatus = requestStatus;
+      }
+
+      if (currentStatus !== 'granted') {
+        errorH();
+        if (Platform.OS === 'web') {
+          Alert.alert(
+            'Permission Required',
+            'Location permission is missing. Please grant location permission in browser settings.'
+          );
+        } else {
+          // Open System App Settings directly on native so user can grant location permission!
+          Linking.openSettings().catch((err) =>
+            console.error('Failed to open settings:', err)
+          );
+        }
+        return;
+      }
+
+      // 2. If present and granted, check if cached location data exists
       const cachedStr = await AsyncStorage.getItem('@current_location_data');
       if (cachedStr) {
         try {
@@ -102,31 +125,6 @@ export function LocationSearchModal({
           }
         } catch (e) {
           console.warn('Failed to parse cached location data:', e);
-        }
-      }
-
-      // 2. If not present, check foreground permission status
-      const { status: currentStatus } = await Location.getForegroundPermissionsAsync();
-      if (currentStatus !== 'granted') {
-        const { status: requestStatus } = await Location.requestForegroundPermissionsAsync();
-        if (requestStatus !== 'granted') {
-          errorH();
-          Alert.alert(
-            'Permission Required',
-            'Location permission is missing. Please grant location permission in your device settings to use this feature.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Grant Permission',
-                onPress: () => {
-                  Linking.openSettings().catch((err) =>
-                    console.error('Failed to open settings:', err)
-                  );
-                },
-              },
-            ]
-          );
-          return;
         }
       }
 

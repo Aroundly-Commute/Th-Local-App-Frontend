@@ -161,6 +161,12 @@ export default function TabsLayout() {
               ...msg.payload,
               type: msg.type
             });
+          } else if (msg.type === 'otp_verified') {
+            queryClient.invalidateQueries({ queryKey: ['ride'] });
+            queryClient.invalidateQueries({ queryKey: ['rides'] });
+            queryClient.invalidateQueries({ queryKey: ['requests'] });
+            queryClient.invalidateQueries({ queryKey: ['my-rides'] });
+            Alert.alert("🔑 OTP Verified", `Your 4-digit verification OTP was verified successfully.`);
           } else if (msg.type === 'ride_started') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });
@@ -172,7 +178,16 @@ export default function TabsLayout() {
             queryClient.invalidateQueries({ queryKey: ['rides'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
             queryClient.invalidateQueries({ queryKey: ['my-rides'] });
-            Alert.alert("🏁 Ride Completed", `Your ride has been completed. Actual fare: ₹${msg.payload.actualFare || msg.payload.fareAmount || 0}.`);
+            
+            const fareAmt = msg.payload.actualFare || msg.payload.fareAmount || (msg.payload.chargeCents ? msg.payload.chargeCents / 100 : 0);
+            if (msg.payload.isCabShare || msg.payload.vehicleType === 'CAB') {
+              Alert.alert(
+                "🏁 Cab Share Completed",
+                `Your cab share is complete! Total cab bill: ₹${fareAmt}. Please split the bill with your co-passenger (Your split: ₹${msg.payload.riderShare || msg.payload.driverShare || Math.round(fareAmt/2)}).`
+              );
+            } else {
+              Alert.alert("🏁 Ride Completed", `Your ride has been completed. Actual fare: ₹${fareAmt}.`);
+            }
           } else if (msg.type === 'ride_cancelled') {
             queryClient.invalidateQueries({ queryKey: ['ride'] });
             queryClient.invalidateQueries({ queryKey: ['rides'] });

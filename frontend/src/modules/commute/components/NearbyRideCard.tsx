@@ -4,6 +4,8 @@ import { Star, Clock } from 'lucide-react-native';
 import { Theme, radius, spacing } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 
+import { formatISTTime, formatISTDate } from '../../../core/utils/datetime';
+
 type NearbyRideCardProps = {
   ride: any;
   t: Theme;
@@ -38,9 +40,8 @@ export const NearbyRideCard: React.FC<NearbyRideCardProps> = ({
   const finalPrice = estimatedFare ? estimatedFare.finalFare : price;
   const displayCurrency = '₹';
   
-  const time = new Date(departureTime);
-  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
-  const dateStr = isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const timeStr = formatISTTime(departureTime);
+  const dateStr = formatISTDate(departureTime);
   
   const vehicle = ride.driver_vehicle || ride.vehicle;
 

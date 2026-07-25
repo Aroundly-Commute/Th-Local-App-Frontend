@@ -585,7 +585,7 @@ export default function EditProfileScreen() {
               <View style={[styles.inputFieldWrapper, styles.bioWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <FileText color={t.textSecondary} size={18} style={{ marginTop: 12, alignSelf: 'flex-start' }} />
                 <TextInput
-                  placeholder="Share a short bio (e.g. Quiet commuter, loves podcasts...)"
+                  placeholder="Write a short bio about yourself"
                   placeholderTextColor={t.textSecondary}
                   value={bio}
                   onChangeText={(text) => {
@@ -609,7 +609,7 @@ export default function EditProfileScreen() {
               <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <Building2 color={t.textSecondary} size={18} />
                 <TextInput
-                  placeholder="e.g. Green Valley Society"
+                  placeholder="Enter your society or apartment"
                   placeholderTextColor={t.textSecondary}
                   value={society}
                   onChangeText={(text) => {
@@ -631,7 +631,7 @@ export default function EditProfileScreen() {
               <View style={[styles.inputFieldWrapper, { backgroundColor: t.surface, borderColor: t.border }]}>
                 <Briefcase color={t.textSecondary} size={18} />
                 <TextInput
-                  placeholder="e.g. Acme Corp, Outer Ring Road"
+                  placeholder="Enter your workplace or office"
                   placeholderTextColor={t.textSecondary}
                   value={workplace}
                   onChangeText={(text) => {

@@ -4,6 +4,8 @@ import { Clock, Star } from 'lucide-react-native';
 import { Theme, radius, spacing } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 
+import { formatISTTime, formatISTDate } from '../../../core/utils/datetime';
+
 type RequestedRideCardProps = {
   ride: any;
   t: Theme;
@@ -30,9 +32,8 @@ export const RequestedRideCard: React.FC<RequestedRideCardProps> = ({
   const destination = ride.destination || ride.endPlaceName || 'Unknown';
   const departureTime = ride.departure_time || ride.startTime;
   
-  const time = new Date(departureTime);
-  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
-  const dateStr = isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }); // e.g. "24 Jun"
+  const timeStr = formatISTTime(departureTime);
+  const dateStr = formatISTDate(departureTime);
 
   return (
     <TouchableOpacity testID={testID} onPress={onPress} activeOpacity={0.7}

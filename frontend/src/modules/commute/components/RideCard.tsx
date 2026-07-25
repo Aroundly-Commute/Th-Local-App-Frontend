@@ -4,6 +4,8 @@ import { Star, Leaf, Clock } from 'lucide-react-native';
 import { Theme, radius, spacing } from '../../../core/theme/theme';
 import { VerifiedAvatar } from '../../../core/components/VerifiedAvatar';
 
+import { formatISTTime, formatISTDate } from '../../../core/utils/datetime';
+
 export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; testID?: string; compact?: boolean; style?: any }> = ({
   ride,
   t,
@@ -31,8 +33,8 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
   const displayCurrency = '₹';
   const co2 = ride.co2_saved_kg ?? 0;
  
-  const time = new Date(departureTime);
-  const timeStr = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  const timeStr = formatISTTime(departureTime);
+  const dateStr = formatISTDate(departureTime);
   
   const vehicle = ride.driver_vehicle || ride.vehicle;
  
@@ -53,7 +55,7 @@ export const RideCard: React.FC<{ ride: any; t: Theme; onPress: () => void; test
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[s.price, { color: t.textPrimary }]}>{displayCurrency}{Math.round(finalPrice)}</Text>
           <Text style={[s.meta, { color: t.textSecondary }]}>
-            {estimatedFare ? 'pooled fare' : 'per seat'}
+            Fare
           </Text>
         </View>
       </View>

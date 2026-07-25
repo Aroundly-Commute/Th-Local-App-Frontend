@@ -28,6 +28,7 @@ import {
   Train,
   Bus,
 } from 'lucide-react-native';
+import { formatISTTime, formatISTDate } from '../../../core/utils/datetime';
 import Svg, { Path } from 'react-native-svg';
 import { api } from '../../../core/api/api';
 import { lightTheme, spacing, radius } from '../../../core/theme/theme';
@@ -172,24 +173,11 @@ export default function CommunityScreen() {
   };
 
   const formatTime = (timeStr: string) => {
-    try {
-      const d = new Date(timeStr);
-      const istShifted = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
-      const hours = String(istShifted.getUTCHours()).padStart(2, '0');
-      const minutes = String(istShifted.getUTCMinutes()).padStart(2, '0');
-      return `${hours}:${minutes}`;
-    } catch {
-      return '';
-    }
+    return formatISTTime(timeStr);
   };
 
   const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-    } catch {
-      return dateStr;
-    }
+    return formatISTDate(dateStr);
   };
 
   const handleParkingNavigation = (targetRoute: string) => {

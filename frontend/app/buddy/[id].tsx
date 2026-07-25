@@ -13,6 +13,7 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
+import { formatISTDate, formatISTTime } from '../../src/core/utils/datetime';
 
 function parseCoords(geoJson: any, latProp?: any, lngProp?: any, fallbackLatStr?: string, fallbackLngStr?: string) {
   let lat: number | undefined;
@@ -113,22 +114,112 @@ export default function BuddyDetail() {
     );
   };
 
-  const handleOfferRide = () => {
+  const handleOfferRide = async () => {
+    if (!buddy?.riderId || !user?.id || updating) return;
     tap();
-    router.push({
-      pathname: '/commute/search' as any,
-      params: {
-        mode: 'offer',
-        vehicleType: 'CAR',
-        from: buddy.startPlaceName,
-        to: buddy.endPlaceName,
-        hideTabs: 'true',
-      },
-    });
+    setUpdating(true);
+    try {
+      // 1. Check vehicle registration
+      let vehicleData: any = null;
+      try {
+        const { data } = await api.get('/auth/vehicle');
+        vehicleData = data;
+      } catch {}
+
+      if (!vehicleData || !vehicleData.vehicleNumber || !vehicleData.vehicleNumber.trim()) {
+        errorH();
+        setUpdating(false);
+        Alert.alert(
+          'Vehicle Registration Required',
+          'Please register your vehicle details before offering a ride to passengers.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Register Vehicle',
+              onPress: () => router.push(`/commute/vehicles?redirectAfter=/buddy/${id}` as any),
+            },
+          ]
+        );
+        return;
+      }
+
+      // 2. Check if driver has an existing active ride, or create a new ride offer with registered vehicle
+      let targetRideId: string | null = null;
+      try {
+        const { data: myRidesData } = await api.get('/rides/my?page=1&limit=10');
+        const activeOfferedRide = (myRidesData?.upcoming || []).find((r: any) => (r.role === 'driver' || r.driverId === user?.id) && r.status === 'OPEN');
+        if (activeOfferedRide) {
+          targetRideId = activeOfferedRide.id;
+        }
+      } catch {}
+
+      if (!targetRideId) {
+        const rawDate = buddy.startTime || buddy.riderStartTime || (buddy as any).start_time;
+        const parsedDate = rawDate ? new Date(rawDate) : new Date(Date.now() + 15 * 60 * 1000);
+        const validDate = (parsedDate && !isNaN(parsedDate.getTime())) ? parsedDate : new Date(Date.now() + 15 * 60 * 1000);
+
+        const dateStr = validDate.toISOString().split('T')[0];
+        const hoursStr = String(validDate.getHours()).padStart(2, '0');
+        const minsStr = String(validDate.getMinutes()).padStart(2, '0');
+        const timeStr = `${hoursStr}:${minsStr}`;
+
+        const sCoords = (origin_lng !== undefined && origin_lat !== undefined && !isNaN(origin_lng) && !isNaN(origin_lat))
+          ? [origin_lng, origin_lat]
+          : undefined;
+        const eCoords = (dest_lng !== undefined && dest_lat !== undefined && !isNaN(dest_lng) && !isNaN(dest_lat))
+          ? [dest_lng, dest_lat]
+          : undefined;
+
+        const newRidePayload = {
+          startName: buddy.startPlaceName || 'Pickup Location',
+          endName: buddy.endPlaceName || 'Dropoff Location',
+          startPlaceName: buddy.startPlaceName || 'Pickup Location',
+          endPlaceName: buddy.endPlaceName || 'Dropoff Location',
+          startCoords: sCoords,
+          endCoords: eCoords,
+          date: dateStr,
+          time: timeStr,
+          startTime: validDate.toISOString(),
+          endTime: new Date(validDate.getTime() + 60 * 60 * 1000).toISOString(),
+          seatsAvailable: vehicleData.capacity ? Math.max(1, vehicleData.capacity - 1) : 3,
+          chargeCents: 1000,
+          vehicleType: vehicleData.type || 'CAR',
+          vehicleCapacity: vehicleData.capacity || 5,
+          fuelType: vehicleData.fuelType || 'Petrol',
+          vehicleNumber: vehicleData.vehicleNumber,
+          role: 'OFFERED',
+        };
+        const { data: newRide } = await api.post('/rides/offer', newRidePayload);
+        targetRideId = newRide.id;
+      }
+
+      const sCoords = (origin_lng !== undefined && origin_lat !== undefined && !isNaN(origin_lng) && !isNaN(origin_lat)) ? [origin_lng, origin_lat] : undefined;
+      const eCoords = (dest_lng !== undefined && dest_lat !== undefined && !isNaN(dest_lng) && !isNaN(dest_lat)) ? [dest_lng, dest_lat] : undefined;
+
+      await api.post('/matchmaking/invite', {
+        rideId: targetRideId,
+        buddyRequestId: id,
+        riderStartName: buddy.startPlaceName,
+        riderEndName: buddy.endPlaceName,
+        riderStartCoords: sCoords,
+        riderEndCoords: eCoords,
+      });
+      success();
+      Alert.alert(
+        'Ride Offer Sent!',
+        `Your ride offer has been successfully sent to ${riderName}. You can track this under your Requests page.`,
+        [{ text: 'OK', onPress: () => router.push('/(tabs)/rides' as any) }]
+      );
+    } catch (err: any) {
+      errorH();
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to send ride offer.');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleOfferCab = async () => {
-    if (!buddy?.riderId || !user?.id) return;
+    if (!buddy?.riderId || !user?.id || updating) return;
     tap();
     setUpdating(true);
     try {
@@ -148,7 +239,7 @@ export default function BuddyDetail() {
   };
 
   const handleInviteBuddy = async () => {
-    if (!rideId) return;
+    if (!rideId || updating) return;
     tap();
     setUpdating(true);
     try {
@@ -220,12 +311,12 @@ export default function BuddyDetail() {
             </View>
             <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>
-                {isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                {formatISTDate(buddy.startTime)}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                 <Clock color={t.textSecondary} size={11} />
                 <Text style={{ fontSize: 12, color: t.textSecondary }}>
-                  {isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                  {formatISTTime(buddy.startTime)}
                 </Text>
               </View>
             </View>
@@ -276,7 +367,7 @@ export default function BuddyDetail() {
             onPress={handleWithdrawRequest}
             disabled={updating}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%' }]}
+            style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, width: '100%', opacity: updating ? 0.6 : 1 }]}
           >
             {updating ? <ActivityIndicator color="#ef4444" /> : (
               <Text style={{ color: '#ef4444', fontSize: 16, fontWeight: '700' }}>Withdraw Buddy Request</Text>
@@ -287,7 +378,7 @@ export default function BuddyDetail() {
             onPress={handleInviteBuddy}
             disabled={updating}
             activeOpacity={0.85}
-            style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
+            style={[styles.cta, { backgroundColor: t.primary, width: '100%', opacity: updating ? 0.6 : 1 }]}
           >
             {updating ? <ActivityIndicator color="#fff" /> : (
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Send Ride Offer</Text>
@@ -297,16 +388,19 @@ export default function BuddyDetail() {
           <View style={{ flexDirection: 'column', gap: 10, width: '100%' }}>
             <TouchableOpacity
               onPress={handleOfferRide}
+              disabled={updating}
               activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: t.primary, width: '100%' }]}
+              style={[styles.cta, { backgroundColor: t.primary, width: '100%', opacity: updating ? 0.6 : 1 }]}
             >
-              <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+              {updating ? <ActivityIndicator color={t.primaryContrast} /> : (
+                <Text style={{ color: t.primaryContrast, fontSize: 16, fontWeight: '700' }}>Offer a Ride</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleOfferCab}
               disabled={updating}
               activeOpacity={0.85}
-              style={[styles.cta, { backgroundColor: '#10B981', width: '100%' }]}
+              style={[styles.cta, { backgroundColor: '#10B981', width: '100%', opacity: updating ? 0.6 : 1 }]}
             >
               {updating ? <ActivityIndicator color="#fff" /> : (
                 <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700' }}>Share Cab</Text>

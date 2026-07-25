@@ -250,7 +250,7 @@ export default function VerificationScreen() {
                           setEmail(text);
                           setErrorMsg('');
                         }}
-                        placeholder="e.g. alex@google.com"
+                        placeholder="Enter corporate email address"
                         placeholderTextColor={t.textTertiary}
                         keyboardType="email-address"
                         autoCapitalize="none"

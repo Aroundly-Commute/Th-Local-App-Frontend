@@ -20,6 +20,16 @@ import { tap, success, errorH } from '../../../core/utils/haptics';
 import { ScreenHeader } from '../../../core/components/ScreenHeader';
 import { Alert } from '../../../core/components/CustomAlert';
 
+function formatTimeOfDay(timeOfDay: string) {
+  if (!timeOfDay) return '08:30 AM';
+  const parts = timeOfDay.split(':');
+  const h = parseInt(parts[0] || '8', 10);
+  const m = parseInt(parts[1] || '0', 10);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 || 12;
+  return `${String(displayH).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+}
+
 const DAYS_OF_WEEK = [
   { label: 'Sun', value: 0 },
   { label: 'Mon', value: 1 },
@@ -200,7 +210,7 @@ export function RecurringRidesScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Clock color={t.textSecondary} size={14} />
                         <Text style={{ fontSize: 13, fontWeight: '700', color: t.textPrimary }}>
-                          {item.timeOfDay || '08:30'}
+                          {formatTimeOfDay(item.timeOfDay)}
                         </Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

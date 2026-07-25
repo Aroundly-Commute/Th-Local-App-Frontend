@@ -66,7 +66,7 @@ export default function RegisterParking() {
       if (spot.ownerId === user?.id) {
         Alert.alert('Your Spot', `You already own ${spot.spotName}!`);
       } else {
-        Alert.alert('Already Owned', `Spot ${spot.spotName} is already registered by another owner.`);
+        Alert.alert('Already Owned', `Spot ${spot.spotName} is owned by another user.`);
       }
       return;
     }
@@ -81,8 +81,8 @@ export default function RegisterParking() {
       await api.post('/parking/register', { spotName: selectedSpot.spotName });
       success();
       Alert.alert(
-        'Registration Success',
-        `Successfully registered spot ${selectedSpot.spotName}! It is now active and approved for scheduling.`,
+        'Spot Registered',
+        `Spot ${selectedSpot.spotName} registered successfully!`,
         [
           {
             text: 'OK',

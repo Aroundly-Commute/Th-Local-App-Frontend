@@ -13,6 +13,7 @@ import { ScreenHeader } from '../../../core/components/ScreenHeader';
 import { useQuery } from '@tanstack/react-query';
 import { Alert } from '../../../core/components/CustomAlert';
 import { ReviewModal } from '../../../core/components/ReviewModal';
+import { formatISTDate, formatISTTime } from '../../../core/utils/datetime';
 
 export function MyRidesScreen() {
   const cs = useColorScheme();
@@ -58,32 +59,12 @@ export function MyRidesScreen() {
   const checkInstalledCabApps = async () => {
     setCheckingApps(true);
     const allApps = [
-      { id: 'uber' as const, name: 'UBER', bg: '#000000', color: '#ffffff', url: 'uber://?action=setPickup&pickup=my_location', webUrl: 'https://m.uber.com' },
-      { id: 'ola' as const, name: 'OLA', bg: '#a6c307', color: '#000000', url: 'olacabs://app/launch', webUrl: 'https://www.olacabs.com' },
-      { id: 'rapido' as const, name: 'Rapido', bg: '#ffd700', color: '#000000', url: 'rapido://', webUrl: 'https://www.rapido.bike' },
+      { id: 'uber' as const, name: 'UBER', bg: '#000000', color: '#ffffff', urls: ['uber://?action=setPickup&pickup=my_location', 'uber://'], webUrl: 'https://m.uber.com' },
+      { id: 'ola' as const, name: 'OLA', bg: '#a6c307', color: '#000000', urls: ['olacabs://', 'olacabs://app/launch', 'olacabs://open'], webUrl: 'https://www.olacabs.com' },
+      { id: 'rapido' as const, name: 'Rapido', bg: '#ffd700', color: '#000000', urls: ['rapido://', 'rapido://open', 'rapido://home'], webUrl: 'https://www.rapido.bike' },
     ];
 
-    if (Platform.OS === 'web') {
-      setAvailableCabApps(allApps);
-      setCheckingApps(false);
-      return;
-    }
-
-    const installed: typeof allApps = [];
-    for (const app of allApps) {
-      try {
-        const canOpen = await Linking.canOpenURL(app.url);
-        if (canOpen) {
-          installed.push(app);
-        }
-      } catch {}
-    }
-
-    if (installed.length === 0) {
-      setAvailableCabApps(allApps);
-    } else {
-      setAvailableCabApps(installed);
-    }
+    setAvailableCabApps(allApps as any);
     setCheckingApps(false);
   };
 
@@ -140,17 +121,21 @@ export function MyRidesScreen() {
     }
   };
 
-  const handleLaunchCabApp = async (app: { url: string; webUrl: string }) => {
+  const handleLaunchCabApp = async (app: { urls?: string[]; url?: string; webUrl: string }) => {
     tap();
     setCabLauncherModalVisible(false);
-    try {
-      if (Platform.OS !== 'web') {
-        const supported = await Linking.canOpenURL(app.url);
-        if (supported) {
-          await Linking.openURL(app.url);
+    if (Platform.OS !== 'web') {
+      const schemeList = app.urls || (app.url ? [app.url] : []);
+      for (const schemeUrl of schemeList) {
+        try {
+          await Linking.openURL(schemeUrl);
           return;
+        } catch (e) {
+          console.log(`Failed to launch scheme ${schemeUrl}:`, e);
         }
       }
+    }
+    try {
       await Linking.openURL(app.webUrl);
     } catch {
       Linking.openURL(app.webUrl);
@@ -199,7 +184,7 @@ export function MyRidesScreen() {
         setFareSplitDetails({
           visible: true,
           isCab: false,
-          fare: data.price_per_seat || data.fareCents / 100 || 10
+          fare: data.actualFare || data.price_per_seat || (data.fareCents ? data.fareCents / 100 : (data.chargeCents ? data.chargeCents / 100 : 0))
         });
       }
 
@@ -462,11 +447,11 @@ export function MyRidesScreen() {
             </Text>
 
             <TextInput
-              style={[styles.otpInput, { color: t.textPrimary, borderColor: t.border }]}
+              style={[styles.fareInput, { color: t.textPrimary, borderColor: t.border, backgroundColor: t.background }]}
               keyboardType="numeric"
               value={cabFareValue}
               onChangeText={setCabFareValue}
-              placeholder="₹ Enter total amount"
+              placeholder="Enter total amount (e.g. 250)"
               placeholderTextColor={t.textTertiary}
             />
 
@@ -561,9 +546,8 @@ const RideCardExt: React.FC<{
   onStartRide: (r: any) => void;
   onCompleteRide: (r: any) => void;
 }> = ({ r, t, isPast, isRequested, isSentRequest, router, onRefresh, onRatePeer, onStartRide, onCompleteRide }) => {
-  const date = new Date(r.departure_time);
-  const dateStr = isNaN(date.getTime()) ? '—' : date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
-  const timeStr = isNaN(date.getTime()) ? '—' : date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  const dateStr = formatISTDate(r.departure_time, false, '—');
+  const timeStr = formatISTTime(r.departure_time, '—');
 
   const isDriver = r.role === 'driver';
   const isCab = r.vehicle_type === 'CAB' || r.vehicleType === 'CAB';
@@ -769,12 +753,20 @@ const RideCardExt: React.FC<{
           </View>
           {showPriceInfo && (
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: t.textSecondary, marginBottom: 2 }}>
-                {isDriver ? "You'll get" : "You pay"}
-              </Text>
-              <Text style={[styles.price, { color: t.textPrimary }]}>
-                ₹{priceVal}
-              </Text>
+              {isCab ? (
+                <Text style={{ fontSize: 13, fontWeight: '700', color: t.primary }}>
+                  Split the Cab Fare
+                </Text>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: t.textSecondary, marginBottom: 2 }}>
+                    {isDriver ? "You'll get" : "You pay"}
+                  </Text>
+                  <Text style={[styles.price, { color: t.textPrimary }]}>
+                    ₹{priceVal}
+                  </Text>
+                </>
+              )}
             </View>
           )}
         </View>
@@ -845,7 +837,7 @@ const RideCardExt: React.FC<{
                     )}
 
                     {p.status === 'ACCEPTED' && (() => {
-                      const canEnterOtp = !isCab ? isDriver : (r.my_request_is_invitation ? !isDriver : isDriver);
+                      const canEnterOtp = isCab ? true : (!isCab ? isDriver : (r.my_request_is_invitation ? !isDriver : isDriver));
                       if (!canEnterOtp) return null;
                       return (
                         <TouchableOpacity
@@ -863,7 +855,7 @@ const RideCardExt: React.FC<{
                           }}
                         >
                           <Text style={{ color: t.primaryContrast, fontSize: 12, fontWeight: '700' }}>
-                            {isCab ? 'Book Cab' : 'Start'}
+                            {isCab ? 'Book a Cab and Split' : 'Enter OTP'}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -883,11 +875,11 @@ const RideCardExt: React.FC<{
                               paddingHorizontal: 12,
                               paddingVertical: 8,
                               borderRadius: 8,
-                              backgroundColor: t.primary
+                              backgroundColor: '#10b981'
                             }}
                           >
-                            <Text style={{ color: t.primaryContrast, fontSize: 12, fontWeight: '700' }}>
-                              Start Ride
+                            <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                              Book a Cab and Split
                             </Text>
                           </TouchableOpacity>
                         )}
@@ -1311,6 +1303,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 4,
     marginBottom: 14,
+  },
+  fareInput: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'left',
+    letterSpacing: 0,
+    marginBottom: 16,
   },
   errorText: {
     color: '#ef4444',

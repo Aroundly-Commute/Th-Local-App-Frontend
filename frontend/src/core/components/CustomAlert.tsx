@@ -108,14 +108,17 @@ export const CustomAlertProvider: React.FC = () => {
             {config.buttons?.map((btn, idx) => {
               const isCancel = btn.style === 'cancel';
               const isDestructive = btn.style === 'destructive';
-              
+
+              let btnBg = t.primary;
               let btnBorderColor = t.primary;
-              let textStyle: { color: string; fontWeight: '600' | '700' } = { color: t.primary, fontWeight: '700' };
-              
+              let textStyle: { color: string; fontWeight: '600' | '700' } = { color: t.primaryContrast, fontWeight: '700' };
+
               if (isCancel) {
+                btnBg = 'transparent';
                 btnBorderColor = t.border;
                 textStyle = { color: t.textSecondary, fontWeight: '600' };
               } else if (isDestructive) {
+                btnBg = '#FEE2E2';
                 btnBorderColor = '#EF4444';
                 textStyle = { color: '#EF4444', fontWeight: '700' };
               }
@@ -125,7 +128,15 @@ export const CustomAlertProvider: React.FC = () => {
                   key={idx}
                   activeOpacity={0.85}
                   onPress={() => handleButtonPress(btn)}
-                  style={[styles.button, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: btnBorderColor, flex: config.buttons!.length > 2 ? undefined : 1 }]}
+                  style={[
+                    styles.button,
+                    {
+                      backgroundColor: btnBg,
+                      borderWidth: isCancel ? 1.5 : 1,
+                      borderColor: btnBorderColor,
+                      flex: config.buttons!.length > 2 ? undefined : 1,
+                    },
+                  ]}
                 >
                   <Text style={[styles.buttonText, textStyle]}>{btn.text}</Text>
                 </TouchableOpacity>

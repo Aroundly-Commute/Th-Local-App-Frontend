@@ -23,6 +23,7 @@ import { useFeatureFlags } from '../../src/services/feature-flag/FeatureFlagCont
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { AnalyticsService } from '../../src/core/services/analytics';
+import { getISTDateString, getISTTimeString } from '../../src/core/utils/datetime';
 import { DateTimePicker } from '../../src/modules/commute/components/DateTimePicker';
 import { LocationSearchModal } from '../../src/modules/commute/components/search/LocationSearchModal';
 import { styles } from './search.styles';
@@ -101,7 +102,7 @@ export default function Search() {
         const saved = await AsyncStorage.getItem('@commute_recent_searches');
         if (saved) {
           const parsed = JSON.parse(saved) || [];
-          const valid = parsed.filter((r: any) => r.fromCoords && r.toCoords);
+          const valid = parsed.filter((r: any) => r.toCoords && (r.to || r.destination));
           setRecentSearches(valid);
         }
       } catch (err) {
@@ -127,18 +128,17 @@ export default function Search() {
   }, [params.showAll, showAllLimit]);
 
   const saveRecentSearch = async (fromVal: string, toVal: string) => {
-    if (!fromCoords || !toCoords) return;
+    if (!toVal || !toCoords) return;
     try {
       const saved = await AsyncStorage.getItem('@commute_recent_searches');
       let list = saved ? JSON.parse(saved) : [];
-      list = list.filter((r: any) => !(r.from === fromVal && r.to === toVal));
+      list = list.filter((r: any) => !(r.to === toVal || r.destination === toVal));
       list.unshift({
-        from: fromVal,
         to: toVal,
-        fromCoords,
-        toCoords
+        destination: toVal,
+        toCoords,
       });
-      list = list.slice(0, 3);
+      list = list.slice(0, 5);
       await AsyncStorage.setItem('@commute_recent_searches', JSON.stringify(list));
       setRecentSearches(list);
     } catch (err) {
@@ -375,9 +375,8 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setLoading(true);
-    const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
-    const dateStr = `${istShifted.getUTCFullYear()}-${String(istShifted.getUTCMonth() + 1).padStart(2, '0')}-${String(istShifted.getUTCDate()).padStart(2, '0')}`;
-    const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
+    const dateStr = getISTDateString(datetime);
+    const timeStr = getISTTimeString(datetime);
     try {
       if (isRecurring) {
         await api.post('/rides/recurring', {
@@ -398,7 +397,7 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
           vehicleType,
         });
 
-        await api.post('/rides/recurring/materialize?days=1').catch(() => {});
+        await api.post('/rides/recurring/materialize?days=7').catch(() => {});
         success();
         saveRecentSearch(from, to);
 
@@ -426,7 +425,6 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
         startCoords: fromCoords ? [fromCoords.lng, fromCoords.lat] : null,
         endCoords: toCoords ? [toCoords.lng, toCoords.lat] : null,
         seats: parseInt(seats) || 1,
-        price: 10,
         date: dateStr,
         time: timeStr,
         vehicleType,
@@ -478,8 +476,7 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
       }).catch(() => { });
 
       if (isRecurring) {
-        const istShifted = new Date(datetime.getTime() + 5.5 * 60 * 60 * 1000);
-        const timeStr = `${String(istShifted.getUTCHours()).padStart(2, '0')}:${String(istShifted.getUTCMinutes()).padStart(2, '0')}`;
+        const timeStr = getISTTimeString(datetime);
         await api.post('/rides/recurring', {
           startPlaceName: from,
           endPlaceName: to,
@@ -498,7 +495,7 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
           vehicleType,
         }).catch(() => {});
 
-        await api.post('/rides/recurring/materialize?days=1').catch(() => {});
+        await api.post('/rides/recurring/materialize?days=7').catch(() => {});
       }
 
       const searchFeature = params.feature || (mode === 'offer' ? 'offer' : 'main');
@@ -530,10 +527,10 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
 
   const quickSearch = (r: any) => {
     tap();
-    setFrom(r.from);
-    setTo(r.to);
-    setFromCoords(r.fromCoords || null);
-    setToCoords(r.toCoords || null);
+    const destName = r.to || r.destination;
+    const destCoords = r.toCoords;
+    if (destName) setTo(destName);
+    if (destCoords) setToCoords(destCoords);
   };
 
   const handlePostSearch = () => {
@@ -854,7 +851,7 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
             <>
               {recentSearches.length > 0 && (
                 <>
-                  <Text style={[styles.section, { color: t.textPrimary }]}>Recent Searches</Text>
+                  <Text style={[styles.section, { color: t.textPrimary }]}>Recent Destinations</Text>
                   <View style={{ gap: 8 }}>
                     {recentSearches.map((r, i) => (
                       <TouchableOpacity
@@ -864,18 +861,12 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
                         activeOpacity={0.7}
                         style={[styles.recentRow, { backgroundColor: t.surface, borderColor: t.border }]}
                       >
-                        <View style={[styles.recentIcon, { backgroundColor: t.muted }]}>
-                          <MapPin color={t.textPrimary} size={14} />
+                        <View style={[styles.recentIcon, { backgroundColor: t.primary + '15' }]}>
+                          <MapPin color={t.primary} size={14} />
                         </View>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">
-                            {r.from}
-                          </Text>
-                          <Text style={{ color: t.textSecondary, marginHorizontal: 8 }}>→</Text>
-                          <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">
-                            {r.to}
-                          </Text>
-                        </View>
+                        <Text style={{ color: t.textPrimary, fontSize: 13, fontWeight: '600', flex: 1 }} numberOfLines={1} ellipsizeMode="tail">
+                          {r.to || r.destination}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>

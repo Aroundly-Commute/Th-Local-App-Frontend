@@ -9,6 +9,7 @@ import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { tap, success } from '../../src/core/utils/haptics';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
+import { formatISTTime } from '../../src/core/utils/datetime';
 
 export default function ChatScreen() {
   const cs = useColorScheme();
@@ -166,7 +167,7 @@ export default function ChatScreen() {
                   </Text>
                   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 4 }}>
                     <Text style={{ color: mine ? t.primaryContrast : t.textSecondary, fontSize: 10, opacity: 0.8 }}>
-                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatISTTime(item.created_at)}
                     </Text>
                     {mine && (
                       <Text style={{

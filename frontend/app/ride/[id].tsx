@@ -1,5 +1,5 @@
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, TextInput, Modal, Linking, Platform, KeyboardAvoidingView } from 'react-native';
 import { Alert } from '../../src/core/components/CustomAlert';
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
@@ -8,13 +8,14 @@ import { ReviewModal } from '../../src/core/components/ReviewModal';
 
 import { RouteMap } from '../../src/modules/commute/components/RouteMap';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Star, Leaf, Car, MessageCircle, Clock, Send, KeyRound, CheckCircle2 } from 'lucide-react-native';
+import { Star, Leaf, Car, MessageCircle, Clock, Send, KeyRound, CheckCircle2, Info } from 'lucide-react-native';
 import { api } from '../../src/core/api/api';
 import { useAuth } from '../../src/core/auth/auth';
 import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/theme';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { tap, success, errorH } from '../../src/core/utils/haptics';
 import { AnalyticsService } from '../../src/core/services/analytics';
+import { formatISTDate, formatISTTime } from '../../src/core/utils/datetime';
 
 function parseCoords(geoJson: any, latProp?: any, lngProp?: any, fallbackLatStr?: string, fallbackLngStr?: string) {
   let lat: number | undefined;
@@ -73,6 +74,8 @@ export default function RideDetail() {
     toUserId: string;
   } | null>(null);
 
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const parsedFare = params.estimatedFare ? JSON.parse(params.estimatedFare) : null;
   const requestedSeats = params.seats ? parseInt(params.seats, 10) : 1;
 
@@ -96,32 +99,12 @@ export default function RideDetail() {
   const checkInstalledCabApps = async () => {
     setCheckingApps(true);
     const allApps = [
-      { id: 'uber' as const, name: 'UBER', bg: '#000000', color: '#ffffff', url: 'uber://?action=setPickup&pickup=my_location', webUrl: 'https://m.uber.com' },
-      { id: 'ola' as const, name: 'OLA', bg: '#a6c307', color: '#000000', url: 'olacabs://app/launch', webUrl: 'https://www.olacabs.com' },
-      { id: 'rapido' as const, name: 'Rapido', bg: '#ffd700', color: '#000000', url: 'rapido://', webUrl: 'https://www.rapido.bike' },
+      { id: 'uber' as const, name: 'UBER', bg: '#000000', color: '#ffffff', urls: ['uber://?action=setPickup&pickup=my_location', 'uber://'], webUrl: 'https://m.uber.com' },
+      { id: 'ola' as const, name: 'OLA', bg: '#a6c307', color: '#000000', urls: ['olacabs://', 'olacabs://app/launch', 'olacabs://open'], webUrl: 'https://www.olacabs.com' },
+      { id: 'rapido' as const, name: 'Rapido', bg: '#ffd700', color: '#000000', urls: ['rapido://', 'rapido://open', 'rapido://home'], webUrl: 'https://www.rapido.bike' },
     ];
 
-    if (Platform.OS === 'web') {
-      setAvailableCabApps(allApps);
-      setCheckingApps(false);
-      return;
-    }
-
-    const installed: typeof allApps = [];
-    for (const app of allApps) {
-      try {
-        const canOpen = await Linking.canOpenURL(app.url);
-        if (canOpen) {
-          installed.push(app);
-        }
-      } catch {}
-    }
-
-    if (installed.length === 0) {
-      setAvailableCabApps(allApps);
-    } else {
-      setAvailableCabApps(installed);
-    }
+    setAvailableCabApps(allApps as any);
     setCheckingApps(false);
   };
 
@@ -131,17 +114,21 @@ export default function RideDetail() {
     setCabLauncherModalVisible(true);
   };
 
-  const handleLaunchCabApp = async (app: { url: string; webUrl: string }) => {
+  const handleLaunchCabApp = async (app: { urls?: string[]; url?: string; webUrl: string }) => {
     tap();
     setCabLauncherModalVisible(false);
-    try {
-      if (Platform.OS !== 'web') {
-        const canOpen = await Linking.canOpenURL(app.url);
-        if (canOpen) {
-          await Linking.openURL(app.url);
+    if (Platform.OS !== 'web') {
+      const schemeList = app.urls || (app.url ? [app.url] : []);
+      for (const schemeUrl of schemeList) {
+        try {
+          await Linking.openURL(schemeUrl);
           return;
+        } catch (e) {
+          console.log(`Failed to launch scheme ${schemeUrl}:`, e);
         }
       }
+    }
+    try {
       await Linking.openURL(app.webUrl);
     } catch {
       Linking.openURL(app.webUrl);
@@ -220,46 +207,6 @@ export default function RideDetail() {
     );
   };
 
-  const onAcceptInvite = async () => {
-    tap();
-    const requestId = ride?.my_request_id;
-    if (!requestId) return;
-    setBooking(true);
-    try {
-      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'ACCEPTED' });
-      success();
-      AnalyticsService.trackEvent('ride_invite_accepted', { rideId: id, requestId }).catch(() => {});
-      Alert.alert('Accepted', "You have accepted the driver's ride offer!");
-      load();
-    } catch (e: any) {
-      errorH();
-      AnalyticsService.trackError(`Accept Invite Error: ${e?.message}`, false, { rideId: id, requestId }).catch(() => {});
-      Alert.alert('Error', e?.response?.data?.message || 'Failed to accept invitation');
-    } finally {
-      setBooking(false);
-    }
-  };
-
-  const onRejectInvite = async () => {
-    tap();
-    const requestId = ride?.my_request_id;
-    if (!requestId) return;
-    setBooking(true);
-    try {
-      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'REJECTED' });
-      success();
-      AnalyticsService.trackEvent('ride_invite_rejected', { rideId: id, requestId }).catch(() => {});
-      Alert.alert('Rejected', 'You have rejected the ride offer.');
-      load();
-    } catch (e: any) {
-      errorH();
-      AnalyticsService.trackError(`Reject Invite Error: ${e?.message}`, false, { rideId: id, requestId }).catch(() => {});
-      Alert.alert('Error', e?.response?.data?.message || 'Failed to reject invitation');
-    } finally {
-      setBooking(false);
-    }
-  };
-
   const onWithdrawRide = () => {
     tap();
     Alert.alert(
@@ -303,9 +250,10 @@ export default function RideDetail() {
     setVerifyingOtp(true);
     try {
       await api.patch(`/matchmaking/requests/${requestId}/verify-otp`, { otp: otpInput.trim() });
+      await api.patch(`/matchmaking/requests/${requestId}/start-ride`).catch(() => {});
       success();
       AnalyticsService.trackEvent('ride_otp_verified', { rideId: id, requestId }).catch(() => {});
-      Alert.alert('OTP Verified!', 'OTP verified successfully! You can now start the ride.');
+      Alert.alert('OTP Verified!', 'OTP verified successfully! Ride started.');
       setOtpInput('');
       load();
     } catch (e: any) {
@@ -395,9 +343,84 @@ export default function RideDetail() {
 
   const myRequestStatus = ride.my_request_status;
   const currentStatus = ride.status || 'OPEN';
-  const isConfirmed = currentStatus === 'ACCEPTED' || currentStatus === 'STARTED' || currentStatus === 'COMPLETED' || myRequestStatus === 'ACCEPTED' || myRequestStatus === 'STARTED';
+  const hasActivePassenger = passengers.some((p: any) => p.status === 'ACCEPTED' || p.status === 'STARTED');
+  const isConfirmed = currentStatus === 'ACCEPTED' || currentStatus === 'STARTED' || currentStatus === 'COMPLETED' || myRequestStatus === 'ACCEPTED' || myRequestStatus === 'STARTED' || hasActivePassenger;
 
   const otherPassenger = passengers.find((p: any) => p.rider_id && p.rider_id !== user?.id);
+  const pendingPassenger = passengers.find((p: any) => p.status === 'REQUESTED');
+  const targetPassenger = pendingPassenger || otherPassenger || passengers.find((p: any) => p.rider_id && p.rider_id !== user?.id);
+
+  const isInvitation = Boolean(
+    ride?.my_request_is_invitation ||
+    ride?.is_invitation ||
+    ride?.isInvitation ||
+    pendingPassenger?.is_invitation ||
+    pendingPassenger?.isInvitation
+  );
+  const hasPendingRequest = !isConfirmed && (myRequestStatus === 'REQUESTED' || Boolean(pendingPassenger));
+
+  // The user who RECEIVED the request or invitation -> sees Chat, Reject, Accept
+  const isRecipientOfRequest = hasPendingRequest && (
+    isInvitation ? !isDriver : isDriver
+  );
+
+  // The user who SENT the request or invitation -> sees Awaiting Approval (+ Cancel)
+  const isSenderOfRequest = hasPendingRequest && (
+    isInvitation ? isDriver : !isDriver
+  );
+
+  const openChat = (targetUserId?: string, targetUserName?: string, targetChatId?: string) => {
+    tap();
+    const peerUserId = targetUserId || targetPassenger?.rider_id || ride?.peer_id || (isDriver ? undefined : driverId);
+    const peerName = targetUserName || targetPassenger?.rider_name || ride?.peer_name || ride?.driverName || ride?.driver_name || 'User';
+    const chatId = targetChatId || targetPassenger?.chat_id || ride?.my_chat_id || (user?.id && peerUserId ? `chat_${[user.id, peerUserId].sort().join('_')}` : '');
+
+    if (chatId) {
+      router.push(`/chat/${encodeURIComponent(chatId)}?name=${encodeURIComponent(peerName)}` as any);
+    } else {
+      Alert.alert('Chat Unavailable', 'Cannot start chat with this user at the moment.');
+    }
+  };
+
+  const onAcceptInvite = async (targetReqId?: string) => {
+    tap();
+    const requestId = targetReqId || ride?.my_request_id || pendingPassenger?.request_id || ride?.passengers?.find((p: any) => p.status === 'REQUESTED')?.request_id;
+    if (!requestId) return;
+    setBooking(true);
+    try {
+      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'ACCEPTED' });
+      success();
+      AnalyticsService.trackEvent('ride_invite_accepted', { rideId: id, requestId }).catch(() => {});
+      Alert.alert('Request Accepted', 'You have accepted the ride request!');
+      load();
+    } catch (e: any) {
+      errorH();
+      AnalyticsService.trackError(`Accept Invite Error: ${e?.message}`, false, { rideId: id, requestId }).catch(() => {});
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to accept invitation');
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const onRejectInvite = async (targetReqId?: string) => {
+    tap();
+    const requestId = targetReqId || ride?.my_request_id || pendingPassenger?.request_id || ride?.passengers?.find((p: any) => p.status === 'REQUESTED')?.request_id;
+    if (!requestId) return;
+    setBooking(true);
+    try {
+      await api.patch(`/matchmaking/requests/${requestId}`, { status: 'REJECTED' });
+      success();
+      AnalyticsService.trackEvent('ride_invite_rejected', { rideId: id, requestId }).catch(() => {});
+      Alert.alert('Request Rejected', 'You have rejected the ride request.');
+      load();
+    } catch (e: any) {
+      errorH();
+      AnalyticsService.trackError(`Reject Invite Error: ${e?.message}`, false, { rideId: id, requestId }).catch(() => {});
+      Alert.alert('Error', e?.response?.data?.message || 'Failed to reject invitation');
+    } finally {
+      setBooking(false);
+    }
+  };
 
   let displayUserId: string | undefined;
   let dName: string;
@@ -406,7 +429,14 @@ export default function RideDetail() {
   let dGender: string | null = null;
   let dVerified: boolean = false;
 
-  if (isConfirmed) {
+  if (isDriver && targetPassenger) {
+    displayUserId = targetPassenger.rider_id;
+    dName = targetPassenger.rider_name || 'Requestor';
+    dAvatar = targetPassenger.rider_avatar || undefined;
+    dRating = targetPassenger.rider_rating ?? 5.0;
+    dGender = targetPassenger.rider_gender || null;
+    dVerified = false;
+  } else if (isConfirmed) {
     if (otherPassenger) {
       displayUserId = otherPassenger.rider_id;
       dName = otherPassenger.rider_name || 'Co-Passenger';
@@ -507,12 +537,13 @@ export default function RideDetail() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120 + insets.bottom }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 250 + insets.bottom }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -564,33 +595,51 @@ export default function RideDetail() {
                 )}
               </View>
             </View>
+
             <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>
-                {isNaN(time.getTime()) ? '' : time.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                {formatISTDate(departureTime)}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                 <Clock color={t.textSecondary} size={11} />
                 <Text style={{ fontSize: 12, color: t.textSecondary }}>
-                  {isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                  {formatISTTime(departureTime)}
                 </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Confirmed Ride Pricing Card ("You'll get" / "You'll pay") */}
-        {isConfirmed && !isCab && displayFare > 0 && (
-          <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+        {/* Pricing Card with Fare Detail Breakdown Option */}
+        <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
+          {isCab ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: t.textSecondary }}>
-                {isDriver ? "You'll get" : "You'll pay"}
-              </Text>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: t.textPrimary }}>
-                ₹{Number(displayFare).toFixed(0)}
+              <Text style={{ fontSize: 14, fontWeight: '600', color: t.textSecondary }}>Fare</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: t.primary }}>
+                Split the Cab Fare
               </Text>
             </View>
-          </View>
-        )}
+          ) : (
+            displayFare > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ gap: 4 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: t.textSecondary }}>
+                    {isConfirmed ? (isDriver ? "You'll get" : "You'll pay") : 'Fare'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowPricingDetails(true)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: t.primary }}>
+                      View Fare Breakdown
+                    </Text>
+                    <Info size={14} color={t.primary} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: t.textPrimary }}>
+                  ₹{Number(displayFare).toFixed(0)}
+                </Text>
+              </View>
+            )
+          )}
+        </View>
 
         {/* Route Pickup / Dropoff Card */}
         <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.border, marginTop: spacing.md }]}>
@@ -613,144 +662,129 @@ export default function RideDetail() {
           </View>
         </View>
 
-        {/* Dynamic OTP Verification & Ride Action Section */}
+        {/* Dynamic OTP Verification & Cab Action Section */}
         {isConfirmed && currentStatus !== 'COMPLETED' && currentStatus !== 'CANCELLED' && (!isPast) && (() => {
           const myRequestIsInvitation = Boolean(ride.my_request_is_invitation);
           const canEnterOtp = ride.can_enter_otp !== undefined ? Boolean(ride.can_enter_otp) : (!isCab ? isDriver : (myRequestIsInvitation ? !isDriver : isDriver));
           const userOtpCode = ride.my_display_otp || ride.my_otp || (ride.passengers && ride.passengers[0] ? ride.passengers[0].otp : '----');
-          const isOtpVerified = Boolean(ride.my_request_otp_verified || (ride.passengers && ride.passengers[0]?.otp_verified) || currentStatus === 'STARTED');
+          const isOtpVerified = Boolean(
+            currentStatus === 'STARTED' ||
+            ride.status === 'STARTED' ||
+            myRequestStatus === 'STARTED' ||
+            ride.my_request_otp_verified ||
+            (ride.passengers && ride.passengers.some((p: any) => p.otp_verified || p.status === 'STARTED'))
+          );
 
-          if (currentStatus === 'ACCEPTED' && !isOtpVerified) {
-            return (
-              <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.primary, borderWidth: 1.5, marginTop: spacing.md }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: t.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                    <KeyRound color={t.primary} size={18} />
+          return (
+            <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+              {/* For Shared Cab Rides: Show 'Book a Cab and Split' for BOTH users ONLY AFTER OTP verification */}
+              {isCab && isOtpVerified && (
+                <View style={[styles.card, { backgroundColor: t.surface, borderColor: '#10b981', borderWidth: 1.5 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Car color="#10b981" size={20} />
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: t.textPrimary }}>
+                      Book Shared Cab
+                    </Text>
                   </View>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: t.textPrimary }}>
-                    {canEnterOtp ? 'Enter OTP to verify ride' : 'Your Verification OTP'}
+                  <Text style={{ fontSize: 13, color: t.textSecondary, marginBottom: 12 }}>
+                    OTP verified! Either co-passenger can open Uber, OLA, or Rapido to book and split the cab fare:
                   </Text>
+                  <TouchableOpacity
+                    onPress={handleOpenCabModal}
+                    activeOpacity={0.85}
+                    style={{
+                      backgroundColor: '#10b981',
+                      paddingVertical: 14,
+                      borderRadius: radius.md,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <Car color="#ffffff" size={20} />
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 15 }}>
+                      Book a Cab and Split
+                    </Text>
+                  </TouchableOpacity>
                 </View>
+              )}
 
-                {canEnterOtp ? (
-                  // Acceptor screen: enters OTP
-                  <View style={{ gap: 10 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: t.textPrimary }}>Enter Co-Passenger's 4-Digit OTP:</Text>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <TextInput
-                        value={otpInput}
-                        onChangeText={setOtpInput}
-                        placeholder=""
-                        placeholderTextColor={t.textTertiary}
-                        keyboardType="number-pad"
-                        maxLength={4}
-                        style={{
-                          flex: 1,
-                          backgroundColor: t.background,
-                          borderWidth: 1,
-                          borderColor: t.border,
-                          borderRadius: radius.md,
-                          paddingHorizontal: 14,
-                          paddingVertical: 12,
-                          fontSize: 18,
-                          fontWeight: '700',
-                          letterSpacing: 4,
-                          color: t.textPrimary,
-                        }}
-                      />
-                      <TouchableOpacity
-                        onPress={() => onVerifyOtp()}
-                        disabled={verifyingOtp}
-                        activeOpacity={0.85}
-                        style={{ backgroundColor: t.primary, paddingHorizontal: 18, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' }}
-                      >
-                        {verifyingOtp ? <ActivityIndicator color={t.primaryContrast} /> : <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>Verify OTP</Text>}
-                      </TouchableOpacity>
+              {/* OTP Verification Card (Shown before OTP is verified) */}
+              {!isOtpVerified && (
+                <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.primary, borderWidth: 1.5 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: t.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                      <KeyRound color={t.primary} size={18} />
                     </View>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: t.textPrimary }}>
+                      {canEnterOtp ? 'Enter OTP to verify ride' : 'Your Verification OTP'}
+                    </Text>
                   </View>
-                ) : (
-                  // Passive passenger screen: displays OTP code
-                  <View style={{ gap: 10 }}>
-                    <View style={{ backgroundColor: t.background, padding: 14, borderRadius: radius.md, borderWidth: 1, borderColor: t.border }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: t.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Your Verification OTP</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-                        <Text style={{ fontSize: 26, fontWeight: '800', color: t.primary, letterSpacing: 6 }}>
-                          {userOtpCode}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: t.textSecondary, fontStyle: 'italic' }}>
-                          Give to co-passenger / driver
+
+                  {canEnterOtp ? (
+                    // Acceptor screen: enters OTP
+                    <View style={{ gap: 10 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: t.textPrimary }}>Enter Co-Passenger's 4-Digit OTP:</Text>
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TextInput
+                          value={otpInput}
+                          onChangeText={setOtpInput}
+                          onFocus={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 250)}
+                          placeholder=""
+                          placeholderTextColor={t.textTertiary}
+                          keyboardType="number-pad"
+                          maxLength={4}
+                          style={{
+                            flex: 1,
+                            backgroundColor: t.background,
+                            borderWidth: 1,
+                            borderColor: t.border,
+                            borderRadius: radius.md,
+                            paddingHorizontal: 14,
+                            paddingVertical: 12,
+                            fontSize: 18,
+                            fontWeight: '700',
+                            letterSpacing: 4,
+                            color: t.textPrimary,
+                          }}
+                        />
+                        <TouchableOpacity
+                          onPress={() => onVerifyOtp()}
+                          disabled={verifyingOtp}
+                          activeOpacity={0.85}
+                          style={{ backgroundColor: t.primary, paddingHorizontal: 18, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' }}
+                        >
+                          {verifyingOtp ? <ActivityIndicator color={t.primaryContrast} /> : <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 14 }}>Verify OTP</Text>}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    // Passive passenger screen: displays OTP code
+                    <View style={{ gap: 10 }}>
+                      <View style={{ backgroundColor: t.background, padding: 14, borderRadius: radius.md, borderWidth: 1, borderColor: t.border }}>
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: t.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>Your Verification OTP</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                          <Text style={{ fontSize: 26, fontWeight: '800', color: t.primary, letterSpacing: 6 }}>
+                            {userOtpCode}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: t.textSecondary, fontStyle: 'italic' }}>
+                            Give to co-passenger / driver
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.warningBg, padding: 12, borderRadius: radius.md }}>
+                        <Clock color={t.warning} size={18} />
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: t.warning, flex: 1 }}>
+                          Waiting for co-passenger to enter your OTP to verify ride...
                         </Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.warningBg, padding: 12, borderRadius: radius.md }}>
-                      <Clock color={t.warning} size={18} />
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: t.warning, flex: 1 }}>
-                        Waiting for co-passenger to enter your OTP to verify ride...
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            );
-          }
-
-          if (currentStatus === 'ACCEPTED' && isOtpVerified) {
-            return (
-              <View style={[styles.card, { backgroundColor: t.surface, borderColor: t.primary, borderWidth: 1.5, marginTop: spacing.md }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.successBg, padding: 10, borderRadius: radius.md, marginBottom: 12 }}>
-                  <CheckCircle2 color={t.success} size={18} />
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: t.success }}>OTP Verified! Ready to Start</Text>
+                  )}
                 </View>
-
-                <TouchableOpacity
-                  onPress={() => onStartRideOnly()}
-                  disabled={booking}
-                  activeOpacity={0.85}
-                  style={{
-                    backgroundColor: t.primary,
-                    paddingVertical: 14,
-                    borderRadius: radius.md,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Car color={t.primaryContrast} size={20} />
-                  <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 16 }}>
-                    {isCab ? 'Start Ride (Uber / Ola / Rapido)' : 'Start Ride'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            );
-          }
-
-          if (currentStatus === 'STARTED') {
-            if (isCab) {
-              return (
-                <TouchableOpacity
-                  onPress={handleOpenCabModal}
-                  activeOpacity={0.85}
-                  style={{
-                    backgroundColor: '#10b981',
-                    paddingVertical: 14,
-                    borderRadius: radius.md,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    marginTop: spacing.md,
-                  }}
-                >
-                  <Car color="#ffffff" size={20} />
-                  <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 15 }}>Open Cab Launcher (Uber / Ola / Rapido)</Text>
-                </TouchableOpacity>
-              );
-            }
-            return null;
-          }
-
-          return null;
+              )}
+            </View>
+          );
         })()}
 
         {/* Cab Apps Selection Modal */}
@@ -827,13 +861,50 @@ export default function RideDetail() {
             </TouchableOpacity>
           )}
 
-          {myRequestStatus === 'REQUESTED' && (
+          {/* RECIPIENT of request or invitation: Show Chat, Reject, Accept */}
+          {isRecipientOfRequest && (
+            <View style={{ flexDirection: 'row', gap: 10, width: '100%', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => openChat(targetPassenger?.rider_id || ride?.peer_id, targetPassenger?.rider_name || ride?.peer_name, targetPassenger?.chat_id || ride?.my_chat_id)}
+                activeOpacity={0.85}
+                style={[styles.cta, { backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, paddingHorizontal: 14, flexDirection: 'row', gap: 6 }]}
+              >
+                <MessageCircle color={t.textPrimary} size={18} />
+                <Text style={{ color: t.textPrimary, fontSize: 14, fontWeight: '600' }}>Chat</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => onRejectInvite(pendingPassenger?.request_id || ride?.my_request_id)}
+                disabled={booking}
+                activeOpacity={0.85}
+                style={[styles.cta, { backgroundColor: '#fee2e2', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
+              >
+                {booking ? <ActivityIndicator color="#ef4444" /> : (
+                  <Text style={{ color: '#ef4444', fontSize: 15, fontWeight: '700' }}>Reject</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => onAcceptInvite(pendingPassenger?.request_id || ride?.my_request_id)}
+                disabled={booking}
+                activeOpacity={0.85}
+                style={[styles.cta, { backgroundColor: t.primary, flex: 1.2 }]}
+              >
+                {booking ? <ActivityIndicator color={t.primaryContrast} /> : (
+                  <Text style={{ color: t.primaryContrast, fontSize: 15, fontWeight: '700' }}>Accept</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* SENDER of request or invitation: Show Awaiting Approval + Cancel */}
+          {isSenderOfRequest && (
             <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
               <View style={[styles.cta, { backgroundColor: t.muted, flex: 2 }]}>
                 <Text style={{ color: t.textSecondary, fontSize: 14, fontWeight: '600' }}>Awaiting Approval</Text>
               </View>
               <TouchableOpacity
-                onPress={onCancelBooking}
+                onPress={isDriver ? onWithdrawRide : onCancelBooking}
                 activeOpacity={0.85}
                 style={[styles.cta, { backgroundColor: '#ffffff', borderColor: '#ef4444', borderWidth: 1, flex: 1 }]}
               >
@@ -856,8 +927,8 @@ export default function RideDetail() {
             </TouchableOpacity>
           )}
 
-          {/* Ride NOT STARTED: Withdraw Ride (driver) / Cancel Booking (passenger) */}
-          {(isDriver || myRequestStatus === 'ACCEPTED' || myRequestStatus === 'REQUESTED' || currentStatus === 'ACCEPTED') && currentStatus !== 'STARTED' && myRequestStatus !== 'STARTED' && currentStatus !== 'CANCELLED' && currentStatus !== 'COMPLETED' && (
+          {/* Ride NOT STARTED & NO PENDING REQUEST: Withdraw Ride (driver) / Cancel Booking (passenger) */}
+          {!hasPendingRequest && (isConfirmed || isDriver || myRequestStatus === 'ACCEPTED') && currentStatus !== 'STARTED' && myRequestStatus !== 'STARTED' && currentStatus !== 'CANCELLED' && currentStatus !== 'COMPLETED' && (
             <TouchableOpacity
               onPress={isDriver ? onWithdrawRide : onCancelBooking}
               disabled={booking}
@@ -888,6 +959,117 @@ export default function RideDetail() {
           toUserId={reviewTarget.toUserId}
         />
       )}
+
+      {/* Fare Breakdown Modal */}
+      {(() => {
+        const est = ride.estimatedFare;
+        const vType = (ride.vehicle_type || ride.vehicleType || 'CAR').toUpperCase();
+        const fType = ride.fuel_type || ride.fuelType || 'Petrol';
+        const distVal = est?.distanceKm ?? (dist > 0 ? dist : 10);
+        const perKm = vType === 'BIKE' ? 4 : (vType === 'CAR' && (ride.vehicleCapacity || 5) > 5 ? 12 : 10);
+        const fuelRate = vType === 'BIKE' ? 2 : (fType.toUpperCase() === 'CNG' ? 3 : (fType.toUpperCase() === 'DIESEL' ? 5 : 6));
+        
+        const distanceFare = est?.distanceFare ?? Math.round(distVal * perKm);
+        const fuelSurcharge = est?.fuelSurcharge ?? Math.round(distVal * fuelRate);
+        const baseFareVal = est?.baseFare ?? 0;
+        const subtotalVal = est?.subtotal ?? (distanceFare + fuelSurcharge + baseFareVal);
+        const discountVal = est?.poolingDiscount ?? Math.round(subtotalVal * 0.40);
+        const finalFareVal = est?.finalFare ?? Math.round(displayFare || (subtotalVal - discountVal));
+
+        return (
+          <Modal
+            visible={showPricingDetails}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowPricingDetails(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => setShowPricingDetails(false)}
+              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+            >
+              <TouchableOpacity
+                activeOpacity={1}
+                style={{
+                  backgroundColor: t.surface,
+                  borderTopLeftRadius: radius.xl,
+                  borderTopRightRadius: radius.xl,
+                  padding: spacing.lg,
+                  gap: 16,
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: t.textPrimary }}>
+                    Fare Breakdown Details
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowPricingDetails(false)} style={{ padding: 4 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: t.textSecondary }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ gap: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.border, paddingVertical: 14 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: t.textSecondary }}>
+                      Distance Rate ({distVal.toFixed(1)} km × ₹{perKm}/km)
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: t.textPrimary }}>
+                      ₹{distanceFare}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: t.textSecondary }}>
+                      Fuel Surcharge ({fType} @ ₹{fuelRate}/km)
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: t.textPrimary }}>
+                      ₹{fuelSurcharge}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: t.textSecondary }}>Base Fare</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: baseFareVal === 0 ? t.success : t.textPrimary }}>
+                      {baseFareVal === 0 ? 'FREE (₹0)' : `₹${Math.round(baseFareVal)}`}
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderColor: t.border + '60', paddingTop: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: t.textSecondary }}>Subtotal</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: t.textPrimary }}>₹{subtotalVal}</Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 14, color: t.success, fontWeight: '600' }}>40% Shared Pooling Discount</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: t.success }}>-₹{discountVal}</Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: t.textPrimary }}>
+                    Total Pooled Fare
+                  </Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: t.primary }}>
+                    ₹{finalFareVal}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => setShowPricingDetails(false)}
+                  style={{
+                    backgroundColor: t.primary,
+                    paddingVertical: 14,
+                    borderRadius: radius.md,
+                    alignItems: 'center',
+                    marginTop: 8,
+                  }}
+                >
+                  <Text style={{ color: t.primaryContrast, fontWeight: '700', fontSize: 15 }}>Close</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
+        );
+      })()}
     </SafeAreaView>
   );
 }

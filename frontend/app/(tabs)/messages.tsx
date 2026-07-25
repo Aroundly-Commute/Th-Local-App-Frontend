@@ -8,6 +8,7 @@ import { lightTheme, darkTheme, spacing, radius } from '../../src/core/theme/the
 import { ScreenHeader } from '../../src/core/components/ScreenHeader';
 import { VerifiedAvatar } from '../../src/core/components/VerifiedAvatar';
 import { tap } from '../../src/core/utils/haptics';
+import { formatISTDate } from '../../src/core/utils/datetime';
 
 export default function MessagesScreen() {
   const cs = useColorScheme();
@@ -61,7 +62,7 @@ export default function MessagesScreen() {
       if (diffDays === 1) return 'Yesterday';
       if (diffDays < 7) return `${diffDays}d ago`;
 
-      return date.toLocaleDateString([], { day: '2-digit', month: 'short' });
+      return formatISTDate(date);
     } catch {
       return '';
     }

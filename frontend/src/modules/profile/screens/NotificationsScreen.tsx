@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Linking, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,6 +39,12 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     checkNotificationPermission();
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        checkNotificationPermission();
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   const handleEnableNotifications = async () => {
@@ -85,27 +91,7 @@ export default function NotificationsScreen() {
         setWebPermissionModalVisible(true);
       }
     } else {
-      try {
-        const messaging = require('@react-native-firebase/messaging').default;
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-        setHasNotificationPermission(enabled);
-        
-        if (enabled) {
-          const token = await messaging().getToken();
-          if (token) {
-            await api.patch('/auth/fcm-token', { fcmToken: token });
-            await AsyncStorage.setItem('@fcm_token', token);
-          }
-        } else {
-          Linking.openSettings().catch((err) => console.error('Failed to open settings:', err));
-        }
-      } catch (err) {
-        console.warn('Failed requesting native notification permissions, trying settings open:', err);
-        Linking.openSettings().catch((err) => console.error('Failed to open settings:', err));
-      }
+      Linking.openSettings().catch((err) => console.error('Failed to open settings:', err));
     }
   };
 
@@ -144,7 +130,7 @@ export default function NotificationsScreen() {
             onPress={handleEnableNotifications}
             style={[styles.enableBtn, { backgroundColor: t.primary }]}
           >
-            <Text style={styles.enableBtnText}>Enable Push Notifications</Text>
+            <Text style={styles.enableBtnText}>Grant Permission</Text>
           </TouchableOpacity>
         )}
       </View>

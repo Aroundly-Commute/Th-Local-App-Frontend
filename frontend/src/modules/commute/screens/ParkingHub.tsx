@@ -272,11 +272,11 @@ export default function ParkingHub() {
     const { status } = getSpotStatus(spot);
 
     if (status === 'UNAVAILABLE') {
-      Alert.alert('Unavailable Slot', `Spot ${spot.spotName} has no availability listed by the owner for this time.`);
+      Alert.alert('Unavailable Slot', `No availability listed for Spot ${spot.spotName}.`);
       return;
     }
     if (status === 'OTHER_BOOKED') {
-      Alert.alert('Spot Occupied', `Spot ${spot.spotName} is already booked by another campus passenger.`);
+      Alert.alert('Spot Occupied', `Spot ${spot.spotName} is already booked.`);
       return;
     }
 
@@ -347,7 +347,7 @@ export default function ParkingHub() {
       success();
       Alert.alert(
         'Request Placed',
-        `Your reservation request for spot ${selectedSpot.spotName} has been submitted!`,
+        `Reservation request sent for spot ${selectedSpot.spotName}.`,
         [
           {
             text: 'Great',
