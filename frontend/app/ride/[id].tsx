@@ -1009,20 +1009,9 @@ export default function RideDetail() {
 
                 <View style={{ gap: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.border, paddingVertical: 14 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 14, color: t.textSecondary }}>
-                      Distance Rate ({distVal.toFixed(1)} km × ₹{perKm}/km)
-                    </Text>
+                    <Text style={{ fontSize: 14, color: t.textSecondary }}>Fuel Charge</Text>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: t.textPrimary }}>
-                      ₹{distanceFare}
-                    </Text>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 14, color: t.textSecondary }}>
-                      Fuel Surcharge ({fType} @ ₹{fuelRate}/km)
-                    </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: t.textPrimary }}>
-                      ₹{fuelSurcharge}
+                      ₹{distanceFare + fuelSurcharge}
                     </Text>
                   </View>
 

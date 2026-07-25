@@ -35,20 +35,20 @@ export function Hero({ isDesktop }: HeroProps) {
           <View style={[styles.heroActions, isDesktop ? styles.row : styles.column]}>
             <TouchableOpacity
               onPress={() => router.push('/(auth)/login')}
-              style={[styles.ctaPrimary, { backgroundColor: verdexColors.lime }]}
+              activeOpacity={0.85}
+              style={[styles.ctaPrimary, { backgroundColor: verdexColors.lime, width: 210 }]}
             >
               <Text style={styles.ctaPrimaryText}>Continue on Web App</Text>
-              <ArrowRight size={18} color="#0A1628" strokeWidth={2.5} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.bpandey690.frontend')}
               activeOpacity={0.8}
-              style={{ justifyContent: 'center', alignItems: 'center' }}
+              style={{ width: 210, height: 52, justifyContent: 'center', alignItems: 'center' }}
             >
               <Image
                 source={googlePlayBadgeImg}
-                style={{ width: 175, height: 52 }}
+                style={{ width: 210, height: 52 }}
                 resizeMode="contain"
               />
             </TouchableOpacity>
