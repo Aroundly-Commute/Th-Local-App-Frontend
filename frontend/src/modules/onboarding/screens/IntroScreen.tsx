@@ -68,12 +68,16 @@ export default function IntroScreen() {
     try {
       await AsyncStorage.setItem('intro_completed', 'true');
       if (user) {
+        await AsyncStorage.removeItem('onboarding_skipped').catch(() => { });
         const onboarded = await AsyncStorage.getItem(`onboarded_${user.id}`);
-        const skippedGlobal = await AsyncStorage.getItem('onboarding_skipped');
         const skippedUser = await AsyncStorage.getItem(`onboarded_skipped_${user.id}`);
-        const nameIsValid = user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
-        const isAlreadyConfigured = nameIsValid && user.phoneNumber;
-        if (onboarded === 'true' || skippedGlobal === 'true' || skippedUser === 'true' || isAlreadyConfigured) {
+        const nameIsValid = !!user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
+        const hasPhone = !!user.phoneNumber;
+        const isGmailUser = !!user.email && user.email.includes('@');
+
+        const isDone = onboarded === 'true' || (isGmailUser && skippedUser === 'true') || (nameIsValid && hasPhone);
+
+        if (isDone) {
           router.replace('/(tabs)');
         } else {
           router.replace('/onboarding');

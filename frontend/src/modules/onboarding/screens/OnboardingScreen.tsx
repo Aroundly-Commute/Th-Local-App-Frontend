@@ -30,8 +30,12 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { user, refresh, sendPhoneOtp, linkPhoneOtp } = useAuth();
 
+  // Determine if the user signed up/logged in via Gmail
+  const isGmailUser = !!user?.email && user.email.includes('@');
   // If the user's stored name looks like a phone number or placeholder, start with empty
   const isNamePhoneNumber = user?.name && (/^\+?\d+$/.test(user.name.trim()) || user.name.startsWith('Aroundler'));
+  const showSkipButton = isGmailUser && !isNamePhoneNumber;
+
   const [name, setName] = useState(isNamePhoneNumber ? '' : (user?.name || ''));
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>((user?.gender as any) || 'Male');
@@ -135,7 +139,6 @@ export default function OnboardingScreen() {
   const handleSkip = async () => {
     tap();
     try {
-      await AsyncStorage.setItem('onboarding_skipped', 'true');
       if (user?.id) {
         await AsyncStorage.setItem(`onboarded_${user.id}`, 'true');
         await AsyncStorage.setItem(`onboarded_skipped_${user.id}`, 'true');
@@ -210,9 +213,8 @@ export default function OnboardingScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {/* Only show Skip button if user already has a valid name (e.g. Google/email signup).
-              Phone-login users must provide their name — it's mandatory. */}
-          {!isNamePhoneNumber && user?.name ? (
+          {/* Only show Skip button for Gmail users. Phone-login users must provide their name — it's mandatory. */}
+          {showSkipButton ? (
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginBottom: 10 }}>
               <TouchableOpacity
                 onPress={handleSkip}

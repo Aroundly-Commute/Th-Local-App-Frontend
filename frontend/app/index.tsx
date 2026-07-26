@@ -86,13 +86,20 @@ export default function Index() {
       }
 
       if (user) {
+        // Clean up stale global onboarding_skipped key if present
+        await AsyncStorage.removeItem('onboarding_skipped').catch(() => { });
+
         const val = await AsyncStorage.getItem(`onboarded_${user.id}`);
-        const skippedGlobal = await AsyncStorage.getItem('onboarding_skipped');
         const skippedUser = await AsyncStorage.getItem(`onboarded_skipped_${user.id}`);
-        const nameIsValid = user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
-        const isAlreadyConfigured = nameIsValid && user.phoneNumber;
-        if (val === 'true' || skippedGlobal === 'true' || skippedUser === 'true' || isAlreadyConfigured) {
-          if (isAlreadyConfigured) {
+        const nameIsValid = !!user.name && !user.name.startsWith('Aroundler') && !/^\+?\d+$/.test(user.name.trim());
+        const hasPhone = !!user.phoneNumber;
+        const isGmailUser = !!user.email && user.email.includes('@');
+
+        // Onboarding is done if profile is set, or if a Gmail user explicitly skipped it
+        const isDone = val === 'true' || (isGmailUser && skippedUser === 'true') || (nameIsValid && hasPhone);
+
+        if (isDone) {
+          if (nameIsValid && hasPhone) {
             await AsyncStorage.setItem(`onboarded_${user.id}`, 'true').catch(() => { });
           }
           router.replace('/(tabs)');
