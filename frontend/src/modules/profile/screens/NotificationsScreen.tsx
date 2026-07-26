@@ -61,7 +61,7 @@ export default function NotificationsScreen() {
             const { initializeApp, getApps, getApp } = require('firebase/app');
             const firebaseConfig = {
               apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
-              authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "aroundyou-497203.firebaseapp.com",
+              authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "aroundly.in",
               projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "aroundyou-497203",
               storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "aroundyou-497203.firebasestorage.app",
               messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "233722731121",

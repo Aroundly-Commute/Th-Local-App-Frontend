@@ -12,7 +12,7 @@ const config = Object.fromEntries(urlParams);
 
 firebase.initializeApp({
   apiKey: config.apiKey || "AIzaSyAOU3gODihgxONXDpTfnNz6Q65MZAlzqFg",
-  authDomain: config.authDomain || "aroundyou-497203.firebaseapp.com",
+  authDomain: config.authDomain || "aroundly.in",
   projectId: config.projectId || "aroundyou-497203",
   storageBucket: config.storageBucket || "aroundyou-497203.firebasestorage.app",
   messagingSenderId: config.messagingSenderId || "233722731121",
