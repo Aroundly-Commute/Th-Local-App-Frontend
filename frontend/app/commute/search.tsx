@@ -490,7 +490,6 @@ function getDefaultTime5MinAhead(d: Date = new Date()): Date {
           timeOfDay: timeStr,
           durationMinutes: 60,
           startDate: new Date().toISOString(),
-          chargeCents: 1000,
           seatsAvailable: parseInt(seats) || 1,
           vehicleType,
         }).catch(() => {});
